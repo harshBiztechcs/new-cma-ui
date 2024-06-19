@@ -1,0 +1,168 @@
+const I1_LAST_ERROR_TEXT = 'LastErrorText';
+const I1_LAST_ERROR_NUMBER = 'LastErrorNumber';
+const I1_AVAILABLE_ILLUMINATIONS_KEY = 'AvailableIlluminationsKey';
+const I1_964_REPORTING_KEY = '964Reporting';
+const I1_HAS_WAVELENGTH_LED_KEY = 'HasWavelengthLed';
+const I1_HAS_ZEBRA_RULER_SENSOR_KEY = 'HasZebraRulerSensor';
+const I1_HAS_HEAD_SENSOR_KEY = 'HasHeadSensor';
+const I1_HAS_INDICATOR_LED_KEY = 'HasIndicatorLed';
+const I1_HAS_AMBIENT_LIGHT_KEY = 'HasAmbientLight';
+const I1_HAS_POLARIZER_KEY = 'HasPolarizer';
+const I1_HAS_LOW_RESOLUTION_KEY = 'HasLowResolution';
+const I1_MAX_RULER_LENGTH_KEY = 'MaxRulerLength';
+const I1_HW_REVISION_KEY = 'HWRevision';
+const I1_SUPPLIER_NAME_KEY = 'SupplierName';
+const I1_DEVICE_TYPE_KEY = 'DeviceTypeKey';
+const I1_MEASUREMENT_GEOMETRY_KEY = 'MeasurementGeometryKey';
+const I1_TIME_UNTIL_CALIBRATION_EXPIRE = 'TimeUntilCalibrationExpire';
+const I1_AVAILABLE_RESULT_INDEXES_KEY = 'AvailableResultIndexesKey';
+const I1_RESULT_INDEX_KEY = 'ResultIndexKey';
+const I1_MEASURE_COUNT = 'MeasureCount';
+const I1_NUMBER_OF_PATCHES_PER_LINE = 'PatchesPerLine';
+
+// Measurement Modes
+const I1_AVAILABLE_MEASUREMENT_MODES = 'AvailableMeasurementModes';
+const I1_MEASUREMENT_MODE = 'MeasurementMode';
+const I1_MEASUREMENT_MODE_UNDEFINED = 'MeasurementModeUndefined';
+const I1_REFLECTANCE_SPOT = 'ReflectanceSpot';
+const I1_REFLECTANCE_SCAN = 'ReflectanceScan';
+const I1_EMISSION_SPOT = 'EmissionSpot';
+const I1_AMBIENT_LIGHT_SPOT = 'AmbientLightSpot';
+const I1_AMBIENT_LIGHT_SCAN = 'AmbientLightScan';
+const I1_DUAL_REFLECTANCE_SPOT = 'DualReflectanceSpot';
+const I1_DUAL_REFLECTANCE_SCAN = 'DualReflectanceScan';
+
+//color space
+const COLOR_SPACE_KEY = 'ColorSpaceDescription.Type';
+const COLOR_SPACE_CIELab = 'CIELab';
+const COLOR_SPACE_RGB = 'RGB';
+
+//illumination key
+const ILLUMINATION_KEY = 'Colorimetric.Illumination';
+const ILLUMINATION_A = 'A';
+const ILLUMINATION_B = 'B';
+const ILLUMINATION_C = 'C';
+const ILLUMINATION_D50 = 'D50';
+const ILLUMINATION_D55 = 'D55';
+const ILLUMINATION_D65 = 'D65';
+const ILLUMINATION_D75 = 'D75';
+const ILLUMINATION_F2 = 'F2';
+const ILLUMINATION_F7 = 'F7';
+const ILLUMINATION_F11 = 'F11';
+const ILLUMINATION_EMISSION = 'Emission';
+
+//observer key
+const OBSERVER_KEY = 'Colorimetric.Observer';
+const OBSERVER_TWO_DEGREE = 'TwoDegree';
+const OBSERVER_TEN_DEGREE = 'TenDegree';
+
+//illumination conditions
+const I1_ILLUMINATION_CONDITION_M0 = 'M0';
+const I1_ILLUMINATION_CONDITION_M1 = 'M1';
+const I1_ILLUMINATION_CONDITION_M2 = 'M2';
+const I1_ILLUMINATION_CONDITION_M3 = 'M3';
+
+//device info
+const I1_SERIAL_NUMBER = 'SerialNumber';
+const I1_TIME_SINCE_LAST_CALIBRATION = 'TimeSinceLastCalibration';
+const I1_SDK_VERSION = 'SDKVersion';
+const I1_SDK_VERSION_REVISION = 'SDKVersionRevision';
+
+//others
+const I1_VALUE_DELIMITER = ';';
+const I1_YES = '1';
+const I1_NO = '0';
+const I1_RESET = 'Reset';
+const I1_ALL = 'All';
+const I1_PRECISION_CALIBRATION_KEY = 'PrecisionCalibration';
+
+//device events
+const eventCode = {
+  eI1ProArrival: 0x11,
+  eI1ProDeparture: 0x12,
+  eI1ProButtonPressed: 0x01,
+  eI1ProScanReadyToMove: 0x02,
+  eI1ProHeadChanged: 0x03,
+};
+
+const buttonType = {
+  eButtonIsPressed: 1000,
+  eButtonNotPressed: 1001,
+};
+
+const connectionStatus = {
+  eInvalidConnectionHandle: 0x00,
+  eI1ProClosed: 0x01,
+  eI1ProOpen: 0x03,
+};
+
+module.exports = {
+  I1_SERIAL_NUMBER,
+  I1_TIME_SINCE_LAST_CALIBRATION,
+  I1_SDK_VERSION,
+  I1_SDK_VERSION_REVISION,
+  I1_LAST_ERROR_TEXT,
+  I1_LAST_ERROR_NUMBER,
+  I1_SERIAL_NUMBER,
+  I1_AVAILABLE_ILLUMINATIONS_KEY,
+  I1_964_REPORTING_KEY,
+  I1_HAS_WAVELENGTH_LED_KEY,
+  I1_HAS_ZEBRA_RULER_SENSOR_KEY,
+  I1_HAS_HEAD_SENSOR_KEY,
+  I1_HAS_INDICATOR_LED_KEY,
+  I1_HAS_AMBIENT_LIGHT_KEY,
+  I1_HAS_POLARIZER_KEY,
+  I1_HAS_LOW_RESOLUTION_KEY,
+  I1_MAX_RULER_LENGTH_KEY,
+  I1_HW_REVISION_KEY,
+  I1_SUPPLIER_NAME_KEY,
+  I1_DEVICE_TYPE_KEY,
+  I1_MEASUREMENT_GEOMETRY_KEY,
+  I1_TIME_SINCE_LAST_CALIBRATION,
+  I1_TIME_UNTIL_CALIBRATION_EXPIRE,
+  I1_AVAILABLE_RESULT_INDEXES_KEY,
+  I1_RESULT_INDEX_KEY,
+  I1_MEASURE_COUNT,
+  I1_NUMBER_OF_PATCHES_PER_LINE,
+  I1_AVAILABLE_MEASUREMENT_MODES,
+  I1_MEASUREMENT_MODE,
+  I1_MEASUREMENT_MODE_UNDEFINED,
+  I1_REFLECTANCE_SPOT,
+  I1_REFLECTANCE_SCAN,
+  I1_AMBIENT_LIGHT_SCAN,
+  I1_DUAL_REFLECTANCE_SPOT,
+  I1_DUAL_REFLECTANCE_SCAN,
+  I1_EMISSION_SPOT,
+  I1_AMBIENT_LIGHT_SPOT,
+  COLOR_SPACE_KEY,
+  COLOR_SPACE_CIELab,
+  COLOR_SPACE_RGB,
+  ILLUMINATION_KEY,
+  ILLUMINATION_A,
+  ILLUMINATION_B,
+  ILLUMINATION_C,
+  ILLUMINATION_D50,
+  ILLUMINATION_D55,
+  ILLUMINATION_D65,
+  ILLUMINATION_D75,
+  ILLUMINATION_F2,
+  ILLUMINATION_F7,
+  ILLUMINATION_F11,
+  ILLUMINATION_EMISSION,
+  OBSERVER_KEY,
+  OBSERVER_TWO_DEGREE,
+  OBSERVER_TEN_DEGREE,
+  I1_ILLUMINATION_CONDITION_M0,
+  I1_ILLUMINATION_CONDITION_M1,
+  I1_ILLUMINATION_CONDITION_M2,
+  I1_ILLUMINATION_CONDITION_M3,
+  I1_VALUE_DELIMITER,
+  I1_YES,
+  I1_NO,
+  I1_RESET,
+  I1_ALL,
+  I1_PRECISION_CALIBRATION_KEY,
+  eventCode,
+  buttonType,
+  connectionStatus,
+};
