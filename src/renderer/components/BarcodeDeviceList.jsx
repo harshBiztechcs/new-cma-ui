@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   GET_DEVICE_INSTANCE_URL,
   SEND_OPEN_URL_TO_INPUT,
-  URL_OPENED_BROWSER,
   deviceStatusType,
 } from 'utility/constants';
 import i1pro3Icon from '../assets/image/i1pro3.jpeg';

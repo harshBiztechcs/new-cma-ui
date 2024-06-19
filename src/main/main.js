@@ -12,6 +12,9 @@ import {
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
 import axios from 'axios';
+import fs from 'fs';
+import semver from 'semver';
+import { Octokit } from '@octokit/rest';
 import { resolveHtmlPath } from './util';
 import {
   CONNECTION_STATUS,
@@ -40,8 +43,6 @@ import {
   DEVICE_DISCONNECT_TIMEOUT,
   GET_DEVICE_AND_LICENSES,
   GET_TOKEN,
-  ACQUIRE_LICENSE,
-  RELEASE_LICENSE,
   GET_DEVICE_INSTANCE_URL,
   LOGIN,
   DEVICE_DISCONNECTION,
@@ -95,7 +96,6 @@ import {
   ZEBRA_PRINTER_HANDLER,
   BAR_CODE_READER_HANDLER,
   SEND_OPEN_URL_TO_INPUT,
-  URL_OPENED_BROWSER,
   CURRENT_TAB_UPDATE,
   BLUETOOTH_SCAN_DEVICE,
   SWITCH_TO_YS3060_CONNECTION_MODE,
@@ -259,7 +259,6 @@ import {
   setSpectrometerOptions,
 } from './devices/CMA-ROP64E-UV/CMA-ROP64E-UV-BT';
 import {
-  loadSpectrometerLibraryFunctions,
   closeSpectrometerDevice,
   calibrateSpectrometerDevice,
   measureDeviceManually,
@@ -308,13 +307,13 @@ import {
   loadDataFromCSV,
 } from './devices/colorscout/colorscout';
 import { getLocalIp } from './utility';
+import { getLogInfo } from './helperFunction';
 
 // get encrypted github token and decrypt it for auto-update
 const encryptToken = config['auto-update-token'];
-
 const updateToken = decJObj(encryptToken).message;
 
-// const octokit = new Octokit({ auth: updateToken });
+const octokit = new Octokit({ auth: updateToken });
 
 export default class AppUpdater {
   constructor() {
@@ -334,22 +333,22 @@ let webSocketWorkerWindow = null;
 let deviceSerialNumber = null;
 let hasDeviceDisconnectTimeout = false;
 let deviceDisconnectionTimeout = null;
-const deviceMeasurementTimeout = null;
+let deviceMeasurementTimeout = null;
 
 // singleInstanceLock to avoid cloning new window
 const singleInstanceLock = app.requestSingleInstanceLock();
 
 // color gate api config
-const colorGateBaseURL = null;
-const colorGateAuth = null;
-const colorGateFilePath = null;
+let colorGateBaseURL = null;
+let colorGateAuth = null;
+let colorGateFilePath = null;
 
 // alwan gate api config
-const alwanBaseURL = null;
-const alwanAuth = null;
+let alwanBaseURL = null;
+let alwanAuth = null;
 
-const connectionTypeROP = null;
-const switchConnetionModeInstanceURL = null;
+let connectionTypeROP = null;
+let switchConnetionModeInstanceURL = null;
 
 const macAddress = null;
 
@@ -502,7 +501,6 @@ const createWindow = async () => {
   });
 
   mainWindow.on('close', (event) => {
-    console.log('evdsgfrent', event)
     if (!app.isQuitting) {
       event.preventDefault();
       event.reply(APP_REQUEST_CLOSE);
@@ -590,573 +588,6 @@ if (!singleInstanceLock) {
     })
     .catch(console.log);
 }
-
-// Listen for the 'app-close-confirmed' event from the renderer process
-ipcMain.on(APP_CLOSE_CONFIRMED, () => {
-  app.isQuitting = true; // Mark that the app is quitting
-  app.quit();
-});
-
-// ipc calls exchange between main process and main window renderer and websocket window renderer
-// pass connect socket call from main renderer to websocket renderer
-ipcMain.on(CONNECT_SOCKET, (event, args) => {
-  try {
-    webSocketWorkerWindow.webContents.send(CONNECT_SOCKET, args);
-  } catch (error) {
-    console.log('error', error);
-  }
-});
-
-// pass disconnect socket call from main renderer to websocket renderer
-ipcMain.on(DISCONNECT_SOCKET, () => {
-  webSocketWorkerWindow.webContents.send(DISCONNECT_SOCKET);
-});
-
-// on verify device connection call for updating device array on websocket server
-ipcMain.on(VERIFY_DEVICE_CONNECTION, async (event, args) => {
-  console.log('args', args)
-  // verify deviceConnection
-  const { res, serialNumber } = await verifyDeviceConnection(args.deviceType);
-  deviceSerialNumber = serialNumber;
-  // send main window for device verification response
-  mainWindow.webContents.send(VERIFY_DEVICE_CONNECTION, res);
-  if (res) {
-    const isROP64EUVDevice =
-      args.deviceType === 'CMA-ROP64E-UV-BT' ||
-      args.deviceType === 'CMA-ROP64E-UV';
-
-    if (isROP64EUVDevice) {
-      const object = {
-        instanceURL: switchConnetionModeInstanceURL,
-        deviceId: args?.deviceId,
-        isConnectWithBT: connectionTypeROP,
-      };
-      switchConnetionModeAPICall(
-        object.instanceURL,
-        object.deviceId,
-        object.isConnectWithBT,
-      );
-    }
-    // send socket window to update available Device list
-    webSocketWorkerWindow.webContents.send(VERIFY_DEVICE_CONNECTION, {
-      device: args,
-      serialNumber,
-    });
-  }
-});
-
-// on verify device connection call for updating device array on websocket server
-ipcMain.on(VERIFY_PB_DEVICE_CONNECTION, async (event, args) => {
-  // verify deviceConnection
-  const { res, serialNumber } = await verifyDeviceConnection(args.deviceType);
-  deviceSerialNumber = serialNumber;
-  // send main window for device verification response
-  mainWindow.webContents.send(VERIFY_PB_DEVICE_CONNECTION, res);
-  if (res) {
-    // send socket window to update available Device list
-    webSocketWorkerWindow.webContents.send(VERIFY_DEVICE_CONNECTION, {
-      device: args,
-      serialNumber,
-    });
-  }
-});
-
-// on device reconnection after getting disconnected
-ipcMain.on(UPDATE_DEVICE_RECONNECTION, async (event, args) => {
-  const { res, serialNumber } = await verifyDeviceConnection(args.deviceType);
-  // send main window for device verification response
-  if (res) {
-    // send socket window to update available Device list
-    webSocketWorkerWindow.webContents.send(UPDATE_DEVICE_RECONNECTION, {
-      device: args,
-      serialNumber,
-    });
-  }
-});
-
-// device reconnect api call to update status on CMA site
-ipcMain.on(DEVICE_RECONNECT_API_CALL, (event, args) => {
-  const { instanceURL, deviceName, deviceId } = args;
-  clientDeviceReconnectAPICall(
-    instanceURL,
-    deviceId,
-    deviceName,
-    deviceSerialNumber,
-  );
-});
-
-// device disconnect api call to update status on cma site
-ipcMain.on(DEVICE_DISCONNECT_API_CALL, async (event, args) => {
-  const { instanceURL, deviceName, deviceId } = args;
-  const res = await clientDeviceDisconnectAPICall(
-    instanceURL,
-    deviceId,
-    deviceName,
-    deviceSerialNumber,
-  );
-  mainWindow.webContents.send(DEVICE_DISCONNECT_API_CALL, res);
-});
-
-// remove device from websocket device list
-ipcMain.on(DISCONNECT_DEVICE_FROM_SERVER, (event, args) => {
-  // send device disconnection detail to socket for removing device in server list
-  webSocketWorkerWindow.webContents.send(DISCONNECT_DEVICE_FROM_SERVER, args);
-});
-
-// to update device status on cma site
-ipcMain.on(DEVICE_STATUS_UPDATE_CALL, (event, args) => {
-  const { instanceURL, device, status } = args;
-  updateDeviceStatusAPICall(
-    instanceURL,
-    device?.deviceId,
-    device?.deviceType,
-    deviceSerialNumber,
-    status,
-  );
-});
-
-// event from websocket renderer on socket disconnect cleanly
-ipcMain.on(SOCKET_DISCONNECT_CLEANLY, (event, args) => {
-  mainWindow.webContents.send(SOCKET_DISCONNECT_CLEANLY, args);
-});
-
-// event from websocket renderer on socket already exist error
-ipcMain.on(CLIENT_SOCKET_ALREADY_EXIST, (event, args) => {
-  mainWindow.webContents.send(CLIENT_SOCKET_ALREADY_EXIST, args);
-});
-
-// event on socket connection response from websocket renderer
-ipcMain.on(SOCKET_CONNECTION, (event, args) => {
-  console.log('SOCKET_CONNECTION args', args)
-  event.reply(SOCKET_CONNECTION, args);
-});
-
-// In this event check if there is internet or not
-ipcMain.on(NETWORK_CONNECTION, async (event, args) => {
-  let status = false;
-
-  // Increase the timeout to 10 seconds to handle slower networks
-  const timeout = new Promise((_, reject) => {
-    setTimeout(() => {
-      reject(new Error('Request timed out'));
-    }, 7000);
-  });
-
-  // Use multiple URLs for redundancy
-  const urls = [
-    'http://www.google.com',
-    'https://en.wikipedia.org',
-    'https://api.github.com',
-    'https://www.youtube.com',
-    'https://www.reddit.com',
-  ];
-
-  // Implement retry logic with three attempts
-  for (const url of urls) {
-    const onlinePromise = checkStatus(url);
-
-    try {
-      const onlineResponse = await Promise.race([timeout, onlinePromise]);
-
-      if (onlineResponse) {
-        status = true;
-        break; // Connection successful, no need to check other URLs
-      }
-    } catch (err) {
-      // Ignore timeout errors, move on to the next URL
-      continue;
-    }
-  }
-  args.status = status;
-  mainWindow.webContents.send(NETWORK_CONNECTION, args);
-});
-
-// event on device disconnect from main renderer
-ipcMain.on(DISCONNECT_DEVICE, (event, args) => {
-  // reset startMeasure of any ingoing measurement
-  updateDeviceMeasureFlag(args.deviceType, false);
-  // send socket window to remove device from available Device list
-  webSocketWorkerWindow.webContents.send(DISCONNECT_DEVICE, args);
-});
-
-ipcMain.on(CLOSE_DEVICE, async (event, args) => {
-  if (args.forceClose) {
-    // stop current measurement forcefully
-    updateDeviceMeasureFlag(args.deviceType, false);
-  } else {
-    const measureInProgress = getDeviceMeasureStatus(args.deviceType);
-    // if any measurement in progress then send warning back
-    if (measureInProgress) {
-      mainWindow.webContents.send(MEASURE_IN_PROGRESS, args.deviceType);
-      return;
-    }
-  }
-  const disconnectResult = await disconnectDevice(args.deviceType);
-  disconnectResult.deviceType = args.deviceType;
-
-  const response = await clientDeviceDisconnectAPICall(
-    args.instanceURL,
-    args.deviceId,
-    args.deviceType,
-    deviceSerialNumber,
-  );
-  if (response.res) {
-    mainWindow.webContents.send(CLOSE_DEVICE, disconnectResult);
-  } else {
-    mainWindow.webContents.send(CLOSE_DEVICE, {});
-  }
-  if (disconnectResult.res) {
-    // clear device disconnect timeout
-    clearDeviceDisconnectTimeout();
-  }
-});
-
-ipcMain.on(CLOSE_PB_DEVICE, (event, args) => {
-  if (args.forceClose) {
-    // stop current measurement forcefully
-    updateDeviceMeasureFlag(args.deviceType, false);
-  } else {
-    const measureInProgress = getDeviceMeasureStatus(args.deviceType);
-    if (measureInProgress) {
-      mainWindow.webContents.send(MEASURE_IN_PROGRESS, args.deviceType);
-      return;
-    }
-  }
-  const res = disconnectDevice(args.deviceType);
-  res.deviceType = args.deviceType;
-  res.deviceId = args?.deviceId;
-  mainWindow.webContents.send(CLOSE_PB_DEVICE, res);
-  if (res.res) {
-    clearDeviceDisconnectTimeout();
-  }
-});
-
-// to be send to main windows to update device connection status
-ipcMain.on(CHECK_DEVICE_CONNECTION, async (event, args) => {
-  const res = await checkDeviceConnection(args);
-  mainWindow.webContents.send(CHECK_DEVICE_CONNECTION, res);
-});
-
-ipcMain.on(CHECK_ROP_DEVICE_CONNECTION, async (event, args) => {
-  const res = await checkDeviceConnection(args);
-  mainWindow.webContents.send(CHECK_ROP_DEVICE_CONNECTION, res);
-});
-
-ipcMain.on(CHECK_PB_DEVICE_CONNECTION, async (event, args) => {
-  const status = await checkDeviceConnection(args.deviceType);
-  args.status = status;
-  mainWindow.webContents.send(CHECK_PB_DEVICE_CONNECTION, args);
-});
-
-ipcMain.on(CHECK_ZEBRA_DEVICE_CONNECTION, async (event, args) => {
-  const status = await checkDeviceConnection(args.deviceType);
-  args.status = status;
-  mainWindow.webContents.send(CHECK_ZEBRA_DEVICE_CONNECTION, args);
-});
-
-ipcMain.on(CHECK_BARCODE_DEVICE_CONNECTION, async (event, args) => {
-  const status = await checkDeviceConnection(args.deviceType);
-  args.status = status;
-  mainWindow.webContents.send(CHECK_BARCODE_DEVICE_CONNECTION, args);
-});
-
-// to be send to main windows to update status
-ipcMain.on(CONNECTION_STATUS, (event, args) => {
-  console.log('args CONNECTION_STATUS', args)
-  event.reply(CONNECTION_STATUS, args);
-});
-
-// to be send to main windows to update status
-ipcMain.on(CURRENT_ACTION, (event, args) => {
-  console.log('args', args)
-  event.reply(CURRENT_ACTION, args);
-});
-
-// to show dialog box message
-ipcMain.on(SHOW_DIALOG, (event, args) => {
-  mainWindow.webContents.send(SHOW_DIALOG, args);
-});
-
-// on get samples event for ci6x devices
-ipcMain.on(GET_SAMPLES_DATA, async (_, args) => {
-  if (args == 'CI62') {
-    const sampleRes = await getCi62AllSamples();
-    mainWindow.webContents.send(GET_SAMPLES_DATA, sampleRes);
-  }
-  if (args == 'CI64') {
-    const sampleRes = await getCi64AllSamples();
-    mainWindow.webContents.send(GET_SAMPLES_DATA, sampleRes);
-  }
-  if (args == 'CI64UV') {
-    const sampleRes = await getCi64UVAllSamples();
-    mainWindow.webContents.send(GET_SAMPLES_DATA, sampleRes);
-  }
-});
-
-// on clear samples event for ci6x devices
-ipcMain.on(CLEAR_SAMPLES, async (_, args) => {
-  if (args == 'CI62') {
-    const res = await clearAllCi62Samples();
-    mainWindow.webContents.send(CLEAR_SAMPLES, { ...res, deviceType: args });
-  }
-  if (args == 'CI64') {
-    const res = await clearAllCi64Samples();
-    mainWindow.webContents.send(CLEAR_SAMPLES, { ...res, deviceType: args });
-  }
-  if (args == 'CI64UV') {
-    const res = await clearAllCi64UVSamples();
-    mainWindow.webContents.send(CLEAR_SAMPLES, { ...res, deviceType: args });
-  }
-});
-
-// on device disconnect timeout
-ipcMain.on(DEVICE_DISCONNECT_TIMEOUT, (_, args) => {
-  if (args.hasTimeout) {
-    // start device disconnection timeout
-    hasDeviceDisconnectTimeout = true;
-    setDeviceDisconnectTimeout(args.deviceType);
-  } else {
-    // clear device disconnection timeout if any
-    hasDeviceDisconnectTimeout = false;
-    clearDeviceDisconnectTimeout();
-  }
-});
-
-// on device connection call from websocket
-ipcMain.on(DEVICE_CONNECTION, async (event, args) => {
-  // calling openDevice function
-  const openRes = await openDeviceAndGetInfo(
-    args.deviceConnection.deviceType,
-    args,
-  );
-
-  if (args.deviceConnection.deviceType.split('_')[1] == 'COLORSCOUT') {
-    args.deviceConnection.deviceInfo = openRes.deviceInfo;
-    args.deviceConnection.isConnected = openRes.res;
-    updateCurrentAction(
-      `device set ${args.deviceConnection.deviceName} : ${args.deviceConnection.isConnected}`,
-    );
-    webSocketWorkerWindow.webContents.send(DEVICE_CONNECTION, args);
-    mainWindow.webContents.send(DEVICE_CONNECTION, openRes.res);
-    return;
-  }
-  if (!openRes.res) return;
-
-  args.deviceConnection.deviceInfo = openRes.deviceInfo;
-  args.deviceConnection.isConnected = true;
-  updateCurrentAction(`device set ${args.deviceConnection.deviceName}`);
-  webSocketWorkerWindow.webContents.send(DEVICE_CONNECTION, args);
-  mainWindow.webContents.send(DEVICE_CONNECTION, true);
-});
-
-// on device disconnection call from websocket
-ipcMain.on(DEVICE_DISCONNECTION, (event, args) => {
-  mainWindow.webContents.send(DEVICE_DISCONNECTION, args);
-});
-
-// on settings call from websocket
-ipcMain.on(SETTINGS, (event, args) => {
-  // check if device is connected or not
-  if (!checkDeviceOpen(SETTINGS, args)) return;
-  handleSettingsRequest(args);
-  if (hasDeviceDisconnectTimeout) {
-    // clear device disconnection timeout
-    clearDeviceDisconnectTimeout();
-    // start new device disconnection timeout
-    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
-  }
-});
-
-// on calibration call from websocket
-ipcMain.on(CALIBRATION, (event, args) => {
-  // check if device is connected or not
-  if (!checkDeviceOpen(CALIBRATION, args)) return;
-  handleCalibrationRequest(args);
-  if (hasDeviceDisconnectTimeout) {
-    // clear device disconnection timeout
-    clearDeviceDisconnectTimeout();
-    // start new device disconnection timeout
-    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
-  }
-});
-
-// on measurement calls from websocket
-ipcMain.on(MEASUREMENT, async (event, args) => {
-  // check if device is connected or not
-  if (!checkDeviceOpen(MEASUREMENT, args)) return;
-  await handleMeasurementRequest(args);
-  if (hasDeviceDisconnectTimeout) {
-    // clear device disconnection timeout
-    clearDeviceDisconnectTimeout();
-    // start new device disconnection timeout
-    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
-  }
-});
-
-ipcMain.on(WEIGHT_MEASUREMENT, async (event, args) => {
-  // check if device is connected or not
-  if (!checkDeviceOpen(WEIGHT_MEASUREMENT, args)) return;
-  await handleWeightRequest(args);
-  if (hasDeviceDisconnectTimeout) {
-    // clear device disconnection timeout
-    clearDeviceDisconnectTimeout();
-    // start new device disconnection timeout
-    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
-  }
-});
-
-ipcMain.on(MAKE_RESET_DEVICE, async (event, args) => {
-  // check if device is connected or not
-  if (!checkDeviceOpen(MAKE_RESET_DEVICE, args)) return;
-  await handleResetDataForPB(args);
-  if (hasDeviceDisconnectTimeout) {
-    // clear device disconnection timeout
-    clearDeviceDisconnectTimeout();
-    // start new device disconnection timeout
-    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
-  }
-});
-
-ipcMain.on(GET_TARE_VALUE, async (event, args) => {
-  // check if device is connected or not
-  if (!checkDeviceOpen(GET_TARE_VALUE, args)) return;
-  await handleGetTareValue(args);
-  if (hasDeviceDisconnectTimeout) {
-    // clear device disconnection timeout
-    clearDeviceDisconnectTimeout();
-    // start new device disconnection timeout
-    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
-  }
-});
-
-ipcMain.on(SET_TARE_VALUE, async (event, args) => {
-  if (!checkDeviceOpen(SET_TARE_VALUE, args)) return;
-  await handleSetTareValue(args);
-  if (hasDeviceDisconnectTimeout) {
-    clearDeviceDisconnectTimeout();
-    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
-  }
-});
-
-ipcMain.on(ZEBRA_PRINTER_HANDLER, async (event, args) => {
-  if (!checkDeviceOpen(ZEBRA_PRINTER_HANDLER, args)) return;
-  await handleZebraPrinter(args);
-  if (hasDeviceDisconnectTimeout) {
-    clearDeviceDisconnectTimeout();
-    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
-  }
-});
-
-ipcMain.on(BAR_CODE_READER_HANDLER, async (event, args) => {
-  if (!checkDeviceOpen(BAR_CODE_READER_HANDLER, args)) return;
-  await handleBarcodeReader(args);
-  if (hasDeviceDisconnectTimeout) {
-    clearDeviceDisconnectTimeout();
-    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
-  }
-});
-
-ipcMain.on(SEND_OPEN_URL_TO_INPUT, async (event, args) => {
-  const data = {
-    deviceConnection: {
-      deviceType: 'barcode_reader',
-      deviceName: 'barcode_reader',
-      isConnected: false,
-    },
-    barCode_data: {
-      isReaded: true,
-      device_data: args,
-      open_Url: '',
-      deviceName: false,
-      is_responed: false,
-    },
-  };
-
-  webSocketWorkerWindow.webContents.send(BAR_CODE_READER_HANDLER, data);
-});
-
-// on chartPosition calls from websocket
-ipcMain.on(CHART_POSITION, async (event, args) => {
-  // check if device is connected or not
-  if (!checkDeviceOpen(CHART_POSITION, args)) return;
-  await handleChartPositionRequest(args);
-  if (hasDeviceDisconnectTimeout) {
-    // clear device disconnection timeout
-    clearDeviceDisconnectTimeout();
-    // start new device disconnection timeout
-    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
-  }
-});
-
-// on chartPosition calls from websocket
-ipcMain.on(GRAB_INITIAL_POSITION, async (event, args) => {
-  // check if device is connected or not
-  if (!checkDeviceOpen(GRAB_INITIAL_POSITION, args)) return;
-  await handleGrabInitialPositionRequest(args);
-  if (hasDeviceDisconnectTimeout) {
-    // clear device disconnection timeout
-    clearDeviceDisconnectTimeout();
-    // start new device disconnection timeout
-    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
-  }
-});
-
-ipcMain.on(URL_OPENED_BROWSER, async (event, args) => {
-  try {
-    const data = {
-      deviceConnection: {
-        deviceType: 'barcode_reader',
-        deviceName: 'barcode_reader',
-        isConnected: false,
-      },
-      barCode_data: {
-        isReaded: true,
-        open_Url: '',
-        deviceName: false,
-        is_responed: false,
-      },
-    };
-
-    webSocketWorkerWindow.webContents.send(BAR_CODE_READER_HANDLER, args);
-  } catch (error) {
-    console.error('An error occurred:', error.message);
-  }
-});
-
-ipcMain.on(CURRENT_TAB_UPDATE, async (event, args) => {
-  console.log('🚀 ~ ipcMain.on ~ args:', args);
-  try {
-    if (args) {
-      currectOpenTab = args;
-    }
-  } catch (error) {
-    console.error('An error occurred:', error.message);
-    currectOpenTab = '';
-  }
-});
-
-ipcMain.on(BLUETOOTH_SCAN_DEVICE, async (event, args) => {
-  try {
-    await getInformationDeviceWithBT();
-    const deviceListReceived = await getScannedDeviceList();
-    mainWindow.webContents.send(BLUETOOTH_SCAN_DEVICE, deviceListReceived);
-  } catch (error) {
-    console.error('An error occurred:', error.message);
-  }
-});
-
-ipcMain.on(SWITCH_TO_YS3060_CONNECTION_MODE, async (event, args) => {
-  console.log(
-    '🚀 ~ file: main.js:1136 ~ ipcMain.on ~ SWITCH_TO_YS3060_CONNECTION_MODE:',
-    args,
-  );
-  connectionTypeROP = args.args;
-  switchConnetionModeInstanceURL = args.instanceURL;
-});
-
-ipcMain.on(GET_MAC_ADDRESS, async (event, args) => {
-  macAddress = args;
-});
 
 // to update current websocket calls actions
 const updateCurrentAction = (msg) => {
@@ -1342,7 +773,6 @@ const openDeviceAndGetInfo = async (msgType, content) => {
             };
           }
         } catch (error) {
-          console.error('Error:', error);
           return { res: false, error: error.message };
         }
         break;
@@ -1377,22 +807,6 @@ const openDeviceAndGetInfo = async (msgType, content) => {
         }
         break;
       }
-
-      // case 'CMA-ROP64E-UV-BT_COLORSCOUT': {
-      //   const result = await connectColorScoutDevice(
-      //     content.deviceConnection.deviceType
-      //   );
-      //   if (result.res) {
-      //     const deviceInfo = await checkBluetoothConnection();
-      //     if (deviceInfo.res) {
-      //       return {
-      //         res: true,
-      //         deviceInfo: { SerialNumber: deviceInfo?.data?.serialNumber },
-      //       };
-      //     }
-      //   }
-      //   break;
-      // }
 
       case 'label_printer': {
         const result = await checkLabelPrinterConnection();
@@ -1564,7 +978,6 @@ const disconnectDevice = (device) => {
       case 'I1PRO3':
       case 'I1PRO3_STRIPMODE': {
         return { res: true, error: null };
-        break;
       }
 
       case 'I1PRO2':
@@ -2121,7 +1534,7 @@ const handleZebraPrinter = async (args) => {
     args.zebra_data.error = response.error;
   } catch (error) {
     args.zebra_data.isPrinted = false;
-    args.zebra_data.error = response.error || 'Unknown error occurred.';
+    args.zebra_data.error = error || 'Unknown error occurred.';
   } finally {
     webSocketWorkerWindow.webContents.send(ZEBRA_PRINTER_HANDLER, args);
   }
@@ -2228,7 +1641,7 @@ const settingI1Pro3 = (args) => {
   const res = setDeviceOptions(args?.settings?.options);
   if (!res) {
     args.error = printErrorInfo();
-    if (args.error?.message.trim() == '') {
+    if (args.error?.message.trim() === '') {
       args.error.message = 'Device setting options are not valid';
     }
   }
@@ -2243,7 +1656,7 @@ const settingI1Pro3StripMode = (args) => {
   const res = setDeviceOptionsStripMode(args?.settings?.options);
   if (!res) {
     args.error = printErrorInfo();
-    if (args.error?.message.trim() == '') {
+    if (args.error?.message.trim() === '') {
       args.error.message = 'Device setting options are not valid';
     }
   }
@@ -2405,7 +1818,7 @@ const measureCi62 = (args) => {
         args.error = { message: result.error };
         updateCurrentAction(`measurement failed`);
       }
-    } else if (deviceMeasurementTimeout == 0) {
+    } else if (deviceMeasurementTimeout === 0) {
       args = { type: 'requestTimeout' };
       deviceMeasurementTimeout = null; // reset to initial state
     } else {
@@ -3012,10 +2425,7 @@ const getChartPositionColorScoutDevice = async (args) => {
 
 // function for taking measurement by scanning for whole chart on COLORSCOUT device type from equipment app
 const measureColorScout = async (args) => {
-  console.log(
-    '🚀 ~ file: main.js:2766 ~ measureColorScout ~ args:',
-    args.settings,
-  );
+
   try {
     const {
       column,
@@ -3081,7 +2491,6 @@ const measureColorScout = async (args) => {
       args.error = { message: 'Invalid Chart Information' };
       args.measurement.measurementData = null;
     }
-    console.log('🚀 ~ file: main.js:2843 ~ measureColorScout ~ args:', args);
     webSocketWorkerWindow.webContents.send(MEASUREMENT, args);
     // send data back to main windows to show scanned response data
     mainWindow.webContents.send(SCAN_MEASUREMENT_RES, args);
@@ -3151,7 +2560,7 @@ const measureCi64 = (args) => {
         args.error = { message: result.error };
         updateCurrentAction(`measurement failed `);
       }
-    } else if (deviceMeasurementTimeout == 0) {
+    } else if (deviceMeasurementTimeout === 0) {
       args = { type: 'requestTimeout' };
       deviceMeasurementTimeout = null; // reset to initial state
     } else {
@@ -3220,7 +2629,7 @@ const measureCi64UV = (args) => {
         args.error = { message: result.error };
         updateCurrentAction(`measurement failed `);
       }
-    } else if (deviceMeasurementTimeout == 0) {
+    } else if (deviceMeasurementTimeout === 0) {
       args = { type: 'requestTimeout' };
       deviceMeasurementTimeout = null; // reset to initial state
     } else {
@@ -3269,10 +2678,6 @@ const calibrateSpectrometer = async (args) => {
 
 // function for measure Spectrometer device type with USB
 const measureROPWithUSB = async (measurementArgs) => {
-  console.log(
-    '🚀 ~ file: main.js:3183 ~ measureROPWithUSB ~ measurementArgs:',
-    measurementArgs,
-  );
   try {
     updateCurrentAction('Waiting for measurement to complete via USB...');
     clearTimeout(deviceMeasurementTimeout);
@@ -3318,10 +2723,6 @@ const measureROPWithUSB = async (measurementArgs) => {
       handleMeasurementResult(averages, measurementArgs);
     }
 
-    console.log(
-      '🚀 ~ file: main.js:3213 ~ measureROPWithUSB ~ measurementArgs:',
-      measurementArgs,
-    );
     webSocketWorkerWindow.webContents.send(MEASUREMENT, measurementArgs);
   } catch (error) {
     handleMeasurementError(error, measurementArgs);
@@ -3330,10 +2731,6 @@ const measureROPWithUSB = async (measurementArgs) => {
 
 // function for measure Spectrometer device type with Bluetooth
 const measureROPWithBluetooth = async (measurementArgs) => {
-  console.log(
-    '🚀 ~ file: main.js:3246 ~ measureROPWithBluetooth ~ measurementArgs:',
-    measurementArgs,
-  );
   try {
     updateCurrentAction('Waiting for measurement to complete via Bluetooth...');
     clearTimeout(deviceMeasurementTimeout);
@@ -3417,7 +2814,7 @@ const settingI1Pro2 = (args) => {
   const setOps = setI1ProDeviceOptions(args?.settings?.options);
   if (!setOps.res) {
     args.error = printErrorInfo();
-    if (args.error?.message.trim() == '') {
+    if (args.error?.message.trim() === '') {
       args.error.message = 'Device setting options are not valid ';
     }
   }
@@ -3444,37 +2841,6 @@ const calibrateI1Pro2 = (args) => {
   mainWindow.webContents.send(REFRESH_DEVICES_AND_LICENSES, null);
   // });
 };
-
-// function for taking measurement on I1Pro device type
-const measureI1Pro2 = async (args) => {
-  updateCurrentAction('Taking Measurement...');
-  updateCurrentAction('measurement waiting for button press...');
-  clearTimeout(deviceMeasurementTimeout);
-  deviceMeasurementTimeout = setTimeout(
-    () => {
-      deviceMeasurementTimeout = 0;
-      updateDeviceMeasureFlag(args.deviceConnection.deviceType, false);
-      updateCurrentAction('measurement timeout...');
-    },
-    1000 * 60 * 5,
-  );
-  const measRes = await triggerI1ProAvgMeasurement();
-  args.measurement.hasMeasured = measRes.res;
-  if (measRes.res) {
-    clearTimeout(deviceMeasurementTimeout);
-    args.measurement.measurementData = measRes.measData;
-    updateCurrentAction(`measurement complete `);
-  } else if (deviceMeasurementTimeout == 0) {
-    args = { type: 'requestTimeout' };
-    deviceMeasurementTimeout = null; // reset to initial state
-  } else {
-    clearTimeout(deviceMeasurementTimeout);
-    args.error = measRes.error;
-    updateCurrentAction(`measurement failed `);
-  }
-  webSocketWorkerWindow.webContents.send(MEASUREMENT, args);
-};
-
 // common function to change measure flag
 const updateDeviceMeasureFlag = (device, status) => {
   switch (device) {
@@ -3520,6 +2886,37 @@ const updateDeviceMeasureFlag = (device, status) => {
       break;
   }
 };
+// function for taking measurement on I1Pro device type
+const measureI1Pro2 = async (args) => {
+  updateCurrentAction('Taking Measurement...');
+  updateCurrentAction('measurement waiting for button press...');
+  clearTimeout(deviceMeasurementTimeout);
+  deviceMeasurementTimeout = setTimeout(
+    () => {
+      deviceMeasurementTimeout = 0;
+      updateDeviceMeasureFlag(args.deviceConnection.deviceType, false);
+      updateCurrentAction('measurement timeout...');
+    },
+    1000 * 60 * 5,
+  );
+  const measRes = await triggerI1ProAvgMeasurement();
+  args.measurement.hasMeasured = measRes.res;
+  if (measRes.res) {
+    clearTimeout(deviceMeasurementTimeout);
+    args.measurement.measurementData = measRes.measData;
+    updateCurrentAction(`measurement complete `);
+  } else if (deviceMeasurementTimeout === 0) {
+    args = { type: 'requestTimeout' };
+    deviceMeasurementTimeout = null; // reset to initial state
+  } else {
+    clearTimeout(deviceMeasurementTimeout);
+    args.error = measRes.error;
+    updateCurrentAction(`measurement failed `);
+  }
+  webSocketWorkerWindow.webContents.send(MEASUREMENT, args);
+};
+
+
 
 // common function to check whether measurement is going on or not
 const getDeviceMeasureStatus = (device) => {
@@ -3650,6 +3047,114 @@ const weightPrecisionBalance = async (args) => {
     console.error('An error occurred:', error);
   }
 };
+const sendResultsOverWebSocket = (args) => {
+  webSocketWorkerWindow.webContents.send(MAKE_RESET_DEVICE, args);
+};
+
+const handleMinusSign = (args) => {
+  sendResultsOverWebSocket(args);
+  updateCurrentAction(args.error.message);
+};
+
+const hasTwoValues = (result) =>
+  result && result.data && result.data.length === 2;
+
+const handleErrors = (args, error) => {
+  sendResultsOverWebSocket(args);
+  console.error('An error occurred:', error);
+};
+const checkAndHandleMinusSign = async (args, stableResult) => {
+  if (hasTwoValues(stableResult)) {
+    const firstValue = await extractFirstNumberFromArray(stableResult.data);
+
+    if (firstValue > 0) {
+      const errorMessage = args.pb_reset_data.is_negative
+        ? 'Zeroin Process out of range. Press taring button or restart balance'
+        : 'Please Empty the scale first then try again!!';
+
+      args.error = { message: errorMessage };
+      handleMinusSign(args);
+      return true;
+    }
+  }
+  return false;
+};
+
+const markAsReset = (args) => {
+  args.pb_reset_data.is_reset = true;
+  args.pb_reset_data.resetData = true;
+};
+
+const isCheckweighingMode = (mode) =>
+  mode && mode.data === '12 "Checkweighing" OK';
+
+const updateWorkingModeResult = async (args, result) => {
+  if (!result.res) {
+    args.error = { message: result.errorMessage };
+    await updateCurrentAction(
+      `Set working mode failed: ${result.errorMessage}`,
+    );
+  } else {
+    args.pb_reset_data.is_setWorkingMode = result.res;
+  }
+};
+
+const setWorkingModeCheckweighing = async (args) => {
+  const setWorkingModeResult = await setWorkingMode();
+  await updateWorkingModeResult(args, setWorkingModeResult);
+};
+
+const setThreshold = async (value, type) => {
+  return type === 'Upper'
+    ? setUpperThresholdValue(value)
+    : setLowerThresholdValue(value);
+};
+
+const setThresholdValue = async (args, thresholdValue, thresholdType) => {
+  if (thresholdValue) {
+    const thresholdResult = await setThreshold(thresholdValue, thresholdType);
+
+    if (!thresholdResult.res) {
+      args.error = { message: thresholdResult.errorMessage };
+      updateCurrentAction(
+        `${thresholdType} Threshold failed: ${thresholdResult.errorMessage}`,
+      );
+    } else {
+      args.pb_threshold_data.is_set_threshold = thresholdResult.res;
+      args.pb_threshold_data[`${thresholdType.toLowerCase()}_threshold_value`] =
+        thresholdResult.data;
+    }
+  }
+};
+
+const setThresholdValues = async (args) => {
+  await setThresholdValue(
+    args,
+    args.pb_threshold_data.upper_threshold_value,
+    'Upper',
+    'Set Upper Threshold failed',
+  );
+  await setThresholdValue(
+    args,
+    args.pb_threshold_data.lower_threshold_value,
+    'Lower',
+    'Set Lower Threshold failed',
+  );
+};
+
+const shouldContinueReset = (args) => args.pb_reset_data.is_continue;
+
+const handleResetSuccess = (args) => {
+  markAsReset(args);
+  updateCurrentAction('Resetting complete');
+};
+
+const handleResetFailure = (args, resetDeviceData) => {
+  args.error = { message: resetDeviceData.errorMessage };
+  updateCurrentAction(
+    `Resetting device failed: ${resetDeviceData.errorMessage}`,
+  );
+};
 
 /* Reset Data Function START */
 const resetPrecisionBalanceDevice = async (args) => {
@@ -3692,124 +3197,18 @@ const resetPrecisionBalanceDevice = async (args) => {
 
 // Helper Functions
 
-const isCheckweighingMode = (mode) =>
-  mode && mode.data === '12 "Checkweighing" OK';
-
-const setWorkingModeCheckweighing = async (args) => {
-  const setWorkingModeResult = await setWorkingMode();
-  await updateWorkingModeResult(args, setWorkingModeResult);
-};
-
-const updateWorkingModeResult = async (args, result) => {
-  if (!result.res) {
-    args.error = { message: result.errorMessage };
-    await updateCurrentAction(
-      `Set working mode failed: ${result.errorMessage}`,
-    );
-  } else {
-    args.pb_reset_data.is_setWorkingMode = result.res;
-  }
-};
-
-const setThresholdValues = async (args) => {
-  await setThresholdValue(
-    args,
-    args.pb_threshold_data.upper_threshold_value,
-    'Upper',
-    'Set Upper Threshold failed',
-  );
-  await setThresholdValue(
-    args,
-    args.pb_threshold_data.lower_threshold_value,
-    'Lower',
-    'Set Lower Threshold failed',
-  );
-};
-
-const setThresholdValue = async (
-  args,
-  thresholdValue,
-  thresholdType,
-  errorMessage,
-) => {
-  if (thresholdValue) {
-    const thresholdResult = await setThreshold(thresholdValue, thresholdType);
-
-    if (!thresholdResult.res) {
-      args.error = { message: thresholdResult.errorMessage };
-      updateCurrentAction(
-        `${thresholdType} Threshold failed: ${thresholdResult.errorMessage}`,
-      );
-    } else {
-      args.pb_threshold_data.is_set_threshold = thresholdResult.res;
-      args.pb_threshold_data[`${thresholdType.toLowerCase()}_threshold_value`] =
-        thresholdResult.data;
-    }
-  }
-};
-
-const setThreshold = async (value, type) => {
-  return type === 'Upper'
-    ? setUpperThresholdValue(value)
-    : setLowerThresholdValue(value);
-};
-
-const markAsReset = (args) => {
-  args.pb_reset_data.is_reset = true;
-  args.pb_reset_data.resetData = true;
-};
-
-const shouldContinueReset = (args) => args.pb_reset_data.is_continue;
-
-const handleResetSuccess = (args) => {
-  markAsReset(args);
-  updateCurrentAction('Resetting complete');
-};
-
-const handleResetFailure = (args, resetDeviceData) => {
-  args.error = { message: resetDeviceData.errorMessage };
-  updateCurrentAction(
-    `Resetting device failed: ${resetDeviceData.errorMessage}`,
-  );
-};
-
-const checkAndHandleMinusSign = async (args, stableResult) => {
-  if (hasTwoValues(stableResult)) {
-    const firstValue = await extractFirstNumberFromArray(stableResult.data);
-
-    if (firstValue > 0) {
-      const errorMessage = args.pb_reset_data.is_negative
-        ? 'Zeroin Process out of range. Press taring button or restart balance'
-        : 'Please Empty the scale first then try again!!';
-
-      args.error = { message: errorMessage };
-      handleMinusSign(args);
-      return true;
-    }
-  }
-  return false;
-};
-
-const handleMinusSign = (args) => {
-  sendResultsOverWebSocket(args);
-  updateCurrentAction(args.error.message);
-};
-
-const hasTwoValues = (result) =>
-  result && result.data && result.data.length === 2;
-
-const sendResultsOverWebSocket = (args) => {
-  webSocketWorkerWindow.webContents.send(MAKE_RESET_DEVICE, args);
-};
-
-const handleErrors = (args, error) => {
-  sendResultsOverWebSocket(args);
-  console.error('An error occurred:', error);
-};
-
 /* Reset Data Function END */
 
 /* GET tare Function this function is work when button was press */
+const sendWebSocketMessage = (event, args) => {
+  webSocketWorkerWindow.webContents.send(event, args);
+};
+
+const handleMinusSignError = (args, errorMessage) => {
+  args.error = { message: errorMessage };
+  sendWebSocketMessage(GET_TARE_VALUE, args);
+  updateCurrentAction(errorMessage);
+};
 
 const handleGetTareValueInDevice = async (args) => {
   try {
@@ -3884,24 +3283,17 @@ const handleGetTareValueInDevice = async (args) => {
     sendWebSocketMessage(GET_TARE_VALUE, args);
   }
 };
-const handleMinusSignError = (args, errorMessage) => {
-  args.error = { message: errorMessage };
-  sendWebSocketMessage(GET_TARE_VALUE, args);
-  updateCurrentAction(errorMessage);
-};
-
-const sendWebSocketMessage = (event, args) => {
-  webSocketWorkerWindow.webContents.send(event, args);
-};
 
 /* GET tare Function END */
 
 const handleSetTareValueInDevice = async (args) => {
   try {
-    if (args.pb_tare_data.tare_value_colorportal) {
-      const tareValue = parseFloat(args.pb_tare_data.tare_value_colorportal);
+    const tareValueStr = args.pb_tare_data.tare_value_colorportal;
 
-      if (!isNaN(tareValue)) {
+    if (tareValueStr) {
+      const tareValue = parseFloat(tareValueStr);
+
+      if (!Number.isNaN(tareValue)) {
         const setTareValueResult = await setTareValue(tareValue);
 
         if (setTareValueResult.res) {
@@ -3920,12 +3312,594 @@ const handleSetTareValueInDevice = async (args) => {
       args.error = { message: 'A value must be provided to set tare' };
       updateCurrentAction('A value must be provided to set tare');
     }
-    console.log('🚀 ~ file: main.js:3000 ~ handle Set Tare value :', args);
+
     webSocketWorkerWindow.webContents.send(SET_TARE_VALUE, args);
   } catch (error) {
     console.error('An error occurred:', error);
   }
 };
+
+// function to get latest release notes using octokit api call
+const getAllReleaseNotesAfterCurrentVersion = async (currentVersion) => {
+  try {
+    log.log('getting release notes ==');
+    const response = await octokit.request(
+      'GET /repos/{owner}/{repo}/releases',
+      {
+        owner: 'CMAIDT',
+        repo: 'ColorPortal',
+      },
+    );
+    const releases = response.data;
+    const allReleaseNotes = [];
+    if (releases.length > 0) {
+      releases.forEach((release) => {
+        if (
+          semver.valid(release.name) &&
+          semver.gt(release.name, currentVersion)
+        )
+          if (typeof release.body === 'string') {
+            const notes = release.body.split('\n').map((note) => {
+              if (note.startsWith('-')) {
+                return note.slice(1).trim();
+              }
+              return note.trim();
+            });
+            allReleaseNotes.push({ version: release.name, notes });
+          }
+      });
+    }
+
+    return allReleaseNotes;
+  } catch (error) {
+    log.log('error getting release notes ===');
+    log.log(error);
+    return null;
+  }
+};
+
+// Listen for the 'app-close-confirmed' event from the renderer process
+ipcMain.on(APP_CLOSE_CONFIRMED, () => {
+  app.isQuitting = true; // Mark that the app is quitting
+  app.quit();
+});
+
+// ipc calls exchange between main process and main window renderer and websocket window renderer
+// pass connect socket call from main renderer to websocket renderer
+ipcMain.on(CONNECT_SOCKET, (event, args) => {
+  try {
+    webSocketWorkerWindow.webContents.send(CONNECT_SOCKET, args);
+  } catch (error) {
+    console.log('error', error);
+  }
+});
+
+// pass disconnect socket call from main renderer to websocket renderer
+ipcMain.on(DISCONNECT_SOCKET, () => {
+  webSocketWorkerWindow.webContents.send(DISCONNECT_SOCKET);
+});
+
+// on verify device connection call for updating device array on websocket server
+ipcMain.on(VERIFY_DEVICE_CONNECTION, async (event, args) => {
+  // verify deviceConnection
+  const { res, serialNumber } = await verifyDeviceConnection(args.deviceType);
+  deviceSerialNumber = serialNumber;
+  // send main window for device verification response
+  mainWindow.webContents.send(VERIFY_DEVICE_CONNECTION, res);
+  if (res) {
+    const isROP64EUVDevice =
+      args.deviceType === 'CMA-ROP64E-UV-BT' ||
+      args.deviceType === 'CMA-ROP64E-UV';
+
+    if (isROP64EUVDevice) {
+      const object = {
+        instanceURL: switchConnetionModeInstanceURL,
+        deviceId: args?.deviceId,
+        isConnectWithBT: connectionTypeROP,
+      };
+      switchConnetionModeAPICall(
+        object.instanceURL,
+        object.deviceId,
+        object.isConnectWithBT,
+      );
+    }
+    // send socket window to update available Device list
+    webSocketWorkerWindow.webContents.send(VERIFY_DEVICE_CONNECTION, {
+      device: args,
+      serialNumber,
+    });
+  }
+});
+
+// on verify device connection call for updating device array on websocket server
+ipcMain.on(VERIFY_PB_DEVICE_CONNECTION, async (event, args) => {
+  // verify deviceConnection
+  const { res, serialNumber } = await verifyDeviceConnection(args.deviceType);
+  deviceSerialNumber = serialNumber;
+  // send main window for device verification response
+  mainWindow.webContents.send(VERIFY_PB_DEVICE_CONNECTION, res);
+  if (res) {
+    // send socket window to update available Device list
+    webSocketWorkerWindow.webContents.send(VERIFY_DEVICE_CONNECTION, {
+      device: args,
+      serialNumber,
+    });
+  }
+});
+
+// on device reconnection after getting disconnected
+ipcMain.on(UPDATE_DEVICE_RECONNECTION, async (event, args) => {
+  const { res, serialNumber } = await verifyDeviceConnection(args.deviceType);
+  // send main window for device verification response
+  if (res) {
+    // send socket window to update available Device list
+    webSocketWorkerWindow.webContents.send(UPDATE_DEVICE_RECONNECTION, {
+      device: args,
+      serialNumber,
+    });
+  }
+});
+
+// device reconnect api call to update status on CMA site
+ipcMain.on(DEVICE_RECONNECT_API_CALL, (event, args) => {
+  const { instanceURL, deviceName, deviceId } = args;
+  clientDeviceReconnectAPICall(
+    instanceURL,
+    deviceId,
+    deviceName,
+    deviceSerialNumber,
+  );
+});
+
+// device disconnect api call to update status on cma site
+ipcMain.on(DEVICE_DISCONNECT_API_CALL, async (event, args) => {
+  const { instanceURL, deviceName, deviceId } = args;
+  const res = await clientDeviceDisconnectAPICall(
+    instanceURL,
+    deviceId,
+    deviceName,
+    deviceSerialNumber,
+  );
+  mainWindow.webContents.send(DEVICE_DISCONNECT_API_CALL, res);
+});
+
+// remove device from websocket device list
+ipcMain.on(DISCONNECT_DEVICE_FROM_SERVER, (event, args) => {
+  // send device disconnection detail to socket for removing device in server list
+  webSocketWorkerWindow.webContents.send(DISCONNECT_DEVICE_FROM_SERVER, args);
+});
+
+// to update device status on cma site
+ipcMain.on(DEVICE_STATUS_UPDATE_CALL, (event, args) => {
+  const { instanceURL, device, status } = args;
+  updateDeviceStatusAPICall(
+    instanceURL,
+    device?.deviceId,
+    device?.deviceType,
+    deviceSerialNumber,
+    status,
+  );
+});
+
+// event from websocket renderer on socket disconnect cleanly
+ipcMain.on(SOCKET_DISCONNECT_CLEANLY, (event, args) => {
+  mainWindow.webContents.send(SOCKET_DISCONNECT_CLEANLY, args);
+});
+
+// event from websocket renderer on socket already exist error
+ipcMain.on(CLIENT_SOCKET_ALREADY_EXIST, (event, args) => {
+  mainWindow.webContents.send(CLIENT_SOCKET_ALREADY_EXIST, args);
+});
+
+// event on socket connection response from websocket renderer
+ipcMain.on(SOCKET_CONNECTION, (event, args) => {
+  event.reply(SOCKET_CONNECTION, args);
+});
+
+// In this event check if there is internet or not
+ipcMain.on(NETWORK_CONNECTION, async (event, args) => {
+  let status = false;
+
+  // Increase the timeout to 10 seconds to handle slower networks
+  const timeout = new Promise((_, reject) => {
+    setTimeout(() => {
+      reject(new Error('Request timed out'));
+    }, 7000);
+  });
+
+  // Use multiple URLs for redundancy
+  const urls = [
+    'http://www.google.com',
+    'https://en.wikipedia.org',
+    'https://api.github.com',
+    'https://www.youtube.com',
+    'https://www.reddit.com',
+  ];
+
+  // Check the status of each URL
+  const checkAllStatuses = async () => {
+    const results = await Promise.all(
+      urls.map(async (url) => {
+        try {
+          const onlinePromise = checkStatus(url);
+          const onlineResponse = await Promise.race([timeout, onlinePromise]);
+          return !!onlineResponse;
+        } catch (err) {
+          // Ignore timeout errors, move on to the next URL
+          return false;
+        }
+      }),
+    );
+    return results.some((res) => res === true);
+  };
+
+  status = await checkAllStatuses();
+  args.status = status;
+  mainWindow.webContents.send(NETWORK_CONNECTION, args);
+});
+
+// event on device disconnect from main renderer
+ipcMain.on(DISCONNECT_DEVICE, (event, args) => {
+  // reset startMeasure of any ingoing measurement
+  updateDeviceMeasureFlag(args.deviceType, false);
+  // send socket window to remove device from available Device list
+  webSocketWorkerWindow.webContents.send(DISCONNECT_DEVICE, args);
+});
+
+ipcMain.on(CLOSE_DEVICE, async (event, args) => {
+  if (args.forceClose) {
+    // stop current measurement forcefully
+    updateDeviceMeasureFlag(args.deviceType, false);
+  } else {
+    const measureInProgress = getDeviceMeasureStatus(args.deviceType);
+    // if any measurement in progress then send warning back
+    if (measureInProgress) {
+      mainWindow.webContents.send(MEASURE_IN_PROGRESS, args.deviceType);
+      return;
+    }
+  }
+  const disconnectResult = await disconnectDevice(args.deviceType);
+  disconnectResult.deviceType = args.deviceType;
+
+  const response = await clientDeviceDisconnectAPICall(
+    args.instanceURL,
+    args.deviceId,
+    args.deviceType,
+    deviceSerialNumber,
+  );
+  if (response.res) {
+    mainWindow.webContents.send(CLOSE_DEVICE, disconnectResult);
+  } else {
+    mainWindow.webContents.send(CLOSE_DEVICE, {});
+  }
+  if (disconnectResult.res) {
+    // clear device disconnect timeout
+    clearDeviceDisconnectTimeout();
+  }
+});
+
+ipcMain.on(CLOSE_PB_DEVICE, (event, args) => {
+  if (args.forceClose) {
+    // stop current measurement forcefully
+    updateDeviceMeasureFlag(args.deviceType, false);
+  } else {
+    const measureInProgress = getDeviceMeasureStatus(args.deviceType);
+    if (measureInProgress) {
+      mainWindow.webContents.send(MEASURE_IN_PROGRESS, args.deviceType);
+      return;
+    }
+  }
+  const res = disconnectDevice(args.deviceType);
+  res.deviceType = args.deviceType;
+  res.deviceId = args?.deviceId;
+  mainWindow.webContents.send(CLOSE_PB_DEVICE, res);
+  if (res.res) {
+    clearDeviceDisconnectTimeout();
+  }
+});
+
+// to be send to main windows to update device connection status
+ipcMain.on(CHECK_DEVICE_CONNECTION, async (event, args) => {
+  const res = await checkDeviceConnection(args);
+  mainWindow.webContents.send(CHECK_DEVICE_CONNECTION, res);
+});
+
+ipcMain.on(CHECK_ROP_DEVICE_CONNECTION, async (event, args) => {
+  const res = await checkDeviceConnection(args);
+  mainWindow.webContents.send(CHECK_ROP_DEVICE_CONNECTION, res);
+});
+
+ipcMain.on(CHECK_PB_DEVICE_CONNECTION, async (event, args) => {
+  const status = await checkDeviceConnection(args.deviceType);
+  args.status = status;
+  mainWindow.webContents.send(CHECK_PB_DEVICE_CONNECTION, args);
+});
+
+ipcMain.on(CHECK_ZEBRA_DEVICE_CONNECTION, async (event, args) => {
+  const status = await checkDeviceConnection(args.deviceType);
+  args.status = status;
+  mainWindow.webContents.send(CHECK_ZEBRA_DEVICE_CONNECTION, args);
+});
+
+ipcMain.on(CHECK_BARCODE_DEVICE_CONNECTION, async (event, args) => {
+  const status = await checkDeviceConnection(args.deviceType);
+  args.status = status;
+  mainWindow.webContents.send(CHECK_BARCODE_DEVICE_CONNECTION, args);
+});
+
+// to be send to main windows to update status
+ipcMain.on(CONNECTION_STATUS, (event, args) => {
+  event.reply(CONNECTION_STATUS, args);
+});
+
+// to be send to main windows to update status
+ipcMain.on(CURRENT_ACTION, (event, args) => {
+  event.reply(CURRENT_ACTION, args);
+});
+
+// to show dialog box message
+ipcMain.on(SHOW_DIALOG, (event, args) => {
+  mainWindow.webContents.send(SHOW_DIALOG, args);
+});
+
+// on get samples event for ci6x devices
+ipcMain.on(GET_SAMPLES_DATA, async (_, args) => {
+  if (args === 'CI62') {
+    const sampleRes = await getCi62AllSamples();
+    mainWindow.webContents.send(GET_SAMPLES_DATA, sampleRes);
+  }
+  if (args === 'CI64') {
+    const sampleRes = await getCi64AllSamples();
+    mainWindow.webContents.send(GET_SAMPLES_DATA, sampleRes);
+  }
+  if (args === 'CI64UV') {
+    const sampleRes = await getCi64UVAllSamples();
+    mainWindow.webContents.send(GET_SAMPLES_DATA, sampleRes);
+  }
+});
+
+// on clear samples event for ci6x devices
+ipcMain.on(CLEAR_SAMPLES, async (_, args) => {
+  if (args === 'CI62') {
+    const res = await clearAllCi62Samples();
+    mainWindow.webContents.send(CLEAR_SAMPLES, { ...res, deviceType: args });
+  }
+  if (args === 'CI64') {
+    const res = await clearAllCi64Samples();
+    mainWindow.webContents.send(CLEAR_SAMPLES, { ...res, deviceType: args });
+  }
+  if (args === 'CI64UV') {
+    const res = await clearAllCi64UVSamples();
+    mainWindow.webContents.send(CLEAR_SAMPLES, { ...res, deviceType: args });
+  }
+});
+
+// on device disconnect timeout
+ipcMain.on(DEVICE_DISCONNECT_TIMEOUT, (_, args) => {
+  if (args.hasTimeout) {
+    // start device disconnection timeout
+    hasDeviceDisconnectTimeout = true;
+    setDeviceDisconnectTimeout(args.deviceType);
+  } else {
+    // clear device disconnection timeout if any
+    hasDeviceDisconnectTimeout = false;
+    clearDeviceDisconnectTimeout();
+  }
+});
+
+// on device connection call from websocket
+ipcMain.on(DEVICE_CONNECTION, async (event, args) => {
+  // calling openDevice function
+  const openRes = await openDeviceAndGetInfo(
+    args.deviceConnection.deviceType,
+    args,
+  );
+
+  if (args.deviceConnection.deviceType.split('_')[1] === 'COLORSCOUT') {
+    args.deviceConnection.deviceInfo = openRes.deviceInfo;
+    args.deviceConnection.isConnected = openRes.res;
+    updateCurrentAction(
+      `device set ${args.deviceConnection.deviceName} : ${args.deviceConnection.isConnected}`,
+    );
+    webSocketWorkerWindow.webContents.send(DEVICE_CONNECTION, args);
+    mainWindow.webContents.send(DEVICE_CONNECTION, openRes.res);
+    return;
+  }
+  if (!openRes.res) return;
+
+  args.deviceConnection.deviceInfo = openRes.deviceInfo;
+  args.deviceConnection.isConnected = true;
+  updateCurrentAction(`device set ${args.deviceConnection.deviceName}`);
+  webSocketWorkerWindow.webContents.send(DEVICE_CONNECTION, args);
+  mainWindow.webContents.send(DEVICE_CONNECTION, true);
+});
+
+// on device disconnection call from websocket
+ipcMain.on(DEVICE_DISCONNECTION, (event, args) => {
+  mainWindow.webContents.send(DEVICE_DISCONNECTION, args);
+});
+
+// on settings call from websocket
+ipcMain.on(SETTINGS, (event, args) => {
+  // check if device is connected or not
+  if (!checkDeviceOpen(SETTINGS, args)) return;
+  handleSettingsRequest(args);
+  if (hasDeviceDisconnectTimeout) {
+    // clear device disconnection timeout
+    clearDeviceDisconnectTimeout();
+    // start new device disconnection timeout
+    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
+  }
+});
+
+// on calibration call from websocket
+ipcMain.on(CALIBRATION, (event, args) => {
+  // check if device is connected or not
+  if (!checkDeviceOpen(CALIBRATION, args)) return;
+  handleCalibrationRequest(args);
+  if (hasDeviceDisconnectTimeout) {
+    // clear device disconnection timeout
+    clearDeviceDisconnectTimeout();
+    // start new device disconnection timeout
+    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
+  }
+});
+
+// on measurement calls from websocket
+ipcMain.on(MEASUREMENT, async (event, args) => {
+  // check if device is connected or not
+  if (!checkDeviceOpen(MEASUREMENT, args)) return;
+  await handleMeasurementRequest(args);
+  if (hasDeviceDisconnectTimeout) {
+    // clear device disconnection timeout
+    clearDeviceDisconnectTimeout();
+    // start new device disconnection timeout
+    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
+  }
+});
+
+ipcMain.on(WEIGHT_MEASUREMENT, async (event, args) => {
+  // check if device is connected or not
+  if (!checkDeviceOpen(WEIGHT_MEASUREMENT, args)) return;
+  await handleWeightRequest(args);
+  if (hasDeviceDisconnectTimeout) {
+    // clear device disconnection timeout
+    clearDeviceDisconnectTimeout();
+    // start new device disconnection timeout
+    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
+  }
+});
+
+ipcMain.on(MAKE_RESET_DEVICE, async (event, args) => {
+  // check if device is connected or not
+  if (!checkDeviceOpen(MAKE_RESET_DEVICE, args)) return;
+  await handleResetDataForPB(args);
+  if (hasDeviceDisconnectTimeout) {
+    // clear device disconnection timeout
+    clearDeviceDisconnectTimeout();
+    // start new device disconnection timeout
+    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
+  }
+});
+
+ipcMain.on(GET_TARE_VALUE, async (event, args) => {
+  // check if device is connected or not
+  if (!checkDeviceOpen(GET_TARE_VALUE, args)) return;
+  await handleGetTareValue(args);
+  if (hasDeviceDisconnectTimeout) {
+    // clear device disconnection timeout
+    clearDeviceDisconnectTimeout();
+    // start new device disconnection timeout
+    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
+  }
+});
+
+ipcMain.on(SET_TARE_VALUE, async (event, args) => {
+  if (!checkDeviceOpen(SET_TARE_VALUE, args)) return;
+  await handleSetTareValue(args);
+  if (hasDeviceDisconnectTimeout) {
+    clearDeviceDisconnectTimeout();
+    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
+  }
+});
+
+ipcMain.on(ZEBRA_PRINTER_HANDLER, async (event, args) => {
+  if (!checkDeviceOpen(ZEBRA_PRINTER_HANDLER, args)) return;
+  await handleZebraPrinter(args);
+  if (hasDeviceDisconnectTimeout) {
+    clearDeviceDisconnectTimeout();
+    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
+  }
+});
+
+ipcMain.on(BAR_CODE_READER_HANDLER, async (event, args) => {
+  if (!checkDeviceOpen(BAR_CODE_READER_HANDLER, args)) return;
+  await handleBarcodeReader(args);
+  if (hasDeviceDisconnectTimeout) {
+    clearDeviceDisconnectTimeout();
+    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
+  }
+});
+
+ipcMain.on(SEND_OPEN_URL_TO_INPUT, async (event, args) => {
+  const data = {
+    deviceConnection: {
+      deviceType: 'barcode_reader',
+      deviceName: 'barcode_reader',
+      isConnected: false,
+    },
+    barCode_data: {
+      isReaded: true,
+      device_data: args,
+      open_Url: '',
+      deviceName: false,
+      is_responed: false,
+    },
+  };
+
+  webSocketWorkerWindow.webContents.send(BAR_CODE_READER_HANDLER, data);
+});
+
+// on chartPosition calls from websocket
+ipcMain.on(CHART_POSITION, async (event, args) => {
+  // check if device is connected or not
+  if (!checkDeviceOpen(CHART_POSITION, args)) return;
+  await handleChartPositionRequest(args);
+  if (hasDeviceDisconnectTimeout) {
+    // clear device disconnection timeout
+    clearDeviceDisconnectTimeout();
+    // start new device disconnection timeout
+    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
+  }
+});
+
+// on chartPosition calls from websocket
+ipcMain.on(GRAB_INITIAL_POSITION, async (event, args) => {
+  // check if device is connected or not
+  if (!checkDeviceOpen(GRAB_INITIAL_POSITION, args)) return;
+  await handleGrabInitialPositionRequest(args);
+  if (hasDeviceDisconnectTimeout) {
+    // clear device disconnection timeout
+    clearDeviceDisconnectTimeout();
+    // start new device disconnection timeout
+    setDeviceDisconnectTimeout(args.deviceConnection.deviceType);
+  }
+});
+
+ipcMain.on(CURRENT_TAB_UPDATE, async (event, args) => {
+  console.log('🚀 ~ ipcMain.on ~ args:', args);
+  try {
+    if (args) {
+      currectOpenTab = args;
+    }
+  } catch (error) {
+    console.error('An error occurred:', error.message);
+    currectOpenTab = '';
+  }
+});
+
+ipcMain.on(BLUETOOTH_SCAN_DEVICE, async (event, args) => {
+  try {
+    await getInformationDeviceWithBT();
+    const deviceListReceived = await getScannedDeviceList();
+    mainWindow.webContents.send(BLUETOOTH_SCAN_DEVICE, deviceListReceived);
+  } catch (error) {
+    console.error('An error occurred:', error.message);
+  }
+});
+
+ipcMain.on(SWITCH_TO_YS3060_CONNECTION_MODE, async (event, args) => {
+  console.log(
+    '🚀 ~ file: main.js:1136 ~ ipcMain.on ~ SWITCH_TO_YS3060_CONNECTION_MODE:',
+    args,
+  );
+  connectionTypeROP = args.args;
+  switchConnetionModeInstanceURL = args.instanceURL;
+});
+
+ipcMain.on(GET_MAC_ADDRESS, async (event, args) => {
+  macAddress = args;
+});
 
 // on get device list and licenses api call
 ipcMain.on(GET_DEVICE_AND_LICENSES, async (event, args) => {
@@ -4001,12 +3975,12 @@ autoUpdater.on('update-available', async (updateInfo) => {
   });
 });
 
-autoUpdater.on('update-not-available', (updateInfo) => {
+autoUpdater.on('update-not-available', () => {
   log.log('update-not-available =======');
   mainWindow?.webContents.send(CHECK_FOR_UPDATE, { updateAvailable: false });
 });
 
-autoUpdater.on('update-downloaded', (updateInfo) => {
+autoUpdater.on('update-downloaded', () => {
   log.log('update-downloaded =======');
   mainWindow?.webContents.send(DOWNLOAD_UPDATE, null);
 });
@@ -4028,51 +4002,12 @@ autoUpdater.on('download-progress', (progressObj) => {
   );
 });
 
-// function to get latest release notes using octokit api call
-const getAllReleaseNotesAfterCurrentVersion = async (currentVersion) => {
-  try {
-    log.log('getting release notes ==');
-    const response = await octokit.request(
-      'GET /repos/{owner}/{repo}/releases',
-      {
-        owner: 'CMAIDT',
-        repo: 'ColorPortal',
-      },
-    );
-    const releases = response.data;
-    const allReleaseNotes = [];
-    if (releases.length > 0) {
-      releases.forEach((release) => {
-        if (
-          semver.valid(release.name) &&
-          semver.gt(release.name, currentVersion)
-        )
-          if (typeof release.body === 'string') {
-            const notes = release.body.split('\n').map((note) => {
-              if (note.startsWith('-')) {
-                return note.slice(1).trim();
-              }
-              return note.trim();
-            });
-            allReleaseNotes.push({ version: release.name, notes });
-          }
-      });
-    }
-
-    return allReleaseNotes;
-  } catch (error) {
-    log.log('error getting release notes ===');
-    log.log(error);
-    return null;
-  }
-};
-
 // colorgate
 
 ipcMain.on(CHECK_THIRD_PARTY_API_CONNECTION, async (_, args) => {
   const timeOnReq = Date.now();
   const { url, method, params } = args.colorGateAPI.request;
-  let log = getLogInfo(
+  let logInfo = getLogInfo(
     timeOnReq,
     null,
     null,
@@ -4083,7 +4018,7 @@ ipcMain.on(CHECK_THIRD_PARTY_API_CONNECTION, async (_, args) => {
     'Requested',
   );
   if (args.shouldLogged)
-    mainWindow?.webContents.send(COLOR_GATE_API_LOG, { ...args, log });
+    mainWindow?.webContents.send(COLOR_GATE_API_LOG, { ...args, logInfo });
   const res = await colorGateAPI(args);
   if (args.colorGateAPI?.response?.data) {
     colorGateBaseURL = args.colorGateAPI?.request?.baseURL;
@@ -4092,7 +4027,7 @@ ipcMain.on(CHECK_THIRD_PARTY_API_CONNECTION, async (_, args) => {
   }
   const timeOnRes = Date.now();
   const resDuration = (timeOnRes - timeOnReq) / 1000;
-  log = getLogInfo(
+  logInfo = getLogInfo(
     timeOnRes,
     resDuration,
     null,
@@ -4103,7 +4038,7 @@ ipcMain.on(CHECK_THIRD_PARTY_API_CONNECTION, async (_, args) => {
     res.statusText,
   );
   if (args.shouldLogged)
-    mainWindow?.webContents.send(COLOR_GATE_API_LOG, { ...args, log });
+    mainWindow?.webContents.send(COLOR_GATE_API_LOG, { ...args, logInfo });
   mainWindow?.webContents.send(CHECK_THIRD_PARTY_API_CONNECTION, res);
 });
 
@@ -4129,7 +4064,7 @@ ipcMain.on(COLOR_GATE_API_REQ, async (_, args) => {
 
   const timeOnReq = Date.now();
   const { url, method, params } = args.colorGateAPI.request;
-  let log = getLogInfo(
+  let logInfo = getLogInfo(
     timeOnReq,
     null,
     null,
@@ -4139,7 +4074,7 @@ ipcMain.on(COLOR_GATE_API_REQ, async (_, args) => {
     null,
     'Requested',
   );
-  mainWindow?.webContents.send(COLOR_GATE_API_LOG, { log });
+  mainWindow?.webContents.send(COLOR_GATE_API_LOG, { logInfo });
   args.colorGateAPI.request = {
     ...args.colorGateAPI.request,
     baseURL: colorGateBaseURL,
@@ -4158,7 +4093,7 @@ ipcMain.on(COLOR_GATE_API_REQ, async (_, args) => {
   const res = await colorGateAPI(args);
   const timeOnRes = Date.now();
   const resDuration = (timeOnRes - timeOnReq) / 1000;
-  log = getLogInfo(
+  logInfo = getLogInfo(
     timeOnRes,
     resDuration,
     null,
@@ -4168,7 +4103,7 @@ ipcMain.on(COLOR_GATE_API_REQ, async (_, args) => {
     res.status,
     res.statusText,
   );
-  mainWindow?.webContents.send(COLOR_GATE_API_LOG, { log });
+  mainWindow?.webContents.send(COLOR_GATE_API_LOG, { logInfo });
   webSocketWorkerWindow?.webContents.send(COLOR_GATE_API_RES, res);
 });
 
@@ -4220,7 +4155,7 @@ ipcMain.on(GET_APP_VERSION, (event, arg) => {
 ipcMain.on(TEST_ALWAN_API_CONNECTION, async (_, args) => {
   const timeOnReq = Date.now();
   const { url, method, params } = args.alwanAPI.request;
-  let log = getLogInfo(
+  let logInfo = getLogInfo(
     timeOnReq,
     null,
     null,
@@ -4231,7 +4166,7 @@ ipcMain.on(TEST_ALWAN_API_CONNECTION, async (_, args) => {
     'Requested',
   );
   if (args.shouldLogged)
-    mainWindow?.webContents.send(ALWAN_API_LOG, { ...args, log });
+    mainWindow?.webContents.send(ALWAN_API_LOG, { ...args, logInfo });
   const res = await alwanAPI(args);
   if (args.alwanAPI?.response?.data) {
     alwanBaseURL = args.alwanAPI?.request?.baseURL;
@@ -4239,7 +4174,7 @@ ipcMain.on(TEST_ALWAN_API_CONNECTION, async (_, args) => {
   }
   const timeOnRes = Date.now();
   const resDuration = (timeOnRes - timeOnReq) / 1000;
-  log = getLogInfo(
+  logInfo = getLogInfo(
     timeOnRes,
     resDuration,
     null,
@@ -4250,13 +4185,13 @@ ipcMain.on(TEST_ALWAN_API_CONNECTION, async (_, args) => {
     res.statusText,
   );
   if (args.shouldLogged)
-    mainWindow?.webContents.send(ALWAN_API_LOG, { ...args, log });
+    mainWindow?.webContents.send(ALWAN_API_LOG, { ...args, logInfo });
   mainWindow?.webContents.send(TEST_ALWAN_API_CONNECTION, res);
 });
 
 ipcMain.on(CHECK_ALWAN_API_CONNECTION, async (_, args) => {
-  const timeOnReq = Date.now();
-  const { url, method, params } = args.alwanAPI.request;
+  // const timeOnReq = Date.now();
+  // const { url, method, params } = args.alwanAPI.request;
   const res = await alwanAPI(args);
   if (args.alwanAPI?.response?.data) {
     alwanBaseURL = args.alwanAPI?.request?.baseURL;
@@ -4268,7 +4203,7 @@ ipcMain.on(CHECK_ALWAN_API_CONNECTION, async (_, args) => {
 ipcMain.on(ALWAN_API_REQ, async (_, args) => {
   const timeOnReq = Date.now();
   const { url, method, params } = args.alwanAPI.request;
-  let log = getLogInfo(
+  let loginfo = getLogInfo(
     timeOnReq,
     null,
     null,
@@ -4278,7 +4213,7 @@ ipcMain.on(ALWAN_API_REQ, async (_, args) => {
     null,
     'Requested',
   );
-  mainWindow?.webContents.send(ALWAN_API_LOG, { log });
+  mainWindow?.webContents.send(ALWAN_API_LOG, { loginfo });
   args.alwanAPI.request = {
     ...args.alwanAPI.request,
     baseURL: alwanBaseURL,
@@ -4297,7 +4232,7 @@ ipcMain.on(ALWAN_API_REQ, async (_, args) => {
   const res = await alwanAPI(args);
   const timeOnRes = Date.now();
   const resDuration = (timeOnRes - timeOnReq) / 1000;
-  log = getLogInfo(
+  loginfo = getLogInfo(
     timeOnRes,
     resDuration,
     null,
@@ -4307,7 +4242,7 @@ ipcMain.on(ALWAN_API_REQ, async (_, args) => {
     res.status,
     res.statusText,
   );
-  mainWindow?.webContents.send(ALWAN_API_LOG, { log });
+  mainWindow?.webContents.send(ALWAN_API_LOG, { loginfo });
   webSocketWorkerWindow?.webContents.send(ALWAN_API_RES, res);
 });
 
@@ -4342,7 +4277,7 @@ ipcMain.on(ALWAN_UPDATE_LICENSE, (_, args) => {
 });
 
 // scan i1io3 chart channels
-ipcMain.on(EXPORT_LAST_SCAN_DATA, (_, args) => {
+ipcMain.on(EXPORT_LAST_SCAN_DATA, () => {
   const filePath = path.join(
     __dirname,
     'devices',
@@ -4363,31 +4298,4 @@ ipcMain.on(EXPORT_LAST_SCAN_DATA, (_, args) => {
       fileData: data,
     });
   });
-});
-
-// helper function
-const getLogInfo = (
-  timeStamp,
-  duration,
-  client,
-  method,
-  url,
-  parameters,
-  status,
-  result,
-) => ({
-  timeStamp,
-  date: new Date().toISOString().split('T')[0],
-  time: new Date().toLocaleTimeString(),
-  duration: duration ?? '-',
-  client: client ?? '-',
-  method: method ?? '-',
-  url: url ?? '-',
-  parameters: parameters
-    ? typeof parameters === 'object'
-      ? JSON.stringify(parameters)
-      : parameters
-    : '-',
-  status: status ?? '-',
-  result: result ?? '-',
 });
