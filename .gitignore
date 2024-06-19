@@ -35,3 +35,4 @@ assets/SDK
 .framework
 
 src/main/devices/zebra_printer/file.zpl
+src/main/devices/colorscout/measurement_data.csv

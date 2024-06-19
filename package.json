@@ -1,52 +1,44 @@
 {
-  "description": "A foundation for scalable desktop apps",
+  "name": "cma_connect",
+  "productName": "CMA Connect",
+  "description": "CMA Connect is a software build to interface a spectrophotometer connected locally through USB port, in order to send encrypted measurements to the CMA ColorPortal Enterprise cloud-based color computing software.",
+  "homepage": "https://cmaimaging.com",
+  "version": "24.5.1",
   "keywords": [
-    "electron",
-    "boilerplate",
-    "react",
-    "typescript",
-    "ts",
-    "sass",
-    "webpack",
-    "hot",
-    "reload"
+    "End-to-End Color Management",
+    "Cloud-Based Color Software",
+    "Colorportal,Enterprise Color Management",
+    "Modular Color Management",
+    "Web-Based Color App,Digital Packaging Workflows",
+    "Colorportal Enterprise",
+    "Disruptive Color Management",
+    "Reflective Color Technology"
   ],
-  "homepage": "https://github.com/electron-react-boilerplate/electron-react-boilerplate#readme",
-  "bugs": {
-    "url": "https://github.com/electron-react-boilerplate/electron-react-boilerplate/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/electron-react-boilerplate/electron-react-boilerplate.git"
-  },
   "license": "MIT",
   "author": {
-    "name": "Electron React Boilerplate Maintainers",
-    "email": "electronreactboilerplate@gmail.com",
-    "url": "https://electron-react-boilerplate.js.org"
+    "name": "Gerardo Cerros",
+    "email": "sales@cmaimaging.com",
+    "url": "https://cmaimaging.com"
   },
-  "contributors": [
-    {
-      "name": "Amila Welihinda",
-      "email": "amilajack@gmail.com",
-      "url": "https://github.com/amilajack"
-    }
-  ],
   "main": "./src/main/main.js",
   "scripts": {
     "build": "concurrently \"npm run build:main\" \"npm run build:renderer\"",
     "build:dll": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.renderer.dev.dll.ts",
     "build:main": "cross-env NODE_ENV=production TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.main.prod.ts",
     "build:renderer": "cross-env NODE_ENV=production TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.renderer.prod.ts",
-    "postinstall": "ts-node .erb/scripts/check-native-dep.js && electron-builder install-app-deps && npm run build:dll",
+    "build:websocket-worker": "shx cp -R ./src/webSocketWorker ./release/app/dist/ && minify-all-js ./release/app/dist/webSocketWorker -j -m -M -p",
+    "build:SDK": "shx cp -R ./assets/SDK ./release/app/dist/SDK",
+    "postinstall": "ts-node .erb/scripts/check-native-dep.js && build:websocket-worker && electron-builder install-app-deps && npm run build:dll",
     "lint": "cross-env NODE_ENV=development eslint . --ext .js,.jsx,.ts,.tsx",
-    "package": "ts-node ./.erb/scripts/clean.js dist && npm run build && electron-builder build --publish never && npm run build:dll",
+    "package": "ts-node ./.erb/scripts/clean.js dist && npm run build && npm run build:websocket-worker && electron-builder build --publish never &&  npm run build:dll",
     "rebuild": "electron-rebuild --parallel --types prod,dev,optional --module-dir release/app",
     "start": "ts-node ./.erb/scripts/check-port-in-use.js && npm run start:renderer",
     "start:main": "cross-env NODE_ENV=development electronmon -r ts-node/register/transpile-only .",
     "start:preload": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.preload.dev.ts",
     "start:renderer": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack serve --config ./.erb/configs/webpack.config.renderer.dev.ts",
-    "test": "jest"
+    "test": "jest",
+    "publish-mac": "ts-node ./.erb/scripts/clean.js dist && npm run build &&  build:websocket-worker && npm run build:websocket-worker && electron-builder build --mac --publish always",
+    "publish-win": "ts-node ./.erb/scripts/clean.js dist && npm run build &&  build:websocket-worker && npm run build:websocket-worker && electron-builder build --win --publish always"
   },
   "browserslist": [],
   "prettier": {
@@ -102,6 +94,7 @@
     "electron-log": "^4.4.8",
     "electron-updater": "^6.1.4",
     "koffi": "^2.8.10",
+    "minify-all-js": "^0.1.9",
     "papaparse": "^5.4.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -155,12 +148,14 @@
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "mini-css-extract-plugin": "^2.7.6",
+    "opencollective-postinstall": "^2.0.3",
     "prettier": "^3.0.3",
     "react-refresh": "^0.14.0",
     "react-test-renderer": "^18.2.0",
     "rimraf": "^5.0.1",
     "sass": "^1.67.0",
     "sass-loader": "^13.3.2",
+    "shx": "^0.3.4",
     "style-loader": "^3.3.3",
     "terser-webpack-plugin": "^5.3.9",
     "ts-jest": "^29.1.1",
@@ -176,24 +171,23 @@
     "webpack-merge": "^5.9.0"
   },
   "build": {
-    "productName": "ElectronReact",
-    "appId": "org.erb.ElectronReact",
+    "productName": "CMA Connect",
+    "appId": "org.CMAIMAGING.CMAConnect",
+    "copyright": "Copyright © 2023 CMA IMAGING",
     "asar": true,
     "asarUnpack": "**\\*.{node,dll}",
     "files": [
       "dist",
+      "src/assets",
       "node_modules",
       "package.json"
     ],
     "afterSign": ".erb/scripts/notarize.js",
     "mac": {
-      "target": {
-        "target": "default",
-        "arch": [
-          "arm64",
-          "x64"
-        ]
-      },
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "type": "distribution",
       "hardenedRuntime": true,
       "entitlements": "assets/entitlements.mac.plist",
@@ -201,6 +195,7 @@
       "gatekeeperAssess": false
     },
     "dmg": {
+      "sign": false,
       "contents": [
         {
           "x": 130,
@@ -215,6 +210,9 @@
       ]
     },
     "win": {
+      "publish": [
+        "github"
+      ],
       "target": [
         "nsis"
       ]
@@ -232,12 +230,7 @@
     },
     "extraResources": [
       "./assets/**"
-    ],
-    "publish": {
-      "provider": "github",
-      "owner": "electron-react-boilerplate",
-      "repo": "electron-react-boilerplate"
-    }
+    ]
   },
   "collective": {
     "url": "https://opencollective.com/electron-react-boilerplate-594"
