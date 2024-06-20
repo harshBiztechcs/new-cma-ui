@@ -506,7 +506,7 @@ const createWindow = async () => {
   mainWindow.on('close', (event) => {
     if (!app.isQuitting) {
       event.preventDefault();
-      event.reply(APP_REQUEST_CLOSE);
+      mainWindow?.webContents.send(APP_REQUEST_CLOSE);
     }
   });
 
