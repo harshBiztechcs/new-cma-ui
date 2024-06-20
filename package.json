@@ -28,7 +28,7 @@
     "build:renderer": "cross-env NODE_ENV=production TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.renderer.prod.ts",
     "build:websocket-worker": "shx cp -R ./src/webSocketWorker ./release/app/dist/ && minify-all-js ./release/app/dist/webSocketWorker -j -m -M -p",
     "build:SDK": "shx cp -R ./assets/SDK ./release/app/dist/SDK",
-    "postinstall": "ts-node .erb/scripts/check-native-dep.js && build:websocket-worker && electron-builder install-app-deps && npm run build:dll",
+    "postinstall": "ts-node .erb/scripts/check-native-dep.js && npm run build:websocket-worker && electron-builder install-app-deps && npm run build:dll",
     "lint": "cross-env NODE_ENV=development eslint . --ext .js,.jsx,.ts,.tsx",
     "package": "ts-node ./.erb/scripts/clean.js dist && npm run build && npm run build:websocket-worker && electron-builder build --publish never &&  npm run build:dll",
     "rebuild": "electron-rebuild --parallel --types prod,dev,optional --module-dir release/app",
@@ -37,8 +37,8 @@
     "start:preload": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack --config ./.erb/configs/webpack.config.preload.dev.ts",
     "start:renderer": "cross-env NODE_ENV=development TS_NODE_TRANSPILE_ONLY=true webpack serve --config ./.erb/configs/webpack.config.renderer.dev.ts",
     "test": "jest",
-    "publish-mac": "ts-node ./.erb/scripts/clean.js dist && npm run build &&  build:websocket-worker && npm run build:websocket-worker && electron-builder build --mac --publish always",
-    "publish-win": "ts-node ./.erb/scripts/clean.js dist && npm run build &&  build:websocket-worker && npm run build:websocket-worker && electron-builder build --win --publish always"
+    "publish-mac": "ts-node ./.erb/scripts/clean.js dist && npm run build && npm run build:websocket-worker && electron-builder build --mac --publish always",
+    "publish-win": "ts-node ./.erb/scripts/clean.js dist && npm run build && npm run build:websocket-worker && electron-builder build --win --publish always"
   },
   "browserslist": [],
   "prettier": {
@@ -128,8 +128,8 @@
     "css-loader": "^6.8.1",
     "css-minimizer-webpack-plugin": "^5.0.1",
     "detect-port": "^1.5.1",
-    "electron": "^26.2.1",
-    "electron-builder": "^24.6.4",
+    "electron": "^31.0.2",
+    "electron-builder": "^24.13.3",
     "electron-devtools-installer": "^3.2.0",
     "electronmon": "^2.0.2",
     "eslint": "^8.49.0",
