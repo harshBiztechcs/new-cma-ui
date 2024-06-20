@@ -11,7 +11,7 @@ function Footer() {
   useEffect(() => {
     const { ipcRenderer } = window.electron;
 
-    ipcRenderer.once(GET_APP_VERSION, getAppVersion);
+    ipcRenderer.on(GET_APP_VERSION, getAppVersion);
     ipcRenderer.send(GET_APP_VERSION);
 
     return () => {

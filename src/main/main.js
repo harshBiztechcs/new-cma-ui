@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /* eslint-disable promise/always-return */
 /* eslint-disable global-require */
 import path from 'path';
@@ -350,7 +351,7 @@ let alwanAuth = null;
 let connectionTypeROP = null;
 let switchConnetionModeInstanceURL = null;
 
-const macAddress = null;
+let macAddress = null;
 
 if (process.env.NODE_ENV === 'production') {
   const sourceMapSupport = require('source-map-support');
@@ -430,7 +431,9 @@ const loadInitialLibraries = () => {
       // exposing/load Label printer library function
       loadPrinterFunctions();
     }
-  } catch (error) {}
+  } catch (error) {
+    console.error('error', error);
+  }
 };
 const installExtensions = async () => {
   const installer = require('electron-devtools-installer');
@@ -508,13 +511,13 @@ const createWindow = async () => {
   });
 
   // Open urls in the user's browser
-  mainWindow.webContents.on('new-window', (event, url) => {
+  mainWindow?.webContents.on('new-window', (event, url) => {
     event.preventDefault();
     shell.openExternal(url);
   });
 
   // Open urls in the user's browser
-  mainWindow.webContents.setWindowOpenHandler((edata) => {
+  mainWindow?.webContents.setWindowOpenHandler((edata) => {
     shell.openExternal(edata.url);
     return { action: 'deny' };
   });
@@ -591,7 +594,7 @@ if (!singleInstanceLock) {
 
 // to update current websocket calls actions
 const updateCurrentAction = (msg) => {
-  mainWindow.webContents.send(CURRENT_ACTION, msg);
+  mainWindow?.webContents.send(CURRENT_ACTION, msg);
 };
 
 // Check if there is internet or not
@@ -1044,7 +1047,51 @@ const disconnectDevice = (device) => {
     return { res: false, error: null };
   }
 };
+// common function to change measure flag
+const updateDeviceMeasureFlag = (device, status) => {
+  switch (device) {
+    case 'I1PRO3':
+    case 'I1PRO3_STRIPMODE':
+      updateI1PRO3StartMeasure(status);
+      break;
 
+    case 'I1PRO2':
+      updateI1PROStartMeasure(status);
+      break;
+
+    case 'CI62':
+      updateCI62StartMeasure(status);
+      break;
+
+    case 'CI64':
+      updateCI64StartMeasure(status);
+      break;
+
+    case 'CI64UV':
+      updateCI64UVStartMeasure(status);
+      break;
+
+    case 'COLORSCOUT':
+      updateColorScoutStartMeasure(status);
+      break;
+
+    case 'EXACT':
+      updateExactStartMeasure(status);
+      break;
+
+    case 'EXACT2':
+    case 'EXACT2_STRIPMODE':
+      updateExact2StartMeasure(status);
+      break;
+
+    case 'I1IO3':
+      updateI1IO3StartMeasure(status);
+      break;
+
+    default:
+      break;
+  }
+};
 // common function to check weather device is still open and connected or not
 const checkDeviceOpen = (msgType, content) => {
   const res = checkDeviceConnection(content.deviceConnection.deviceType);
@@ -1261,271 +1308,7 @@ const verifyDeviceConnection = async (deviceName) => {
   }
 };
 
-// common function for handling multiple device settings
-const handleSettingsRequest = async (content) => {
-  switch (content.deviceConnection.deviceType) {
-    case 'I1PRO3':
-      settingI1Pro3(content);
-      break;
-
-    case 'I1PRO3_STRIPMODE':
-      settingI1Pro3StripMode(content);
-      break;
-
-    case 'I1PRO2':
-      settingI1Pro2(content);
-      break;
-
-    case 'CI62':
-      settingCi62(content);
-      break;
-
-    case 'CI62_COLORSCOUT':
-      settingCi62(content);
-      break;
-
-    case 'EXACT':
-      settingExact(content);
-      break;
-
-    case 'EXACT2':
-      settingExact2(content);
-      break;
-
-    case 'EXACT2_STRIPMODE':
-      settingExact2StripMode(content);
-      break;
-
-    case 'CI64':
-      settingCi64(content);
-      break;
-
-    case 'CI64UV':
-      settingCi64UV(content);
-      break;
-
-    case 'CI64_COLORSCOUT':
-      settingCi64(content);
-      break;
-
-    case 'CI64UV_COLORSCOUT':
-      settingCi64UV(content);
-      break;
-
-    case 'I1IO3':
-      settingI1IO3(content);
-      break;
-
-    case 'I1IO2':
-      settingI1IO(content);
-      break;
-
-    case 'CMA-ROP64E-UV':
-    case 'CMA-ROP64E-UV_COLORSCOUT':
-      {
-        if (connectionTypeROP) {
-          await settingSpectrometerWithBT(content);
-        } else {
-          await settingSpectrometer(content);
-        }
-      }
-      break;
-
-    case 'CMA-ROP64E-UV-BT':
-      // case 'CMA-ROP64E-UV-BT_COLORSCOUT':
-      await settingSpectrometerWithBT(content);
-      break;
-    default:
-      break;
-  }
-};
-
-// common function for handling multiple device calibration
-const handleCalibrationRequest = async (content) => {
-  switch (content.deviceConnection.deviceType) {
-    case 'I1PRO3':
-      calibrateI1Pro3(content);
-      break;
-
-    case 'I1PRO3_STRIPMODE':
-      calibrateI1Pro3StripMode(content);
-      break;
-
-    case 'I1PRO2':
-      calibrateI1Pro2(content);
-      break;
-
-    case 'CI62':
-      calibrateCi62(content);
-      break;
-
-    case 'CI62_COLORSCOUT':
-      calibrateCi62(content);
-      break;
-
-    case 'CI64':
-      calibrateCi64(content);
-      break;
-
-    case 'CI64UV':
-      calibrateCi64UV(content);
-      break;
-
-    case 'CI64_COLORSCOUT':
-      calibrateCi64(content);
-      break;
-
-    case 'CI64UV_COLORSCOUT':
-      calibrateCi64UV(content);
-      break;
-
-    case 'EXACT':
-      calibrateExact(content);
-      break;
-
-    case 'EXACT2':
-    case 'EXACT2_STRIPMODE': {
-      calibrateExact2(content);
-      break;
-    }
-
-    case 'I1IO3':
-      calibratingI1IO3(content);
-      break;
-
-    case 'I1IO2':
-      calibratingI1IO(content);
-      break;
-
-    case 'CMA-ROP64E-UV':
-    case 'CMA-ROP64E-UV_COLORSCOUT':
-      await calibrateSpectrometer(content);
-      break;
-
-    case 'CMA-ROP64E-UV-BT':
-      // case 'CMA-ROP64E-UV-BT_COLORSCOUT':
-      await calibrateSpectrometer(content);
-      break;
-
-    default:
-      break;
-  }
-};
-
-// common function for handling multiple device measurement
-const handleMeasurementRequest = async (content) => {
-  switch (content.deviceConnection.deviceType) {
-    case 'I1PRO3':
-      measureI1Pro3(content);
-      break;
-
-    case 'I1PRO3_STRIPMODE':
-      measureI1Pro3StripMode(content);
-      break;
-
-    case 'I1PRO2':
-      measureI1Pro2(content);
-      break;
-
-    case 'CI62':
-      measureCi62(content);
-      break;
-
-    case 'CI62_COLORSCOUT':
-      await measureColorScout(content);
-      break;
-
-    case 'CI64':
-      measureCi64(content);
-      break;
-
-    case 'CI64UV':
-      measureCi64UV(content);
-      break;
-
-    case 'CI64_COLORSCOUT':
-      await measureColorScout(content);
-      break;
-
-    case 'CI64UV_COLORSCOUT':
-      await measureColorScout(content);
-      break;
-
-    case 'EXACT':
-      measureExact(content);
-      break;
-
-    case 'EXACT2':
-      measureExact2(content);
-      break;
-
-    case 'EXACT2_STRIPMODE':
-      await measureExact2StripMode(content);
-      break;
-
-    case 'I1IO3':
-      measureI1iO3(content);
-      break;
-
-    case 'I1IO2':
-      measureI1IO(content);
-      break;
-
-    case 'CMA-ROP64E-UV':
-      {
-        if (connectionTypeROP) {
-          await measureROPWithBluetooth(content, macAddress);
-        } else {
-          await measureROPWithUSB(content);
-        }
-      }
-      break;
-
-    case 'CMA-ROP64E-UV_COLORSCOUT':
-      // case 'CMA-ROP64E-UV-BT_COLORSCOUT':
-      await measureColorScout(content);
-      break;
-
-    case 'CMA-ROP64E-UV-BT':
-      await measureROPWithBluetooth(content);
-      break;
-    default:
-      break;
-  }
-};
-
 // common function for handling multiple device Weight
-const handleWeightRequest = async (content) => {
-  switch (content.deviceConnection.deviceType) {
-    case 'PRECISION_BALANCE':
-      weightPrecisionBalance(content);
-      break;
-  }
-};
-
-const handleResetDataForPB = async (content) => {
-  switch (content.deviceConnection.deviceType) {
-    case 'PRECISION_BALANCE':
-      resetPrecisionBalanceDevice(content);
-      break;
-  }
-};
-
-const handleGetTareValue = async (content) => {
-  switch (content.deviceConnection.deviceType) {
-    case 'PRECISION_BALANCE':
-      handleGetTareValueInDevice(content);
-      break;
-  }
-};
-
-const handleSetTareValue = async (content) => {
-  switch (content.deviceConnection.deviceType) {
-    case 'PRECISION_BALANCE':
-      handleSetTareValueInDevice(content);
-      break;
-  }
-};
 
 const handleZebraPrinter = async (args) => {
   try {
@@ -1562,76 +1345,10 @@ const handleBarcodeReader = async (args) => {
       };
       webSocketWorkerWindow.webContents.send(BAR_CODE_READER_HANDLER, data);
     } else {
-      mainWindow.webContents.send(SEND_OPEN_URL_TO_INPUT, args);
+      mainWindow?.webContents.send(SEND_OPEN_URL_TO_INPUT, args);
     }
   } catch (error) {
     console.error('An error occurred:', error.message);
-  }
-};
-
-// common function for handling multiple device measurement
-const handleGrabInitialPositionRequest = async (content) => {
-  switch (content.deviceConnection.deviceType) {
-    case 'I1IO3':
-      grabInitialPositionI1IO3Device(content);
-      break;
-
-    case 'I1IO2':
-      grabInitialPositionI1IODevice(content);
-      break;
-
-    case 'CI62_COLORSCOUT':
-      await grabInitialPositionColorScoutDevice(content);
-      break;
-
-    case 'CI64_COLORSCOUT':
-      await grabInitialPositionColorScoutDevice(content);
-      break;
-
-    case 'CI64UV_COLORSCOUT':
-      await grabInitialPositionColorScoutDevice(content);
-      break;
-
-    case 'CMA-ROP64E-UV_COLORSCOUT':
-      // case 'CMA-ROP64E-UV-BT_COLORSCOUT':
-      await grabInitialPositionColorScoutDevice(content);
-      break;
-
-    default:
-      break;
-  }
-};
-
-// common function for handling multiple device measurement
-const handleChartPositionRequest = async (content) => {
-  switch (content.deviceConnection.deviceType) {
-    case 'I1IO3':
-      getChartPositionI1IO3Device(content);
-      break;
-
-    case 'I1IO2':
-      getChartPositionI1IODevice(content);
-      break;
-
-    case 'CI62_COLORSCOUT':
-      await getChartPositionColorScoutDevice(content);
-      break;
-
-    case 'CI64_COLORSCOUT':
-      await getChartPositionColorScoutDevice(content);
-      break;
-
-    case 'CI64UV_COLORSCOUT':
-      await getChartPositionColorScoutDevice(content);
-      break;
-
-    case 'CMA-ROP64E-UV_COLORSCOUT':
-      // case 'CMA-ROP64E-UV-BT_COLORSCOUT':
-      await getChartPositionColorScoutDevice(content);
-      break;
-
-    default:
-      break;
   }
 };
 
@@ -1679,7 +1396,7 @@ const calibrateI1Pro3 = (args) => {
     updateCurrentAction(`calibration failed`);
   }
   webSocketWorkerWindow.webContents.send(CALIBRATION, args);
-  mainWindow.webContents.send(REFRESH_DEVICES_AND_LICENSES, null);
+  mainWindow?.webContents.send(REFRESH_DEVICES_AND_LICENSES, null);
 };
 
 // function for calibration I1Pro3StripMode device type
@@ -1696,7 +1413,7 @@ const calibrateI1Pro3StripMode = (args) => {
     updateCurrentAction(`calibration failed`);
   }
   webSocketWorkerWindow.webContents.send(CALIBRATION, args);
-  mainWindow.webContents.send(REFRESH_DEVICES_AND_LICENSES, null);
+  mainWindow?.webContents.send(REFRESH_DEVICES_AND_LICENSES, null);
 };
 
 // function for taking measurement on I1Pro3 device type
@@ -1719,7 +1436,7 @@ const measureI1Pro3 = async (args) => {
     clearTimeout(deviceMeasurementTimeout);
     args.measurement.measurementData = measRes.measData;
     updateCurrentAction(`measurement complete`);
-  } else if (deviceMeasurementTimeout == 0) {
+  } else if (deviceMeasurementTimeout === 0) {
     args = { type: 'requestTimeout' };
     deviceMeasurementTimeout = null; // reset to initial state
   } else {
@@ -1752,7 +1469,7 @@ const measureI1Pro3StripMode = async (args) => {
     clearTimeout(deviceMeasurementTimeout);
     args.measurement.measurementData = measRes.measData;
     updateCurrentAction(`measurement complete`);
-  } else if (deviceMeasurementTimeout == 0) {
+  } else if (deviceMeasurementTimeout === 0) {
     args = { type: 'requestTimeout' };
     deviceMeasurementTimeout = null; // reset to initial state
   } else {
@@ -1799,7 +1516,7 @@ const measureCi62 = (args) => {
       const result = getCi62MeasurementData();
       if (result.res) {
         args.measurement.hasMeasured = true;
-        if (result.hasOwnProperty('SPINREFData')) {
+        if (Object.prototype.hasOwnProperty.call(result, 'SPINREFData')) {
           args.measurement.measurementData = {
             SPINREFData: result.SPINREFData,
             SPINLABData: result.SPINLABData,
@@ -2153,14 +1870,14 @@ const measureI1iO3 = (args) => {
     webSocketWorkerWindow.webContents.send(MEASUREMENT, args);
     args.measurement.measurementData = measurementDataJson;
     // send data back to main windows to show scanned response data
-    mainWindow.webContents.send(SCAN_MEASUREMENT_RES, args);
+    mainWindow?.webContents.send(SCAN_MEASUREMENT_RES, args);
   } catch (error) {
     updateCurrentAction(`Error scanning chart : ${error.message}`);
     args.measurement.hasMeasured = false;
     args.error = { message: error.message };
     args.measurement.measurementData = null;
     webSocketWorkerWindow.webContents.send(MEASUREMENT, args);
-    mainWindow.webContents.send(SCAN_MEASUREMENT_RES, args);
+    mainWindow?.webContents.send(SCAN_MEASUREMENT_RES, args);
   }
   // resetting measurement string
   resetMeasStringI1IO3();
@@ -2334,14 +2051,14 @@ const measureI1IO = (args) => {
     webSocketWorkerWindow.webContents.send(MEASUREMENT, args);
     args.measurement.measurementData = measurementDataJson;
     // send data back to main windows to show scanned response data
-    mainWindow.webContents.send(SCAN_MEASUREMENT_RES, args);
+    mainWindow?.webContents.send(SCAN_MEASUREMENT_RES, args);
   } catch (error) {
     updateCurrentAction(`Error scanning chart : ${error.message}`);
     args.measurement.hasMeasured = false;
     args.error = { message: error.message };
     args.measurement.measurementData = null;
     webSocketWorkerWindow.webContents.send(MEASUREMENT, args);
-    mainWindow.webContents.send(SCAN_MEASUREMENT_RES, args);
+    mainWindow?.webContents.send(SCAN_MEASUREMENT_RES, args);
   }
   // resetting measurement string
   resetMeasStringI1IO();
@@ -2425,7 +2142,6 @@ const getChartPositionColorScoutDevice = async (args) => {
 
 // function for taking measurement by scanning for whole chart on COLORSCOUT device type from equipment app
 const measureColorScout = async (args) => {
-
   try {
     const {
       column,
@@ -2493,14 +2209,80 @@ const measureColorScout = async (args) => {
     }
     webSocketWorkerWindow.webContents.send(MEASUREMENT, args);
     // send data back to main windows to show scanned response data
-    mainWindow.webContents.send(SCAN_MEASUREMENT_RES, args);
+    mainWindow?.webContents.send(SCAN_MEASUREMENT_RES, args);
   } catch (error) {
     updateCurrentAction(`Error scanning chart : ${error.message}`);
     args.measurement.hasMeasured = false;
     args.error = { message: error.message };
     args.measurement.measurementData = null;
     webSocketWorkerWindow.webContents.send(MEASUREMENT, args);
-    mainWindow.webContents.send(SCAN_MEASUREMENT_RES, args);
+    mainWindow?.webContents.send(SCAN_MEASUREMENT_RES, args);
+  }
+};
+
+// common function for handling multiple device measurement
+const handleGrabInitialPositionRequest = async (content) => {
+  switch (content.deviceConnection.deviceType) {
+    case 'I1IO3':
+      grabInitialPositionI1IO3Device(content);
+      break;
+
+    case 'I1IO2':
+      grabInitialPositionI1IODevice(content);
+      break;
+
+    case 'CI62_COLORSCOUT':
+      await grabInitialPositionColorScoutDevice(content);
+      break;
+
+    case 'CI64_COLORSCOUT':
+      await grabInitialPositionColorScoutDevice(content);
+      break;
+
+    case 'CI64UV_COLORSCOUT':
+      await grabInitialPositionColorScoutDevice(content);
+      break;
+
+    case 'CMA-ROP64E-UV_COLORSCOUT':
+      // case 'CMA-ROP64E-UV-BT_COLORSCOUT':
+      await grabInitialPositionColorScoutDevice(content);
+      break;
+
+    default:
+      break;
+  }
+};
+
+// common function for handling multiple device measurement
+const handleChartPositionRequest = async (content) => {
+  switch (content.deviceConnection.deviceType) {
+    case 'I1IO3':
+      getChartPositionI1IO3Device(content);
+      break;
+
+    case 'I1IO2':
+      getChartPositionI1IODevice(content);
+      break;
+
+    case 'CI62_COLORSCOUT':
+      await getChartPositionColorScoutDevice(content);
+      break;
+
+    case 'CI64_COLORSCOUT':
+      await getChartPositionColorScoutDevice(content);
+      break;
+
+    case 'CI64UV_COLORSCOUT':
+      await getChartPositionColorScoutDevice(content);
+      break;
+
+    case 'CMA-ROP64E-UV_COLORSCOUT':
+      // case 'CMA-ROP64E-UV-BT_COLORSCOUT':
+      await getChartPositionColorScoutDevice(content);
+      break;
+
+    default:
+      break;
   }
 };
 
@@ -2676,6 +2458,15 @@ const calibrateSpectrometer = async (args) => {
   webSocketWorkerWindow.webContents.send(CALIBRATION, args);
 };
 
+const handleMeasurementError = (error, measurementArgs) => {
+  measurementArgs.measurement.hasMeasured = false;
+  measurementArgs.error = {
+    message: error.message || 'An error occurred during measurement',
+  };
+  updateCurrentAction(`Measurement failed: ${error.message}`);
+  webSocketWorkerWindow.webContents.send(MEASUREMENT, measurementArgs);
+};
+
 // function for measure Spectrometer device type with USB
 const measureROPWithUSB = async (measurementArgs) => {
   try {
@@ -2776,10 +2567,6 @@ const measureROPWithBluetooth = async (measurementArgs) => {
       handleMeasurementResult(averages, measurementArgs);
     }
 
-    console.log(
-      '🚀 ~ file: main.js:3285 ~ measureROPWithBluetooth ~ measurementArgs:',
-      measurementArgs,
-    );
     webSocketWorkerWindow.webContents.send(MEASUREMENT, measurementArgs);
   } catch (error) {
     handleMeasurementError(error, measurementArgs);
@@ -2797,15 +2584,6 @@ const handleMeasurementResult = (result, measurementArgs) => {
     measurementArgs.error = { message: result.error || 'Measurement failed' };
     updateCurrentAction('Measurement failed.');
   }
-};
-
-const handleMeasurementError = (error, measurementArgs) => {
-  measurementArgs.measurement.hasMeasured = false;
-  measurementArgs.error = {
-    message: error.message || 'An error occurred during measurement',
-  };
-  updateCurrentAction(`Measurement failed: ${error.message}`);
-  webSocketWorkerWindow.webContents.send(MEASUREMENT, measurementArgs);
 };
 
 // function for setting on I1Pro device type
@@ -2838,54 +2616,10 @@ const calibrateI1Pro2 = (args) => {
     updateCurrentAction(`calibration failed `);
   }
   webSocketWorkerWindow.webContents.send(CALIBRATION, args);
-  mainWindow.webContents.send(REFRESH_DEVICES_AND_LICENSES, null);
+  mainWindow?.webContents.send(REFRESH_DEVICES_AND_LICENSES, null);
   // });
 };
-// common function to change measure flag
-const updateDeviceMeasureFlag = (device, status) => {
-  switch (device) {
-    case 'I1PRO3':
-    case 'I1PRO3_STRIPMODE':
-      updateI1PRO3StartMeasure(status);
-      break;
 
-    case 'I1PRO2':
-      updateI1PROStartMeasure(status);
-      break;
-
-    case 'CI62':
-      updateCI62StartMeasure(status);
-      break;
-
-    case 'CI64':
-      updateCI64StartMeasure(status);
-      break;
-
-    case 'CI64UV':
-      updateCI64UVStartMeasure(status);
-      break;
-
-    case 'COLORSCOUT':
-      updateColorScoutStartMeasure(status);
-      break;
-
-    case 'EXACT':
-      updateExactStartMeasure(status);
-      break;
-
-    case 'EXACT2':
-    case 'EXACT2_STRIPMODE':
-      updateExact2StartMeasure(status);
-      break;
-
-    case 'I1IO3':
-      updateI1IO3StartMeasure(status);
-      break;
-
-    default:
-      break;
-  }
-};
 // function for taking measurement on I1Pro device type
 const measureI1Pro2 = async (args) => {
   updateCurrentAction('Taking Measurement...');
@@ -2915,8 +2649,6 @@ const measureI1Pro2 = async (args) => {
   }
   webSocketWorkerWindow.webContents.send(MEASUREMENT, args);
 };
-
-
 
 // common function to check whether measurement is going on or not
 const getDeviceMeasureStatus = (device) => {
@@ -2960,7 +2692,7 @@ const setDeviceDisconnectTimeout = (deviceType) => {
   if (!deviceType) return;
   deviceDisconnectionTimeout = setTimeout(
     () => {
-      mainWindow.webContents.send(DEVICE_DISCONNECT_TIMEOUT, {
+      mainWindow?.webContents.send(DEVICE_DISCONNECT_TIMEOUT, {
         hasTimeout: true,
         deviceType,
       });
@@ -3047,6 +2779,12 @@ const weightPrecisionBalance = async (args) => {
     console.error('An error occurred:', error);
   }
 };
+const handleWeightRequest = async (content) => {
+  if (content.deviceConnection.deviceType === 'PRECISION_BALANCE') {
+    await weightPrecisionBalance(content);
+  }
+};
+
 const sendResultsOverWebSocket = (args) => {
   webSocketWorkerWindow.webContents.send(MAKE_RESET_DEVICE, args);
 };
@@ -3195,6 +2933,11 @@ const resetPrecisionBalanceDevice = async (args) => {
   }
 };
 
+const handleResetDataForPB = async (content) => {
+  if (content.deviceConnection.deviceType === 'PRECISION_BALANCE') {
+    await resetPrecisionBalanceDevice(content);
+  }
+};
 // Helper Functions
 
 /* Reset Data Function END */
@@ -3284,6 +3027,242 @@ const handleGetTareValueInDevice = async (args) => {
   }
 };
 
+const handleGetTareValue = async (content) => {
+  if (content.deviceConnection.deviceType === 'PRECISION_BALANCE') {
+    await handleGetTareValueInDevice(content);
+  }
+};
+
+// common function for handling multiple device measurement
+const handleMeasurementRequest = async (content) => {
+  switch (content.deviceConnection.deviceType) {
+    case 'I1PRO3':
+      measureI1Pro3(content);
+      break;
+
+    case 'I1PRO3_STRIPMODE':
+      measureI1Pro3StripMode(content);
+      break;
+
+    case 'I1PRO2':
+      measureI1Pro2(content);
+      break;
+
+    case 'CI62':
+      measureCi62(content);
+      break;
+
+    case 'CI62_COLORSCOUT':
+      await measureColorScout(content);
+      break;
+
+    case 'CI64':
+      measureCi64(content);
+      break;
+
+    case 'CI64UV':
+      measureCi64UV(content);
+      break;
+
+    case 'CI64_COLORSCOUT':
+      await measureColorScout(content);
+      break;
+
+    case 'CI64UV_COLORSCOUT':
+      await measureColorScout(content);
+      break;
+
+    case 'EXACT':
+      measureExact(content);
+      break;
+
+    case 'EXACT2':
+      measureExact2(content);
+      break;
+
+    case 'EXACT2_STRIPMODE':
+      await measureExact2StripMode(content);
+      break;
+
+    case 'I1IO3':
+      measureI1iO3(content);
+      break;
+
+    case 'I1IO2':
+      measureI1IO(content);
+      break;
+
+    case 'CMA-ROP64E-UV':
+      if (connectionTypeROP) {
+        await measureROPWithBluetooth(content, macAddress);
+      } else {
+        await measureROPWithUSB(content);
+      }
+      break;
+    case 'CMA-ROP64E-UV_COLORSCOUT':
+      // case 'CMA-ROP64E-UV-BT_COLORSCOUT':
+      await measureColorScout(content);
+      break;
+
+    case 'CMA-ROP64E-UV-BT':
+      await measureROPWithBluetooth(content);
+      break;
+    default:
+      break;
+  }
+};
+
+// common function for handling multiple device settings
+const handleSettingsRequest = async (content) => {
+  switch (content.deviceConnection.deviceType) {
+    case 'I1PRO3':
+      settingI1Pro3(content);
+      break;
+
+    case 'I1PRO3_STRIPMODE':
+      settingI1Pro3StripMode(content);
+      break;
+
+    case 'I1PRO2':
+      settingI1Pro2(content);
+      break;
+
+    case 'CI62':
+      settingCi62(content);
+      break;
+
+    case 'CI62_COLORSCOUT':
+      settingCi62(content);
+      break;
+
+    case 'EXACT':
+      settingExact(content);
+      break;
+
+    case 'EXACT2':
+      settingExact2(content);
+      break;
+
+    case 'EXACT2_STRIPMODE':
+      settingExact2StripMode(content);
+      break;
+
+    case 'CI64':
+      settingCi64(content);
+      break;
+
+    case 'CI64UV':
+      settingCi64UV(content);
+      break;
+
+    case 'CI64_COLORSCOUT':
+      settingCi64(content);
+      break;
+
+    case 'CI64UV_COLORSCOUT':
+      settingCi64UV(content);
+      break;
+
+    case 'I1IO3':
+      settingI1IO3(content);
+      break;
+
+    case 'I1IO2':
+      settingI1IO(content);
+      break;
+
+    case 'CMA-ROP64E-UV':
+    case 'CMA-ROP64E-UV_COLORSCOUT':
+      {
+        if (connectionTypeROP) {
+          await settingSpectrometerWithBT(content);
+        } else {
+          await settingSpectrometer(content);
+        }
+      }
+      break;
+
+    case 'CMA-ROP64E-UV-BT':
+      // case 'CMA-ROP64E-UV-BT_COLORSCOUT':
+      await settingSpectrometerWithBT(content);
+      break;
+    default:
+      break;
+  }
+};
+
+// common function for handling multiple device calibration
+const handleCalibrationRequest = async (content) => {
+  switch (content.deviceConnection.deviceType) {
+    case 'I1PRO3':
+      calibrateI1Pro3(content);
+      break;
+
+    case 'I1PRO3_STRIPMODE':
+      calibrateI1Pro3StripMode(content);
+      break;
+
+    case 'I1PRO2':
+      calibrateI1Pro2(content);
+      break;
+
+    case 'CI62':
+      calibrateCi62(content);
+      break;
+
+    case 'CI62_COLORSCOUT':
+      calibrateCi62(content);
+      break;
+
+    case 'CI64':
+      calibrateCi64(content);
+      break;
+
+    case 'CI64UV':
+      calibrateCi64UV(content);
+      break;
+
+    case 'CI64_COLORSCOUT':
+      calibrateCi64(content);
+      break;
+
+    case 'CI64UV_COLORSCOUT':
+      calibrateCi64UV(content);
+      break;
+
+    case 'EXACT':
+      calibrateExact(content);
+      break;
+
+    case 'EXACT2':
+    case 'EXACT2_STRIPMODE': {
+      calibrateExact2(content);
+      break;
+    }
+
+    case 'I1IO3':
+      calibratingI1IO3(content);
+      break;
+
+    case 'I1IO2':
+      calibratingI1IO(content);
+      break;
+
+    case 'CMA-ROP64E-UV':
+    case 'CMA-ROP64E-UV_COLORSCOUT':
+      await calibrateSpectrometer(content);
+      break;
+
+    case 'CMA-ROP64E-UV-BT':
+      // case 'CMA-ROP64E-UV-BT_COLORSCOUT':
+      await calibrateSpectrometer(content);
+      break;
+
+    default:
+      break;
+  }
+};
+
 /* GET tare Function END */
 
 const handleSetTareValueInDevice = async (args) => {
@@ -3316,6 +3295,12 @@ const handleSetTareValueInDevice = async (args) => {
     webSocketWorkerWindow.webContents.send(SET_TARE_VALUE, args);
   } catch (error) {
     console.error('An error occurred:', error);
+  }
+};
+
+const handleSetTareValue = async (content) => {
+  if (content.deviceConnection.deviceType === 'PRECISION_BALANCE') {
+    await handleSetTareValueInDevice(content);
   }
 };
 
@@ -3358,6 +3343,7 @@ const getAllReleaseNotesAfterCurrentVersion = async (currentVersion) => {
   }
 };
 
+//= =================================================================================================================================================================================
 // Listen for the 'app-close-confirmed' event from the renderer process
 ipcMain.on(APP_CLOSE_CONFIRMED, () => {
   app.isQuitting = true; // Mark that the app is quitting
@@ -3385,7 +3371,7 @@ ipcMain.on(VERIFY_DEVICE_CONNECTION, async (event, args) => {
   const { res, serialNumber } = await verifyDeviceConnection(args.deviceType);
   deviceSerialNumber = serialNumber;
   // send main window for device verification response
-  mainWindow.webContents.send(VERIFY_DEVICE_CONNECTION, res);
+  mainWindow?.webContents.send(VERIFY_DEVICE_CONNECTION, res);
   if (res) {
     const isROP64EUVDevice =
       args.deviceType === 'CMA-ROP64E-UV-BT' ||
@@ -3417,7 +3403,7 @@ ipcMain.on(VERIFY_PB_DEVICE_CONNECTION, async (event, args) => {
   const { res, serialNumber } = await verifyDeviceConnection(args.deviceType);
   deviceSerialNumber = serialNumber;
   // send main window for device verification response
-  mainWindow.webContents.send(VERIFY_PB_DEVICE_CONNECTION, res);
+  mainWindow?.webContents.send(VERIFY_PB_DEVICE_CONNECTION, res);
   if (res) {
     // send socket window to update available Device list
     webSocketWorkerWindow.webContents.send(VERIFY_DEVICE_CONNECTION, {
@@ -3460,7 +3446,7 @@ ipcMain.on(DEVICE_DISCONNECT_API_CALL, async (event, args) => {
     deviceName,
     deviceSerialNumber,
   );
-  mainWindow.webContents.send(DEVICE_DISCONNECT_API_CALL, res);
+  mainWindow?.webContents.send(DEVICE_DISCONNECT_API_CALL, res);
 });
 
 // remove device from websocket device list
@@ -3483,12 +3469,12 @@ ipcMain.on(DEVICE_STATUS_UPDATE_CALL, (event, args) => {
 
 // event from websocket renderer on socket disconnect cleanly
 ipcMain.on(SOCKET_DISCONNECT_CLEANLY, (event, args) => {
-  mainWindow.webContents.send(SOCKET_DISCONNECT_CLEANLY, args);
+  mainWindow?.webContents.send(SOCKET_DISCONNECT_CLEANLY, args);
 });
 
 // event from websocket renderer on socket already exist error
 ipcMain.on(CLIENT_SOCKET_ALREADY_EXIST, (event, args) => {
-  mainWindow.webContents.send(CLIENT_SOCKET_ALREADY_EXIST, args);
+  mainWindow?.webContents.send(CLIENT_SOCKET_ALREADY_EXIST, args);
 });
 
 // event on socket connection response from websocket renderer
@@ -3535,7 +3521,7 @@ ipcMain.on(NETWORK_CONNECTION, async (event, args) => {
 
   status = await checkAllStatuses();
   args.status = status;
-  mainWindow.webContents.send(NETWORK_CONNECTION, args);
+  mainWindow?.webContents.send(NETWORK_CONNECTION, args);
 });
 
 // event on device disconnect from main renderer
@@ -3554,7 +3540,7 @@ ipcMain.on(CLOSE_DEVICE, async (event, args) => {
     const measureInProgress = getDeviceMeasureStatus(args.deviceType);
     // if any measurement in progress then send warning back
     if (measureInProgress) {
-      mainWindow.webContents.send(MEASURE_IN_PROGRESS, args.deviceType);
+      mainWindow?.webContents.send(MEASURE_IN_PROGRESS, args.deviceType);
       return;
     }
   }
@@ -3568,9 +3554,9 @@ ipcMain.on(CLOSE_DEVICE, async (event, args) => {
     deviceSerialNumber,
   );
   if (response.res) {
-    mainWindow.webContents.send(CLOSE_DEVICE, disconnectResult);
+    mainWindow?.webContents.send(CLOSE_DEVICE, disconnectResult);
   } else {
-    mainWindow.webContents.send(CLOSE_DEVICE, {});
+    mainWindow?.webContents.send(CLOSE_DEVICE, {});
   }
   if (disconnectResult.res) {
     // clear device disconnect timeout
@@ -3585,14 +3571,14 @@ ipcMain.on(CLOSE_PB_DEVICE, (event, args) => {
   } else {
     const measureInProgress = getDeviceMeasureStatus(args.deviceType);
     if (measureInProgress) {
-      mainWindow.webContents.send(MEASURE_IN_PROGRESS, args.deviceType);
+      mainWindow?.webContents.send(MEASURE_IN_PROGRESS, args.deviceType);
       return;
     }
   }
   const res = disconnectDevice(args.deviceType);
   res.deviceType = args.deviceType;
   res.deviceId = args?.deviceId;
-  mainWindow.webContents.send(CLOSE_PB_DEVICE, res);
+  mainWindow?.webContents.send(CLOSE_PB_DEVICE, res);
   if (res.res) {
     clearDeviceDisconnectTimeout();
   }
@@ -3601,60 +3587,60 @@ ipcMain.on(CLOSE_PB_DEVICE, (event, args) => {
 // to be send to main windows to update device connection status
 ipcMain.on(CHECK_DEVICE_CONNECTION, async (event, args) => {
   const res = await checkDeviceConnection(args);
-  mainWindow.webContents.send(CHECK_DEVICE_CONNECTION, res);
+  mainWindow?.webContents.send(CHECK_DEVICE_CONNECTION, res);
 });
 
 ipcMain.on(CHECK_ROP_DEVICE_CONNECTION, async (event, args) => {
   const res = await checkDeviceConnection(args);
-  mainWindow.webContents.send(CHECK_ROP_DEVICE_CONNECTION, res);
+  mainWindow?.webContents.send(CHECK_ROP_DEVICE_CONNECTION, res);
 });
 
 ipcMain.on(CHECK_PB_DEVICE_CONNECTION, async (event, args) => {
   const status = await checkDeviceConnection(args.deviceType);
   args.status = status;
-  mainWindow.webContents.send(CHECK_PB_DEVICE_CONNECTION, args);
+  mainWindow?.webContents.send(CHECK_PB_DEVICE_CONNECTION, args);
 });
 
 ipcMain.on(CHECK_ZEBRA_DEVICE_CONNECTION, async (event, args) => {
   const status = await checkDeviceConnection(args.deviceType);
   args.status = status;
-  mainWindow.webContents.send(CHECK_ZEBRA_DEVICE_CONNECTION, args);
+  mainWindow?.webContents.send(CHECK_ZEBRA_DEVICE_CONNECTION, args);
 });
 
 ipcMain.on(CHECK_BARCODE_DEVICE_CONNECTION, async (event, args) => {
   const status = await checkDeviceConnection(args.deviceType);
   args.status = status;
-  mainWindow.webContents.send(CHECK_BARCODE_DEVICE_CONNECTION, args);
+  mainWindow?.webContents.send(CHECK_BARCODE_DEVICE_CONNECTION, args);
 });
 
 // to be send to main windows to update status
 ipcMain.on(CONNECTION_STATUS, (event, args) => {
-  event.reply(CONNECTION_STATUS, args);
+  mainWindow?.webContents.send(CONNECTION_STATUS, args);
 });
 
 // to be send to main windows to update status
 ipcMain.on(CURRENT_ACTION, (event, args) => {
-  event.reply(CURRENT_ACTION, args);
+  mainWindow?.webContents.send(CURRENT_ACTION, args);
 });
 
 // to show dialog box message
 ipcMain.on(SHOW_DIALOG, (event, args) => {
-  mainWindow.webContents.send(SHOW_DIALOG, args);
+  mainWindow?.webContents.send(SHOW_DIALOG, args);
 });
 
 // on get samples event for ci6x devices
 ipcMain.on(GET_SAMPLES_DATA, async (_, args) => {
   if (args === 'CI62') {
     const sampleRes = await getCi62AllSamples();
-    mainWindow.webContents.send(GET_SAMPLES_DATA, sampleRes);
+    mainWindow?.webContents.send(GET_SAMPLES_DATA, sampleRes);
   }
   if (args === 'CI64') {
     const sampleRes = await getCi64AllSamples();
-    mainWindow.webContents.send(GET_SAMPLES_DATA, sampleRes);
+    mainWindow?.webContents.send(GET_SAMPLES_DATA, sampleRes);
   }
   if (args === 'CI64UV') {
     const sampleRes = await getCi64UVAllSamples();
-    mainWindow.webContents.send(GET_SAMPLES_DATA, sampleRes);
+    mainWindow?.webContents.send(GET_SAMPLES_DATA, sampleRes);
   }
 });
 
@@ -3662,15 +3648,15 @@ ipcMain.on(GET_SAMPLES_DATA, async (_, args) => {
 ipcMain.on(CLEAR_SAMPLES, async (_, args) => {
   if (args === 'CI62') {
     const res = await clearAllCi62Samples();
-    mainWindow.webContents.send(CLEAR_SAMPLES, { ...res, deviceType: args });
+    mainWindow?.webContents.send(CLEAR_SAMPLES, { ...res, deviceType: args });
   }
   if (args === 'CI64') {
     const res = await clearAllCi64Samples();
-    mainWindow.webContents.send(CLEAR_SAMPLES, { ...res, deviceType: args });
+    mainWindow?.webContents.send(CLEAR_SAMPLES, { ...res, deviceType: args });
   }
   if (args === 'CI64UV') {
     const res = await clearAllCi64UVSamples();
-    mainWindow.webContents.send(CLEAR_SAMPLES, { ...res, deviceType: args });
+    mainWindow?.webContents.send(CLEAR_SAMPLES, { ...res, deviceType: args });
   }
 });
 
@@ -3702,7 +3688,7 @@ ipcMain.on(DEVICE_CONNECTION, async (event, args) => {
       `device set ${args.deviceConnection.deviceName} : ${args.deviceConnection.isConnected}`,
     );
     webSocketWorkerWindow.webContents.send(DEVICE_CONNECTION, args);
-    mainWindow.webContents.send(DEVICE_CONNECTION, openRes.res);
+    mainWindow?.webContents.send(DEVICE_CONNECTION, openRes.res);
     return;
   }
   if (!openRes.res) return;
@@ -3711,12 +3697,12 @@ ipcMain.on(DEVICE_CONNECTION, async (event, args) => {
   args.deviceConnection.isConnected = true;
   updateCurrentAction(`device set ${args.deviceConnection.deviceName}`);
   webSocketWorkerWindow.webContents.send(DEVICE_CONNECTION, args);
-  mainWindow.webContents.send(DEVICE_CONNECTION, true);
+  mainWindow?.webContents.send(DEVICE_CONNECTION, true);
 });
 
 // on device disconnection call from websocket
 ipcMain.on(DEVICE_DISCONNECTION, (event, args) => {
-  mainWindow.webContents.send(DEVICE_DISCONNECTION, args);
+  mainWindow?.webContents.send(DEVICE_DISCONNECTION, args);
 });
 
 // on settings call from websocket
@@ -3878,11 +3864,11 @@ ipcMain.on(CURRENT_TAB_UPDATE, async (event, args) => {
   }
 });
 
-ipcMain.on(BLUETOOTH_SCAN_DEVICE, async (event, args) => {
+ipcMain.on(BLUETOOTH_SCAN_DEVICE, async (event) => {
   try {
     await getInformationDeviceWithBT();
     const deviceListReceived = await getScannedDeviceList();
-    mainWindow.webContents.send(BLUETOOTH_SCAN_DEVICE, deviceListReceived);
+    event.reply(BLUETOOTH_SCAN_DEVICE, deviceListReceived);
   } catch (error) {
     console.error('An error occurred:', error.message);
   }
@@ -3921,19 +3907,19 @@ ipcMain.on(GET_TOKEN, async (event, args) => {
 
 // ipcMain.on(ACQUIRE_LICENSE, async (_, args) => {
 //   const res = await acquireLicense();
-//   mainWindow.webContents.send(ACQUIRE_LICENSE, res);
+//   mainWindow?.webContents.send(ACQUIRE_LICENSE, res);
 // });
 
 // ipcMain.on(RELEASE_LICENSE, async (_, args) => {
 //   const res = await releaseLicense();
-//   mainWindow.webContents.send(RELEASE_LICENSE, res);
+//   mainWindow?.webContents.send(RELEASE_LICENSE, res);
 // });
 
 // on get device instance url call
 // TODO : currently used static url, change to dynamic url from api response
 ipcMain.on(GET_DEVICE_INSTANCE_URL, async (_, args) => {
   const res = await getDeviceInstanceLink(args);
-  mainWindow.webContents.send(GET_DEVICE_INSTANCE_URL, res);
+  mainWindow?.webContents.send(GET_DEVICE_INSTANCE_URL, res);
 });
 
 // on login/new connection api call
@@ -3943,23 +3929,23 @@ ipcMain.on(LOGIN, async (event, args) => {
   event.reply(LOGIN, { ...res, ...args });
 });
 
-ipcMain.on('log', (_, args) => {});
+ipcMain.on('log', () => {});
 
 // auto-update ipc calls
 // on check for update
-ipcMain.on(CHECK_FOR_UPDATE, (_, args) => {
+ipcMain.on(CHECK_FOR_UPDATE, () => {
   log.log('checking for updates...');
   autoUpdater.checkForUpdates();
 });
 
 // on download updates
-ipcMain.on(DOWNLOAD_UPDATE, (_, args) => {
+ipcMain.on(DOWNLOAD_UPDATE, () => {
   log.log('triggering download update');
   autoUpdater.downloadUpdate();
 });
 
 // on quit and install
-ipcMain.on(QUIT_AND_INSTALL, (_, args) => {
+ipcMain.on(QUIT_AND_INSTALL, () => {
   log.log('quiting app and install new version');
   autoUpdater.quitAndInstall();
 });
@@ -3996,7 +3982,7 @@ autoUpdater.on('error', (args) => {
 autoUpdater.on('download-progress', (progressObj) => {
   log.log(progressObj.percent);
   log.log(Math.round(progressObj.percent));
-  mainWindow.webContents.send(
+  mainWindow?.webContents.send(
     DOWNLOAD_PROGRESS,
     Math.round(progressObj.percent),
   );
@@ -4140,14 +4126,14 @@ ipcMain.on(COLOR_GATE_UPDATE_LICENSE, (_, args) => {
   webSocketWorkerWindow?.webContents.send(COLOR_GATE_UPDATE_LICENSE, args);
 });
 
-ipcMain.on(GET_IP, (event, arg) => {
+ipcMain.on(GET_IP, () => {
   const ipv4 = getLocalIp();
-  event.returnValue = ipv4;
+  mainWindow?.webContents.send(GET_IP, ipv4);
 });
 
-ipcMain.on(GET_APP_VERSION, (event, arg) => {
+ipcMain.on(GET_APP_VERSION, () => {
   const currentVersion = app.getVersion();
-  event.returnValue = currentVersion;
+  mainWindow?.webContents.send(GET_APP_VERSION, currentVersion);
 });
 
 // alwan functions
