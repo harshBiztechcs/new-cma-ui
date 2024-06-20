@@ -201,7 +201,7 @@ function DeviceMeasurement({
       return 0;
     });
   };
-  const onShowDialog = (_, args) => {
+  const onShowDialog = (args) => {
     if (args.message == 'Requested CMA client not found') {
       // setError('Requested action not completed!!');
       // setErrorBtnText('Retry On Instance');
@@ -216,13 +216,13 @@ function DeviceMeasurement({
     }
   };
 
-  const onDeviceDisconnectTimeout = (_, args) => {
+  const onDeviceDisconnectTimeout = (args) => {
     if (args.hasTimeout) {
       onDisconnectDeviceAfterTimeout(args.deviceType);
     }
   };
 
-  const onClearSamplesRes = (_, args) => {
+  const onClearSamplesRes = (args) => {
     if (!args.res) {
       setError(args.message);
       setErrorBtnText('OK');
@@ -234,11 +234,11 @@ function DeviceMeasurement({
     setIsSampleInProgress(false);
   };
 
-  const onCurrentAction = (event, args) => {
+  const onCurrentAction = ( args) => {
     setCurrentAction(args);
   };
 
-  const onSamplesData = (_, args) => {
+  const onSamplesData = (args) => {
     const { header, data, error } = args;
     if (error) {
       setError(error);
@@ -266,7 +266,7 @@ function DeviceMeasurement({
     window.electron.ipcRenderer.send(CLEAR_SAMPLES, device?.deviceType);
   };
 
-  const onCheckDeviceConnection = (event, args) => {
+  const onCheckDeviceConnection = ( args) => {
     if (args) {
       setDeviceConnectionStatus(true);
     } else {
@@ -281,7 +281,7 @@ function DeviceMeasurement({
     }
   };
 
-  const onCloseDevice = (event, args) => {
+  const onCloseDevice = ( args) => {
     if (args.res) {
       //TODO : release device licenses here by calling main
       onDeviceDisConnect(currentDevice);
@@ -295,7 +295,7 @@ function DeviceMeasurement({
     window.electron.ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
   };
 
-  const onGetDeviceInstanceLink = (_, args) => {
+  const onGetDeviceInstanceLink = (args) => {
     if (args.res) {
       window.open(args.url);
     } else {
@@ -327,7 +327,7 @@ function DeviceMeasurement({
     window.electron.ipcRenderer.send(GET_DEVICE_AND_LICENSES, { instanceURL, username, token });
   };
 
-  const onRefreshDevicesLicenses = (_, args) => {
+  const onRefreshDevicesLicenses = (args) => {
     setTimeout(() => {
       handleRefresh();
     }, 3000);
@@ -338,7 +338,7 @@ function DeviceMeasurement({
     onGetDeviceAndLicenses(args);
   }, []);
 
-  const onDeviceConnection = (_, args) => {
+  const onDeviceConnection = (args) => {
     //if device connected successfully from equipment app then refresh device list and licenses
     if (args) {
       const device = deviceList.find((x) => x.deviceId == currentDevice);
@@ -366,7 +366,7 @@ function DeviceMeasurement({
     }
   };
 
-  const onDeviceRelease = (_, args) => {
+  const onDeviceRelease = (args) => {
     // if device disconnected from equipment app then refresh device list and licenses
     if (args) {
       setTimeout(() => {
@@ -375,7 +375,7 @@ function DeviceMeasurement({
     }
   };
 
-  const onMeasureInProgress = (_, args) => {
+  const onMeasureInProgress = (args) => {
     setForceDisconnectError(
       'Measurement is in progress, are you sure you want to disconnect ?'
     );

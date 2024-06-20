@@ -152,7 +152,7 @@ function DeviceSelection({
     window.electron.ipcRenderer.send(GET_MAC_ADDRESS, deviceAddress);
   }, [deviceAddress]);
 
-  const onDeviceRelease = (_, args) => {
+  const onDeviceRelease = (args) => {
     // if device disconnected from equipment app then refresh device list and licenses
     if (args) {
       setTimeout(() => {
@@ -161,7 +161,7 @@ function DeviceSelection({
     }
   };
 
-  const onVerifyDeviceConnection = (event, args) => {
+  const onVerifyDeviceConnection = ( args) => {
     if (args) {
       // TODO : send device acquire license call here to main and if response yes then go to next page
       setConnectModal(true);
@@ -172,7 +172,7 @@ function DeviceSelection({
     }
   };
 
-  const onCheckDeviceConnection = (event, args) => {
+  const onCheckDeviceConnection = ( args) => {
     if (args) {
       setScanDeviceListModal(true);
       setCurrentPage(3);
@@ -182,7 +182,7 @@ function DeviceSelection({
     }
   };
 
-  const onCloseDevice = (event, args) => {
+  const onCloseDevice = ( args) => {
     if (args.res) {
       // TODO : send release license call to main after device close
       onDeviceDisConnect(connectedDevice);
@@ -191,7 +191,7 @@ function DeviceSelection({
     }
   };
 
-  const onDeviceDisconnectTimeout = (_, args) => {
+  const onDeviceDisconnectTimeout = (args) => {
     if (args && connectedDevice) {
       onDisconnectCurrentDevice(connectedDevice);
     }
@@ -232,7 +232,7 @@ function DeviceSelection({
     window.electron.ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
   };
 
-  const onGetDeviceInstanceLink = (_, args) => {
+  const onGetDeviceInstanceLink = (args) => {
     if (args.res) {
       window.open(args.url);
     } else {
@@ -301,7 +301,7 @@ function DeviceSelection({
     onGetDeviceAndLicenses(args);
   }, []);
 
-  const onDeviceConnection = (_, args) => {
+  const onDeviceConnection = (args) => {
     // if device connected successfully from equipment app then refresh device list and licenses
     if (args) {
       setTimeout(() => {

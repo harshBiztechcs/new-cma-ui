@@ -12,7 +12,7 @@ import {
 } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
-import axios from 'axios';
+
 import fs from 'fs';
 import semver from 'semver';
 import { Octokit } from '@octokit/rest';
@@ -308,7 +308,7 @@ import {
   loadDataFromCSV,
 } from './devices/colorscout/colorscout';
 import { getLocalIp } from './utility';
-import { getLogInfo } from './helperFunction';
+import { getLogInfo, hasInternetConnection } from './helperFunction';
 
 // get encrypted github token and decrypt it for auto-update
 const encryptToken = config['auto-update-token'];
@@ -595,16 +595,6 @@ if (!singleInstanceLock) {
 // to update current websocket calls actions
 const updateCurrentAction = (msg) => {
   mainWindow?.webContents.send(CURRENT_ACTION, msg);
-};
-
-// Check if there is internet or not
-const checkStatus = async (url) => {
-  try {
-    const response = await axios.get(url);
-    return response.status >= 200 && response.status < 300;
-  } catch (err) {
-    return false; // Definitely offline
-  }
 };
 
 // common function to get device info
@@ -1258,18 +1248,6 @@ const verifyDeviceConnection = async (deviceName) => {
         break;
       }
 
-      //  {
-      //   const result = await checkCMAROP64EConnection();
-      //   if (result.res) {
-      //     const serialNumber = await getInformationDevice();
-      //     if (serialNumber.res) {
-      //       return { res: true, serialNumber: serialNumber?.data };
-      //     } else {
-      //       break;
-      //     }
-      //   }
-      //   break;
-      // }
 
       case 'CMA-ROP64E-UV-BT': {
         // case 'CMA-ROP64E-UV-BT_COLORSCOUT':
@@ -3173,13 +3151,10 @@ const handleSettingsRequest = async (content) => {
 
     case 'CMA-ROP64E-UV':
     case 'CMA-ROP64E-UV_COLORSCOUT':
-      {
-        if (connectionTypeROP) {
-          await settingSpectrometerWithBT(content);
-        } else {
-          await settingSpectrometer(content);
-        }
-      }
+      await (
+        connectionTypeROP ? settingSpectrometerWithBT : settingSpectrometer
+      )(content);
+
       break;
 
     case 'CMA-ROP64E-UV-BT':
@@ -3479,47 +3454,13 @@ ipcMain.on(CLIENT_SOCKET_ALREADY_EXIST, (event, args) => {
 
 // event on socket connection response from websocket renderer
 ipcMain.on(SOCKET_CONNECTION, (event, args) => {
-  event.reply(SOCKET_CONNECTION, args);
+  mainWindow?.webContents.send(SOCKET_CONNECTION, args);
 });
 
 // In this event check if there is internet or not
 ipcMain.on(NETWORK_CONNECTION, async (event, args) => {
   let status = false;
-
-  // Increase the timeout to 10 seconds to handle slower networks
-  const timeout = new Promise((_, reject) => {
-    setTimeout(() => {
-      reject(new Error('Request timed out'));
-    }, 7000);
-  });
-
-  // Use multiple URLs for redundancy
-  const urls = [
-    'http://www.google.com',
-    'https://en.wikipedia.org',
-    'https://api.github.com',
-    'https://www.youtube.com',
-    'https://www.reddit.com',
-  ];
-
-  // Check the status of each URL
-  const checkAllStatuses = async () => {
-    const results = await Promise.all(
-      urls.map(async (url) => {
-        try {
-          const onlinePromise = checkStatus(url);
-          const onlineResponse = await Promise.race([timeout, onlinePromise]);
-          return !!onlineResponse;
-        } catch (err) {
-          // Ignore timeout errors, move on to the next URL
-          return false;
-        }
-      }),
-    );
-    return results.some((res) => res === true);
-  };
-
-  status = await checkAllStatuses();
+  status = await hasInternetConnection();
   args.status = status;
   mainWindow?.webContents.send(NETWORK_CONNECTION, args);
 });
@@ -3875,10 +3816,6 @@ ipcMain.on(BLUETOOTH_SCAN_DEVICE, async (event) => {
 });
 
 ipcMain.on(SWITCH_TO_YS3060_CONNECTION_MODE, async (event, args) => {
-  console.log(
-    '🚀 ~ file: main.js:1136 ~ ipcMain.on ~ SWITCH_TO_YS3060_CONNECTION_MODE:',
-    args,
-  );
   connectionTypeROP = args.args;
   switchConnetionModeInstanceURL = args.instanceURL;
 });
@@ -3892,7 +3829,7 @@ ipcMain.on(GET_DEVICE_AND_LICENSES, async (event, args) => {
   const { instanceURL, username, token } = args;
   const deviceRes = await getDeviceListAPICall(instanceURL, username, token);
   const licenseRes = await getLicensesAPICall(instanceURL, token);
-  event.reply(GET_DEVICE_AND_LICENSES, {
+  mainWindow?.webContents.send(GET_DEVICE_AND_LICENSES, {
     deviceRes,
     licenseRes,
   });
@@ -3902,7 +3839,7 @@ ipcMain.on(GET_DEVICE_AND_LICENSES, async (event, args) => {
 ipcMain.on(GET_TOKEN, async (event, args) => {
   console.log('args', args);
   const res = await getToken(args);
-  event.reply(GET_TOKEN, res);
+  mainWindow?.webContents.send(GET_TOKEN, res);
 });
 
 // ipcMain.on(ACQUIRE_LICENSE, async (_, args) => {

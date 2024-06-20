@@ -22,7 +22,7 @@ function DeviceScanModal({
     };
   }, []);
 
-  const onDeviceListReceived = (event, args) => {
+  const onDeviceListReceived = (args) => {
     setIsLoading(false);
     if (args.res) {
       setScannedDeviceList(args.data);

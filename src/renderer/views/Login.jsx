@@ -49,7 +49,7 @@ function Login({
     window.electron.ipcRenderer.send(LOGIN, login);
   };
 
-  const onLogin = (_, args) => {
+  const onLogin = (args) => {
     if (args.res) {
       const connInfo = {
         ...args,

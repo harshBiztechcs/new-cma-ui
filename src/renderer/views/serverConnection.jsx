@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Pagination from 'renderer/components/Pagination';
 import Timeline from 'renderer/components/Timeline';
+import cmaConnectIcon from '../assets/image/cma-connect-icon.png';
 import {
   CONNECTION_STATUS,
   CONNECT_SOCKET,
@@ -10,8 +11,6 @@ import {
   VERIFY_PB_DEVICE_CONNECTION,
 } from 'utility/constants';
 import HomeFooter from 'renderer/components/HomeFooter';
-import cmaConnectIcon from '../assets/image/cma-connect-icon.png';
-
 const { ipcRenderer } = window.electron;
 
 function ServerConnection({
@@ -48,164 +47,41 @@ function ServerConnection({
   const [barcodeDeviceList, setBarcodeDeviceList] = useState([]);
   const [zebraDeviceList, setZebraDeviceList] = useState([]);
 
-  const onConnectionStatus = useCallback((args) => {
-    console.log('onConnectionStatus', args);
-    if (args === 'connected') {
-      console.log('Connected to the server');
-    } else {
-      setError('Server Connection Failed !!');
-    }
-  }, []);
-
-  const onSocketConnection = useCallback((args) => {
-    console.log('args onSocketConnection', args)
-    onServerConnection();
-    // if (args) {
-    //   if (lastDevice) {
-    //     onDeviceReConnect(lastDevice);
-    //     setDeviceList((currentDeviceList) => {
-    //       const updatedDeviceList = [...currentDeviceList];
-
-    //       const lastDeviceInfo = updatedDeviceList.find(
-    //         (x) => x.deviceId == lastDevice && x.status == 'available',
-    //       );
-
-    //       console.log('lastDeviceInfo', lastDeviceInfo)
-    //       if (lastDeviceInfo) {
-    //         window.electron.ipcRenderer.send(
-    //           VERIFY_DEVICE_CONNECTION,
-    //           lastDeviceInfo,
-    //         );
-    //       } else {
-    //         onServerConnection();
-    //       }
-    //       return [];
-    //     });
-    //   } else {
-    //     onServerConnection();
-    //   }
-
-    //   if (connectedPBDevice) {
-    //     onPBDeviceReConnect(connectedPBDevice);
-    //     setPBDeviceList((currentPBDeviceList) => {
-    //       const updatedPBDeviceList = [...currentPBDeviceList];
-
-    //       const lastPBDeviceInfo = updatedPBDeviceList.find(
-    //         (x) => x.deviceId == connectedPBDevice && x.status == 'available',
-    //       );
-
-    //       if (lastPBDeviceInfo) {
-    //         window.electron.ipcRenderer.send(
-    //           VERIFY_PB_DEVICE_CONNECTION,
-    //           lastPBDeviceInfo,
-    //         );
-    //       } else {
-    //         onServerConnection();
-    //       }
-    //       return [];
-    //     });
-    //   }
-
-    //   if (lastConnectedBarcode) {
-    //     onBarcodeDeviceReConnect(lastConnectedBarcode);
-    //     setBarcodeDeviceList((currentBarcodeDeviceList) => {
-    //       const updatedBarcodeDeviceList = [...currentBarcodeDeviceList];
-
-    //       const lastBarcodeDeviceInfo = updatedBarcodeDeviceList.find(
-    //         (x) =>
-    //           x.deviceId == lastConnectedBarcode && x.status == 'available',
-    //       );
-
-    //       if (lastBarcodeDeviceInfo) {
-    //         window.electron.ipcRenderer.send(
-    //           VERIFY_PB_DEVICE_CONNECTION,
-    //           lastBarcodeDeviceInfo,
-    //         );
-    //       } else {
-    //         onServerConnection();
-    //       }
-    //       return [];
-    //     });
-    //   }
-
-    //   if (lastConnectedZebra) {
-    //     onZebraDeviceReConnect(lastConnectedZebra);
-    //     setZebraDeviceList((currentBarcodeDeviceList) => {
-    //       const updatedZerbaDeviceList = [...currentBarcodeDeviceList];
-
-    //       const lastZebraDeviceInfo = updatedZerbaDeviceList.find(
-    //         (x) => x.deviceId == lastConnectedZebra && x.status == 'available',
-    //       );
-
-    //       if (lastZebraDeviceInfo) {
-    //         window.electron.ipcRenderer.send(
-    //           VERIFY_PB_DEVICE_CONNECTION,
-    //           lastZebraDeviceInfo,
-    //         );
-    //       } else {
-    //         onServerConnection();
-    //       }
-    //       return [];
-    //     });
-    //   }
-    // }
-  }, []);
-
   useEffect(() => {
     // register on socket connection status event
-    window.electron.ipcRenderer.on(
-      GET_DEVICE_AND_LICENSES,
-      onDeviceAndLicensesRes,
-    );
+    ipcRenderer.on(GET_DEVICE_AND_LICENSES, onDeviceAndLicensesRes);
     ipcRenderer.on(CONNECTION_STATUS, onConnectionStatus);
-    window.electron.ipcRenderer.on(
-      VERIFY_DEVICE_CONNECTION,
-      onVerifyDeviceConnection,
-    );
-    window.electron.ipcRenderer.on(
-      VERIFY_PB_DEVICE_CONNECTION,
-      onVerifyPBDeviceConnection,
-    );
-    window.electron.ipcRenderer.on(SOCKET_CONNECTION, onSocketConnection);
+    ipcRenderer.on(VERIFY_DEVICE_CONNECTION, onVerifyDeviceConnection);
+    ipcRenderer.on(VERIFY_PB_DEVICE_CONNECTION, onVerifyPBDeviceConnection);
+    ipcRenderer.on(SOCKET_CONNECTION, onSocketConnection);
 
-    // get device list and licenses
+    //get device list and licenses
     getDevicesAndLicenses();
 
     // unregister connection status event listener
     return () => {
-      window.electron.ipcRenderer.removeListener(
-        CONNECTION_STATUS,
-        onConnectionStatus,
-      );
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(CONNECTION_STATUS, onConnectionStatus);
+      ipcRenderer.removeListener(
         VERIFY_DEVICE_CONNECTION,
-        onVerifyDeviceConnection,
+        onVerifyDeviceConnection
       );
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         VERIFY_PB_DEVICE_CONNECTION,
-        onVerifyPBDeviceConnection,
+        onVerifyPBDeviceConnection
       );
-      window.electron.ipcRenderer.removeListener(
-        SOCKET_CONNECTION,
-        onSocketConnection,
-      );
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(SOCKET_CONNECTION, onSocketConnection);
+      ipcRenderer.removeListener(
         GET_DEVICE_AND_LICENSES,
-        onDeviceAndLicensesRes,
+        onDeviceAndLicensesRes
       );
     };
   }, []);
 
   const getDevicesAndLicenses = () => {
-    window.electron.ipcRenderer.send(GET_DEVICE_AND_LICENSES, {
-      instanceURL,
-      username,
-      token,
-    });
+    ipcRenderer.send(GET_DEVICE_AND_LICENSES, { instanceURL, username, token });
   };
 
   const updateDeviceList = (devices) => {
-    console.log('devices updateDeviceList', devices)
     if (devices) {
       const newDeviceList = [];
       const newBalanceDeviceList = [];
@@ -225,35 +101,119 @@ function ServerConnection({
       }
 
       setDeviceList(newDeviceList);
-      console.log('newDeviceList', newDeviceList)
       setPBDeviceList(newBalanceDeviceList);
-      console.log('newBalanceDeviceList', newBalanceDeviceList)
       setBarcodeDeviceList(newBarcodeDeviceList);
-      console.log('newBarcodeDeviceList', newBarcodeDeviceList)
       setZebraDeviceList(newZebraDeviceList);
-      console.log('newZebraDeviceList', newZebraDeviceList)
     }
   };
 
-  const onDeviceAndLicensesRes = useCallback((args) => {
-    console.log('argfrsed   gr gs', args)
-    onServerConnection();
+  const onDeviceAndLicensesRes = (args) => {
     onGetDeviceAndLicenses(args);
     updateDeviceList(args?.deviceRes?.devices ?? []);
 
     if (!serverError) {
-      window.electron.ipcRenderer.send(CONNECT_SOCKET, {
+      ipcRenderer.send(CONNECT_SOCKET, {
         username,
         instanceURL,
         token,
         socketURL,
       });
     }
-  }, []);
+  };
 
+  const onSocketConnection = (args) => {
+    console.log('args onSocketConnection', args)
+    if (args) {
+      onServerConnection();
+      // if (lastDevice) {
+      //   onDeviceReConnect(lastDevice);
+      //   setDeviceList((currentDeviceList) => {
+      //     const updatedDeviceList = [...currentDeviceList];
 
+      //     const lastDeviceInfo = updatedDeviceList.find(
+      //       (x) => x.deviceId == lastDevice && x.status == 'available'
+      //     );
 
-  const onVerifyDeviceConnection = (__, args) => {
+      //     if (lastDeviceInfo) {
+      //       ipcRenderer.send(VERIFY_DEVICE_CONNECTION, lastDeviceInfo);
+      //     } else {
+      //       onServerConnection();
+      //     }
+      //     return [];
+      //   });
+      // } else {
+      //   onServerConnection();
+      // }
+
+      if (connectedPBDevice) {
+        onPBDeviceReConnect(connectedPBDevice);
+        setPBDeviceList((currentPBDeviceList) => {
+          const updatedPBDeviceList = [...currentPBDeviceList];
+
+          const lastPBDeviceInfo = updatedPBDeviceList.find(
+            (x) => x.deviceId == connectedPBDevice && x.status == 'available'
+          );
+
+          if (lastPBDeviceInfo) {
+            ipcRenderer.send(VERIFY_PB_DEVICE_CONNECTION, lastPBDeviceInfo);
+          } else {
+            onServerConnection();
+          }
+          return [];
+        });
+      }
+
+      if (lastConnectedBarcode) {
+        onBarcodeDeviceReConnect(lastConnectedBarcode);
+        setBarcodeDeviceList((currentBarcodeDeviceList) => {
+          const updatedBarcodeDeviceList = [...currentBarcodeDeviceList];
+
+          const lastBarcodeDeviceInfo = updatedBarcodeDeviceList.find(
+            (x) => x.deviceId == lastConnectedBarcode && x.status == 'available'
+          );
+
+          if (lastBarcodeDeviceInfo) {
+            ipcRenderer.send(
+              VERIFY_PB_DEVICE_CONNECTION,
+              lastBarcodeDeviceInfo
+            );
+          } else {
+            onServerConnection();
+          }
+          return [];
+        });
+      }
+
+      if (lastConnectedZebra) {
+        onZebraDeviceReConnect(lastConnectedZebra);
+        setZebraDeviceList((currentBarcodeDeviceList) => {
+          const updatedZerbaDeviceList = [...currentBarcodeDeviceList];
+
+          const lastZebraDeviceInfo = updatedZerbaDeviceList.find(
+            (x) => x.deviceId == lastConnectedZebra && x.status == 'available'
+          );
+
+          if (lastZebraDeviceInfo) {
+            ipcRenderer.send(VERIFY_PB_DEVICE_CONNECTION, lastZebraDeviceInfo);
+          } else {
+            onServerConnection();
+          }
+          return [];
+        });
+      }
+    }
+  };
+
+  const onConnectionStatus = (args) => {
+    if (args == 'connected') {
+      // Perform actions when connected
+      console.log('Connected to the server');
+    } else {
+      setError('Server Connection Failed !!');
+    }
+  };
+
+  const onVerifyDeviceConnection = (args) => {
     if (args) {
       onServerConnection();
       onDeviceConnection(lastDevice);
@@ -262,7 +222,7 @@ function ServerConnection({
       onDeviceDisconnect();
     }
   };
-  const onVerifyPBDeviceConnection = (__, args) => {
+  const onVerifyPBDeviceConnection = (args) => {
     if (args) {
       onServerConnection();
       onDevicePBConnection(connectedPBDevice);
@@ -275,7 +235,7 @@ function ServerConnection({
   };
 
   const onRetryConnection = () => {
-    window.electron.ipcRenderer.send(CONNECT_SOCKET, {
+    ipcRenderer.send(CONNECT_SOCKET, {
       username,
       instanceURL,
       token,
@@ -288,7 +248,7 @@ function ServerConnection({
     await onBarcodeDeviceDisconnect();
     await onZebraDeviceDisconnect();
     await onPBDeviceDisconnect();
-    window.electron.ipcRenderer.send(CONNECT_SOCKET, {
+    ipcRenderer.send(CONNECT_SOCKET, {
       username,
       instanceURL,
       token,
@@ -309,9 +269,9 @@ function ServerConnection({
           <div className="right-side">
             <div className="center-section">
               <div className="server-connection-screen">
-                <img src={cmaConnectIcon} alt="CMA Connect Icon" />
+                <img src={cmaConnectIcon} alt="CMA Connect Icon"></img>
                 {!error && (
-                  <span>Please wait while retrieving your licences 01</span>
+                  <span>Please wait while retrieving your licences</span>
                 )}
                 {error && (
                   <div>

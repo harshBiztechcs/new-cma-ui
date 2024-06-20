@@ -82,43 +82,67 @@ function DeviceBarcode({
   const [deviceConnectionStatus, setDeviceConnectionStatus] = useState(false);
 
   useEffect(() => {
-    //register on verify device connection event
-    //after device has been stored on server with username
-    window.electron.ipcRenderer.on(VERIFY_DEVICE_CONNECTION, onVerifyDeviceConnection);
+    // register on verify device connection event
+    // after device has been stored on server with username
+    window.electron.ipcRenderer.on(
+      VERIFY_DEVICE_CONNECTION,
+      onVerifyDeviceConnection,
+    );
     window.electron.ipcRenderer.on(CLOSE_PB_DEVICE, onCloseDevice);
-    window.electron.ipcRenderer.on(DEVICE_DISCONNECT_TIMEOUT, onDeviceDisconnectTimeout);
-    window.electron.ipcRenderer.on(GET_DEVICE_AND_LICENSES, onDeviceAndLicensesRes);
-    window.electron.ipcRenderer.on(GET_DEVICE_INSTANCE_URL, onGetDeviceInstanceLink);
+    window.electron.ipcRenderer.on(
+      DEVICE_DISCONNECT_TIMEOUT,
+      onDeviceDisconnectTimeout,
+    );
+    window.electron.ipcRenderer.on(
+      GET_DEVICE_AND_LICENSES,
+      onDeviceAndLicensesRes,
+    );
+    window.electron.ipcRenderer.on(
+      GET_DEVICE_INSTANCE_URL,
+      onGetDeviceInstanceLink,
+    );
     window.electron.ipcRenderer.on(DEVICE_CONNECTION, onDeviceConnection);
     window.electron.ipcRenderer.on(DEVICE_DISCONNECTION, onDeviceRelease);
-    window.electron.ipcRenderer.on(CHECK_BARCODE_DEVICE_CONNECTION, onCheckDeviceConnection);
-    //get latest device list and licenses
+    window.electron.ipcRenderer.on(
+      CHECK_BARCODE_DEVICE_CONNECTION,
+      onCheckDeviceConnection,
+    );
+    // get latest device list and licenses
     handleRefresh();
 
     return () => {
       window.electron.ipcRenderer.removeListener(
         VERIFY_DEVICE_CONNECTION,
-        onVerifyDeviceConnection
+        onVerifyDeviceConnection,
       );
-      window.electron.ipcRenderer.removeListener(CLOSE_PB_DEVICE, onCloseDevice);
+      window.electron.ipcRenderer.removeListener(
+        CLOSE_PB_DEVICE,
+        onCloseDevice,
+      );
       window.electron.ipcRenderer.removeListener(
         DEVICE_DISCONNECT_TIMEOUT,
-        onDeviceDisconnectTimeout
+        onDeviceDisconnectTimeout,
       );
       window.electron.ipcRenderer.removeListener(
         GET_DEVICE_AND_LICENSES,
-        onDeviceAndLicensesRes
+        onDeviceAndLicensesRes,
       );
       window.electron.ipcRenderer.removeListener(
         GET_DEVICE_INSTANCE_URL,
-        onGetDeviceInstanceLink
+        onGetDeviceInstanceLink,
       );
-      window.electron.ipcRenderer.removeListener(DEVICE_CONNECTION, onDeviceConnection);
+      window.electron.ipcRenderer.removeListener(
+        DEVICE_CONNECTION,
+        onDeviceConnection,
+      );
       window.electron.ipcRenderer.removeListener(
         CHECK_BARCODE_DEVICE_CONNECTION,
-        onCheckDeviceConnection
+        onCheckDeviceConnection,
       );
-      window.electron.ipcRenderer.removeListener(DEVICE_DISCONNECTION, onDeviceRelease);
+      window.electron.ipcRenderer.removeListener(
+        DEVICE_DISCONNECTION,
+        onDeviceRelease,
+      );
 
       stopCheckDeviceConnectionInterval();
     };
@@ -127,13 +151,13 @@ function DeviceBarcode({
   useEffect(() => {
     if (barcodeDeviceList.length && lastConnectedBarcode) {
       const device = barcodeDeviceList.find(
-        (x) => x.deviceId == lastConnectedBarcode
+        (x) => x.deviceId == lastConnectedBarcode,
       );
       if (device) startCheckDeviceConnectionInterval(device);
     }
   }, [barcodeDeviceList, lastConnectedBarcode]);
 
-  const onDeviceRelease = (_, args) => {
+  const onDeviceRelease = (args) => {
     // if device disconnected from equipment app then refresh device list and licenses
     if (args) {
       setTimeout(() => {
@@ -142,7 +166,7 @@ function DeviceBarcode({
     }
   };
 
-  const onVerifyDeviceConnection = (event, args) => {
+  const onVerifyDeviceConnection = (args) => {
     if (args) {
       setConnectModal(true);
       setCurrentPage(3);
@@ -151,16 +175,16 @@ function DeviceBarcode({
       setCurrentPage(3);
     }
   };
-  const onCloseDevice = (event, args) => {
+  const onCloseDevice = (args) => {
     if (args.res) {
-      //TODO : send release license call to main after device close
+      // TODO : send release license call to main after device close
       onDeviceDisConnect(args.deviceId);
     } else {
       setError(args.error ?? 'Device Disconnected!!');
     }
   };
 
-  const onDeviceDisconnectTimeout = (_, args) => {
+  const onDeviceDisconnectTimeout = (args) => {
     if (args && currentBarcodeDevice) {
       stopCheckDeviceConnectionInterval();
       onDisconnectCurrentPBDevice(currentBarcodeDevice);
@@ -185,7 +209,7 @@ function DeviceBarcode({
     window.electron.ipcRenderer.send(CLOSE_PB_DEVICE, {
       forceClose: true,
       deviceType: device?.deviceType,
-      deviceId: deviceId,
+      deviceId,
     });
     handleRefresh();
   };
@@ -203,7 +227,7 @@ function DeviceBarcode({
     window.electron.ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
   };
 
-  const onGetDeviceInstanceLink = (_, args) => {
+  const onGetDeviceInstanceLink = (args) => {
     if (args.res) {
       window.open(args.url);
     } else {
@@ -213,14 +237,14 @@ function DeviceBarcode({
 
   const handleGotoInstance = async (checked) => {
     await openLinkInBrowser();
-    //device disconnection timeout checked
+    // device disconnection timeout checked
     onHasDeviceDisconnectTimeout(checked);
     setConnectModal(false);
     onDeviceConnected(currentBarcodeDevice);
   };
 
   const handleNext = (checked) => {
-    //device disconnection timeout checked
+    // device disconnection timeout checked
     onHasDeviceDisconnectTimeout(checked);
     setConnectModal(false);
     if (currentDevice) {
@@ -230,7 +254,7 @@ function DeviceBarcode({
     }
   };
 
-  const onCheckDeviceConnection = (event, args) => {
+  const onCheckDeviceConnection = ( args) => {
     if (args.status) {
       setDeviceConnectionStatus(false);
     } else {
@@ -244,7 +268,7 @@ function DeviceBarcode({
 
   const handleRetry = () => {
     const device = barcodeDeviceList.find(
-      (x) => x.deviceId == currentBarcodeDevice
+      (x) => x.deviceId == currentBarcodeDevice,
     );
     if (
       device &&
@@ -269,16 +293,20 @@ function DeviceBarcode({
   };
 
   const handleRefresh = () => {
-    window.electron.ipcRenderer.send(GET_DEVICE_AND_LICENSES, { instanceURL, username, token });
+    window.electron.ipcRenderer.send(GET_DEVICE_AND_LICENSES, {
+      instanceURL,
+      username,
+      token,
+    });
   };
 
   const onDeviceAndLicensesRes = useCallback((args) => {
-    console.log('args  896587', args)
+    console.log('args  896587', args);
     onGetDeviceAndLicenses(args);
   }, []);
 
-  const onDeviceConnection = (_, args) => {
-    //if device connected successfully from equipment app then refresh device list and licenses
+  const onDeviceConnection = (args) => {
+    // if device connected successfully from equipment app then refresh device list and licenses
     if (args) {
       setTimeout(() => {
         handleRefresh();
@@ -325,7 +353,10 @@ function DeviceBarcode({
           device.deviceType !== 'CI62_COLORSCOUT' &&
           device.deviceType !== 'CI64_COLORSCOUT'
         ) {
-          window.electron.ipcRenderer.send(CHECK_BARCODE_DEVICE_CONNECTION, device);
+          window.electron.ipcRenderer.send(
+            CHECK_BARCODE_DEVICE_CONNECTION,
+            device,
+          );
         }
       }, 3000);
       return intervalCount;

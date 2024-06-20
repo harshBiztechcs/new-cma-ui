@@ -133,7 +133,7 @@ function DeviceZebraPrinter({
     }
   }, [zebraDeviceList, lastConnectedZebra]);
 
-  const onDeviceRelease = (_, args) => {
+  const onDeviceRelease = (args) => {
     // if device disconnected from equipment app then refresh device list and licenses
     if (args) {
       setTimeout(() => {
@@ -142,7 +142,7 @@ function DeviceZebraPrinter({
     }
   };
 
-  const onVerifyDeviceConnection = (event, args) => {
+  const onVerifyDeviceConnection = (args) => {
     if (args) {
       setConnectModal(true);
       setCurrentPage(3);
@@ -151,7 +151,7 @@ function DeviceZebraPrinter({
       setCurrentPage(3);
     }
   };
-  const onCloseDevice = (event, args) => {
+  const onCloseDevice = ( args) => {
     if (args.res) {
       //TODO : send release license call to main after device close
       onDeviceDisConnect(args.deviceId);
@@ -160,7 +160,7 @@ function DeviceZebraPrinter({
     }
   };
 
-  const onDeviceDisconnectTimeout = (_, args) => {
+  const onDeviceDisconnectTimeout = (args) => {
     if (args && currentZebraeDevice) {
       stopCheckDeviceConnectionInterval();
       onDisconnectCurrentPBDevice(currentZebraeDevice);
@@ -203,7 +203,7 @@ function DeviceZebraPrinter({
     window.electron.ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
   };
 
-  const onGetDeviceInstanceLink = (_, args) => {
+  const onGetDeviceInstanceLink = (args) => {
     if (args.res) {
       window.open(args.url);
     } else {
@@ -230,7 +230,7 @@ function DeviceZebraPrinter({
     }
   };
 
-  const onCheckDeviceConnection = (event, args) => {
+  const onCheckDeviceConnection = ( args) => {
     if (args.status) {
       setDeviceConnectionStatus(false);
     } else {
@@ -277,7 +277,7 @@ function DeviceZebraPrinter({
     onGetDeviceAndLicenses(args);
   },[]);
 
-  const onDeviceConnection = (_, args) => {
+  const onDeviceConnection = (args) => {
     //if device connected successfully from equipment app then refresh device list and licenses
     if (args) {
       setTimeout(() => {

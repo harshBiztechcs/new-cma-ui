@@ -133,7 +133,7 @@ function DevicePrecision({
     }
   }, [balanceDeviceList, connectedPBDevice]);
 
-  const onDeviceRelease = (_, args) => {
+  const onDeviceRelease = (args) => {
     // if device disconnected from equipment app then refresh device list and licenses
     if (args) {
       setTimeout(() => {
@@ -142,7 +142,7 @@ function DevicePrecision({
     }
   };
 
-  const onVerifyDeviceConnection = (event, args) => {
+  const onVerifyDeviceConnection = (args) => {
     if (args) {
       //TODO : send device acquire license call here to main and if response yes then go to next page
       setConnectModal(true);
@@ -152,7 +152,7 @@ function DevicePrecision({
       setCurrentPage(3);
     }
   };
-  const onCloseDevice = (event, args) => {
+  const onCloseDevice = ( args) => {
     if (args.res) {
       //TODO : send release license call to main after device close
       onDeviceDisConnect(args.deviceId);
@@ -161,7 +161,7 @@ function DevicePrecision({
     }
   };
 
-  const onDeviceDisconnectTimeout = (_, args) => {
+  const onDeviceDisconnectTimeout = (args) => {
     if (args && currentPBDevice) {
       stopCheckDeviceConnectionInterval();
       onDisconnectCurrentPBDevice(currentPBDevice);
@@ -204,7 +204,7 @@ function DevicePrecision({
     window.electron.ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
   };
 
-  const onGetDeviceInstanceLink = (_, args) => {
+  const onGetDeviceInstanceLink = (args) => {
     if (args.res) {
       window.open(args.url);
     } else {
@@ -231,7 +231,7 @@ function DevicePrecision({
     }
   };
 
-  const onCheckDeviceConnection = (event, args) => {
+  const onCheckDeviceConnection = ( args) => {
     if (args.status) {
       setDeviceConnectionStatus(false);
     } else {
@@ -276,7 +276,7 @@ function DevicePrecision({
     onGetDeviceAndLicenses(args);
   }, []);
 
-  const onDeviceConnection = (_, args) => {
+  const onDeviceConnection = (args) => {
     //if device connected successfully from equipment app then refresh device list and licenses
     if (args) {
       setTimeout(() => {
