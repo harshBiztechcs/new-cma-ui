@@ -1,4 +1,4 @@
-//Check baud rate
+// Check baud rate
 const checkBaudRateQ = '; 208 36 <CR><LF>';
 
 // Initialization
@@ -25,11 +25,11 @@ const releasePaperQ = '; 208 19 <CR><LF>';
 const setTableReflectanceModeQ = '; 208 13 0 <CR><LF>';
 const setTableTransmissionModeQ = '; 208 13 1 <CR><LF>';
 
-//set parameters
+// set parameters
 const setParametersQ = (density, wBase, illum, obs) =>
   `;22 ${density} ${wBase} ${illum} ${obs} <CR><LF>`;
 
-//move axis
+// move axis
 const moveHomeQ = '; 208 2 <CR><LF>';
 const moveUpQ = '; 208 3 <CR><LF>';
 const moveDownQ = '; 208 4 <CR><LF>';
@@ -40,7 +40,7 @@ const moveAndMeasureQ = (xCord, yCord) => `; 208 7 ${xCord} ${yCord} <CR><LF>`;
 const moveRelativeQ = (xDistance, yDistance) =>
   `; 208 1 ${xDistance} ${yDistance} <CR><LF>`;
 
-//Types
+// Types
 // density standard
 const DStdType = {
   ANSIA: '0',
