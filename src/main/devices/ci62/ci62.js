@@ -1,3 +1,4 @@
+const fs = require('fs');
 const koffi = require('koffi');
 const path = require('path');
 const { dialog } = require('electron');
@@ -49,72 +50,61 @@ if (process.platform === 'win32') {
 // all sdk functions related to ci62 needs to expose here first
 const loadCi62LibraryFunctions = () => {
   try {
-    // exposing dll functions to electron
-    ci62 = koffi.load(path.join(dllDir, 'Ci62'));
+    // Check if the DLL file exists
+    const dllPath = path.join(dllDir, 'Ci62.dll');
+    // Load the DLL
+    const ci62Library = koffi.load(dllPath);
 
-    if (!ci62) {
-      throw new Error('Failed to load Ci62 DLL');
-    }
-
-    // Expose DLL functions to Electron
-    ci62.GetInterfaceVersion = ci62.stdcall(
-      'GetInterfaceVersion',
-      'string',
-      [],
-    );
-    ci62.Connect = ci62.stdcall('Connect', 'bool', []);
-    ci62.Disconnect = ci62.stdcall('Disconnect', 'bool', []);
-    ci62.IsConnected = ci62.stdcall('IsConnected', 'bool', []);
-    ci62.GetCalibrationStandard = ci62.stdcall(
-      'GetCalibrationStandard',
-      'string',
-      [],
-    );
-    ci62.GetSerialNum = ci62.stdcall('GetSerialNum', 'string', []);
-    ci62.GetSpectralSetCount = ci62.stdcall('GetSpectralSetCount', 'int', []);
-    ci62.GetSpectralSetName = ci62.stdcall('GetSpectralSetName', 'string', [
-      'int',
-    ]);
-    ci62.GetWavelengthCount = ci62.stdcall('GetWavelengthCount', 'int', []);
-    ci62.GetWavelengthValue = ci62.stdcall('GetWavelengthValue', 'int', [
-      'int',
-    ]);
-    ci62.Measure = ci62.stdcall('Measure', 'bool', []);
-    ci62.IsDataReady = ci62.stdcall('IsDataReady', 'bool', []);
-    ci62.GetSpectralData = ci62.stdcall('GetSpectralData', 'float', [
-      'int',
-      'int',
-    ]);
-    ci62.GetCalStatus = ci62.stdcall('GetCalStatus', 'int', []);
-    ci62.GetCalSteps = ci62.stdcall('GetCalSteps', 'string', []);
-    ci62.CalibrateStep = ci62.stdcall('CalibrateStep', 'bool', ['string']);
-    ci62.GetCalMode = ci62.stdcall('GetCalMode', 'string', []);
-    ci62.GetCalProgress = ci62.stdcall('GetCalProgress', 'int', []);
-    ci62.AbortCalibration = ci62.stdcall('AbortCalibration', 'bool', []);
-    ci62.ClearSamples = ci62.stdcall('ClearSamples', 'bool', []);
-    ci62.GetSampleCount = ci62.stdcall('GetSampleCount', 'int', []);
-    ci62.GetSampleData = ci62.stdcall('GetSampleData', 'float', ['int', 'int']);
-    ci62.SetCurrentSample = ci62.stdcall('SetCurrentSample', 'bool', ['int']);
-    ci62.GetAvailableSettings = ci62.stdcall(
-      'GetAvailableSettings',
-      'string',
-      [],
-    );
-    ci62.GetSettingOptions = ci62.stdcall('GetSettingOptions', 'string', [
-      'string',
-    ]);
-    ci62.GetOption = ci62.stdcall('GetOption', 'string', ['string']);
-    ci62.SetOption = ci62.stdcall('SetOption', 'bool', ['string', 'string']);
-    ci62.ScanIsSupported = ci62.stdcall('ScanIsSupported', 'bool', []);
-    ci62.GetLastErrorCode = ci62.stdcall('GetLastErrorCode', 'int', []);
-    ci62.GetLastErrorString = ci62.stdcall('GetLastErrorString', 'string', []);
-    ci62.Execute = ci62.stdcall('Execute', 'string', ['string']);
-
-    return ci62;
+    // Define the function signatures
+    ci62 = {
+      GetInterfaceVersion: ci62Library.func('GetInterfaceVersion', 'str', []),
+      Connect: ci62Library.func('Connect', 'bool', []),
+      Disconnect: ci62Library.func('Disconnect', 'bool', []),
+      IsConnected: ci62Library.func('IsConnected', 'bool', []),
+      GetCalibrationStandard: ci62Library.func(
+        'GetCalibrationStandard',
+        'str',
+        [],
+      ),
+      GetSerialNum: ci62Library.func('GetSerialNum', 'str', []),
+      GetSpectralSetCount: ci62Library.func('GetSpectralSetCount', 'int', []),
+      GetSpectralSetName: ci62Library.func('GetSpectralSetName', 'str', [
+        'int',
+      ]),
+      GetWavelengthCount: ci62Library.func('GetWavelengthCount', 'int', []),
+      GetWavelengthValue: ci62Library.func('GetWavelengthValue', 'int', [
+        'int',
+      ]),
+      Measure: ci62Library.func('Measure', 'bool', []),
+      IsDataReady: ci62Library.func('IsDataReady', 'bool', []),
+      GetSpectralData: ci62Library.func('GetSpectralData', 'float', [
+        'int',
+        'int',
+      ]),
+      GetCalStatus: ci62Library.func('GetCalStatus', 'int', []),
+      GetCalSteps: ci62Library.func('GetCalSteps', 'str', []),
+      CalibrateStep: ci62Library.func('CalibrateStep', 'bool', ['str']),
+      GetCalMode: ci62Library.func('GetCalMode', 'str', []),
+      GetCalProgress: ci62Library.func('GetCalProgress', 'int', []),
+      AbortCalibration: ci62Library.func('AbortCalibration', 'bool', []),
+      ClearSamples: ci62Library.func('ClearSamples', 'bool', []),
+      GetSampleCount: ci62Library.func('GetSampleCount', 'int', []),
+      GetSampleData: ci62Library.func('GetSampleData', 'float', ['int', 'int']),
+      SetCurrentSample: ci62Library.func('SetCurrentSample', 'bool', ['int']),
+      GetAvailableSettings: ci62Library.func('GetAvailableSettings', 'str', []),
+      GetSettingOptions: ci62Library.func('GetSettingOptions', 'str', ['str']),
+      GetOption: ci62Library.func('GetOption', 'str', ['str']),
+      SetOption: ci62Library.func('SetOption', 'bool', ['str', 'str']),
+      ScanIsSupported: ci62Library.func('ScanIsSupported', 'bool', []),
+      GetLastErrorCode: ci62Library.func('GetLastErrorCode', 'int', []),
+      GetLastErrorString: ci62Library.func('GetLastErrorString', 'str', []),
+      Execute: ci62Library.func('Execute', 'str', ['str']),
+    };
   } catch (error) {
+    console.error('Error loading ci62 library:', error);
     dialog.showMessageBox(null, {
       title: 'Exposing Ci62 Library Functions',
-      message: `Error loading Ci62 library: ${error.message}`,
+      message: `Error loading Ci62 library :- ${error.message} && DLL file exists =>${fs.existsSync(dllPath) ? 'yes' : 'no'} `,
     });
     return null; // Return null in case of an error
   }
@@ -139,13 +129,12 @@ const getCi62SerialNumber = () => {
 // get general settings
 const getAllOptions = (options) => {
   try {
-    const allOptions = {};
-
-    Object.keys(options).forEach((key) => {
-      const value = ci62.GetOption(key, options[key]);
-      allOptions[key] = value;
-    });
-
+    const allOptions = Object.fromEntries(
+      Object.entries(options).map(([key, value]) => [
+        key,
+        ci62.GetOption(key, value),
+      ]),
+    );
     return { res: true, allOptions, error: null };
   } catch (error) {
     return { res: false, error: error?.message };
@@ -166,14 +155,14 @@ const createCi62ConfigurationSettings = (options) => {
 const setCi62DeviceConfiguration = (obj) => {
   const options = createCi62ConfigurationSettings(obj);
   try {
-    for (const key in options) {
-      if (key == 'Specular') {
-        specularType = options[key] ?? null;
+    for (const [key, value] of Object.entries(options)) {
+      if (key === 'Specular') {
+        specularType = value ?? null;
         continue;
       }
-      const isSet = setParam(key, options[key]);
-      if (!(isSet == '<00>')) {
-        throw new Error(`Error setting ${key} - ${options[key]}`);
+      const isSet = setParam(key, value);
+      if (isSet !== '<00>') {
+        throw new Error(`Error setting ${key} - ${value}`);
       }
     }
     return { res: true, error: null };
@@ -403,14 +392,15 @@ const disconnectCi62Device = () => {
 
 const getBasicCi62DeviceInfo = () => {
   try {
-    const serialNumber = ci62.GetSerialNum();
-    const interfaceVersion = ci62.GetInterfaceVersion();
+    const [serialNumber, interfaceVersion, timeSinceLastCal] = [
+      ci62.GetSerialNum(),
+      ci62.GetInterfaceVersion(),
+      getTimeSinceLastCalibration(),
+    ];
+
     const calStatus = checkCi62Calibration();
-    let calExpireIn = 0;
-    const timeSinceLastCal = getTimeSinceLastCalibration();
-    if (calStatus) {
-      calExpireIn = getCalibrationExpireTime();
-    }
+    const calExpireIn = calStatus ? getCalibrationExpireTime() : 0;
+
     return {
       SerialNumber: serialNumber,
       SDKVersion: null,
