@@ -22,7 +22,7 @@ const loadPrinterFunctions = () => {
     const myPrinterLibrary = koffi.load(executablePath);
 
     MyPrinter = {
-      GetInterfaceVersion: myPrinterLibrary.func(
+      printZPLToUSBPrinter: myPrinterLibrary.func(
         'printZPLToUSBPrinter',
         'void',
         ['string', 'string'],
