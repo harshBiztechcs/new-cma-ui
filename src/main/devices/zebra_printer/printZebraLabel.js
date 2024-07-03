@@ -1,3 +1,5 @@
+/* eslint-disable consistent-return */
+/* eslint-disable no-console */
 const { exec } = require('child_process');
 const path = require('path');
 const { dialog } = require('electron');
@@ -5,40 +7,32 @@ const koffi = require('koffi');
 const fs = require('fs');
 const { getAssetPath } = require('../../util');
 
-const MyPrinter = null;
+let MyPrinter = null;
 let executablePath = null;
 
 // Set up printer executable path for Windows
 if (process.platform === 'win32') {
-  executablePath = getAssetPath('SDK', 'zebra-printer');
+  executablePath = getAssetPath('SDK', 'zebra-printer', 'ZplToPrinter.dll');
   process.env.PATH = `${process.env.PATH}${path.delimiter}${executablePath}`;
 }
 
+// all sdk functions related to ci62 needs to expose here first
 const loadPrinterFunctions = () => {
-  const dllPath = path.join(executablePath, 'ZplToPrinter.dll');
   try {
-    // Load the DLL
-    const myPrinter = koffi.load(dllPath);
+    const myPrinterLibrary = koffi.load(executablePath);
 
-    if (!myPrinter) {
-      throw new Error('Failed to load ZplToPrinter DLL');
-    }
-
-    // Expose DLL functions to Electron
-    myPrinter.printZPLToUSBPrinter = myPrinter.stdcall(
-      'printZPLToUSBPrinter',
-      'void',
-      ['string', 'string'],
-    );
-
-    return myPrinter;
+    MyPrinter = {
+      GetInterfaceVersion: myPrinterLibrary.func(
+        'printZPLToUSBPrinter',
+        'void',
+        ['string', 'string'],
+      ),
+    };
   } catch (error) {
-    console.log('🚀 ~ loadPrinterFunctions ~ error:', error);
+    console.error('Error loading ci62 library:', error);
     dialog.showMessageBox(null, {
-      title: 'Error Loading Label Printer Library Functions',
-      message: `DLL file exists: ${
-        fs.existsSync(dllPath) ? 'yes' : 'no'
-      } => ${error}`,
+      title: 'Exposing Ci62 Library Functions',
+      message: `Error loading Ci62 library :- ${error.message} && DLL file exists =>${fs.existsSync(executablePath) ? 'yes' : 'no'} `,
     });
     return null; // Return null in case of an error
   }
@@ -51,9 +45,7 @@ function parseDeviceOutput(output) {
     .split('\n')
     .slice(1)
     .map((line) => {
-      const [deviceId, manufacturer, name, PNPDeviceID] = line
-        .trim()
-        .split(/\s{2,}/);
+      const [deviceId, manufacturer, name] = line.trim().split(/\s{2,}/);
       // Extract VID and PID from DeviceID
       const [, VID, PID] =
         deviceId.match(/VID_([A-F0-9]+)&PID_([A-F0-9]+)/) || [];
@@ -83,7 +75,7 @@ function checkPrinterDeviceConnection() {
         }
 
         if (stderr) {
-          reject(`Command stderr: ${stderr}`);
+          reject(new Error(`Command stderr: ${stderr}`));
           return;
         }
 
