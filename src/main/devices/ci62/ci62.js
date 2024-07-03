@@ -11,6 +11,7 @@ let ci62 = null;
 let specularType = null;
 let measureInterval = null;
 let startMeasure = false;
+
 const illuobsType = {
   'A/2': 0,
   'A/10': 1,
