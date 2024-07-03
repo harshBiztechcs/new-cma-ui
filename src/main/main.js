@@ -544,7 +544,7 @@ if (!singleInstanceLock) {
     // Respect the OSX convention of having the application in memory even
     // after all windows have been closed
     if (process.platform !== 'darwin') {
-      // app.quit(); // not closing in case of i1io3
+      app.quit(); // not closing in case of i1io3
       process.kill(process.pid);
     }
   });

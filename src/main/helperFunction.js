@@ -39,7 +39,7 @@ const isOnline = async (url) => {
 };
 
 const urls = [
-  'http://www.google.com',
+  'https://www.google.com',
   'https://en.wikipedia.org',
   'https://api.github.com',
   'https://www.youtube.com',

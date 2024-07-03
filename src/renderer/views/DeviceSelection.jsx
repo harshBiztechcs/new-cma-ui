@@ -297,7 +297,6 @@ function DeviceSelection({
   };
 
   const onDeviceAndLicensesRes = useCallback((args) => {
-    console.log(' ew drfeg args', args)
     onGetDeviceAndLicenses(args);
   }, []);
 

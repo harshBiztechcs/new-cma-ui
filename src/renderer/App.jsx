@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useEffect, useState } from 'react';
 import './App.css';
 import './assets/scss/main.css';
@@ -36,7 +38,6 @@ import {
   VERIFY_DEVICE_CONNECTION,
   APP_CLOSE_CONFIRMED,
   APP_REQUEST_CLOSE,
-  SWITCH_TO_YS3060_CONNECTION_MODE,
   CURRENT_TAB_UPDATE,
 } from 'utility/constants';
 import Login from './views/Login';
@@ -75,7 +76,6 @@ export default function App() {
   const [connectedDeviceList, setConnectedDeviceList] = useState([]);
   const [deviceList, setDeviceList] = useState([]);
   const [lastDevice, setLastDevice] = useState(null);
-  const [rememberUser, setRememberUser] = useState(false);
   const [deviceChangeFrom, setDeviceChangeFrom] = useState(null);
   const [hasInternet, setHasInternet] = useState(true);
   const [networkConnection, setNetworkConnection] = useState(true);
@@ -740,7 +740,7 @@ export default function App() {
 
   // colorGate functions
 
-  const onColorGateServerConnectionRes = ( args) => {
+  const onColorGateServerConnectionRes = (args) => {
     console.log('onColorGateServerConnectionRes APP jsx');
     setSocketConnectionInProgress(false);
     const isConnected = args?.colorGateServerConnection?.isConnected;
@@ -768,7 +768,7 @@ export default function App() {
   };
 
   // alwan
-  const onAlwanServerConnectionRes = ( args) => {
+  const onAlwanServerConnectionRes = (args) => {
     console.log('onAlwanServerConnectionRes APP jsx');
     setAlwanSocketConnectionInProgress(false);
     const isConnected = args?.alwanServerConnection?.isConnected;
@@ -1427,7 +1427,6 @@ export default function App() {
   };
 
   const handleGetDeviceAndLicenses = (args) => {
-    console.log('handleGetDeviceAndLicenses => args => ', args)
     if (args.deviceRes.res) {
       updateDeviceList(args.deviceRes.devices);
     }
@@ -1438,7 +1437,7 @@ export default function App() {
 
   const updateDeviceList = (devices) => {
     if (devices) {
-      let newDeviceList = [];
+      const newDeviceList = [];
       const newBalanceDeviceList = [];
       const newBarcodeDeviceList = [];
       const newZebraDeviceList = [];
@@ -1632,7 +1631,8 @@ export default function App() {
           onConfirm={() => setShowDialog(false)}
         />
       );
-    } if (!hasInternet && isLoggedIn) {
+    }
+    if (!hasInternet && isLoggedIn) {
       return (
         <InternetConnectionLost
           onRetry={handleNetworkRetry}
@@ -1640,16 +1640,18 @@ export default function App() {
           networkConnection={networkConnection}
         />
       );
-    } if (isNewConnection) {
-      //first time connection
+    }
+    if (isNewConnection) {
+      // first time connection
       return (
         <NewConnection
           preUsername={username}
           afterNewConnection={handleNewConnection}
         />
       );
-    } if (!isNewConnection && !isLoggedIn) {
-      //when first time connection is done and use is not logged in
+    }
+    if (!isNewConnection && !isLoggedIn) {
+      // when first time connection is done and use is not logged in
       return (
         <Login
           preUsername={username}
@@ -1659,7 +1661,8 @@ export default function App() {
           onCreateNewConnection={handleCreateNewConnection}
         />
       );
-    } if (showCheckUpdatePage) {
+    }
+    if (showCheckUpdatePage) {
       return (
         <AppUpdate
           isNewUpdateAvailable={isNewUpdateAvailable}
@@ -1677,8 +1680,9 @@ export default function App() {
           handleGoBack={hideCheckUpdatePage}
         />
       );
-    } if (isServerWaiting) {
-      //when waiting for socket connection
+    }
+    if (isServerWaiting) {
+      // when waiting for socket connection
       return (
         <ServerConnection
           lastDevice={lastDevice}
@@ -1707,167 +1711,167 @@ export default function App() {
           onPBDeviceDisconnect={handleLastPBDeviceDisconnection}
           onBarcodeDeviceDisconnect={handleLastBarcodeDeviceDisconnection}
           onZebraDeviceDisconnect={handleLastZebraDeviceDisconnection}
-
-
         />
       );
-    } if (isPrecisionShow) {
+    }
+    if (isPrecisionShow) {
       return (
         <DevicePrecision
-        username={username}
-        deviceList={deviceList}
-        licenses={licenses}
-        instanceURL={instanceURL}
-        token={token}
-        onDeviceConnected={handlePBDeviceConnection}
-        onDeviceDisConnect={handlePBDeviceDisconnect}
-        onGoBackToMeasure={goBackToMeasureScreen}
-        onLogout={handleLogout}
-        onHasDeviceDisconnectTimeout={(res) =>
-          setHasDeviceDisconnectTimeout(res)
-        }
-        connectedPBDevice={lastConnectedPBDevice}
-        onGetDeviceAndLicenses={handleGetDeviceAndLicenses}
-        handleCheckUpdate={handleCheckUpdatePage}
-        isNewUpdateAvailable={isNewUpdateAvailable}
-        onThirdPartyAPI={handleThirdPartyAPI}
-        showThirdPartyAPIPage={showThirdPartyAPIPage}
-        colorGateAPILog={colorGateAPILog}
-        socketConnection={socketConnection}
-        thirdPartyAPIUser={thirdPartyAPIUser}
-        colorGateConnection={colorGateConnection}
-        setColorGateConnection={setColorGateConnection}
-        colorGateSocketConnection={colorGateSocketConnection}
-        colorGatePopupError={colorGatePopupError}
-        colorGatePopupTitle={colorGatePopupTitle}
-        setColorGatePopupError={setColorGatePopupError}
-        socketConnectionInProgress={socketConnectionInProgress}
-        setSocketConnectionInProgress={setSocketConnectionInProgress}
-        alwanAPILog={alwanAPILog}
-        alwanConnection={alwanConnection}
-        setAlwanConnection={setAlwanConnection}
-        alwanSocketConnection={alwanSocketConnection}
-        alwanPopupError={alwanPopupError}
-        alwanPopupTitle={alwanPopupTitle}
-        setAlwanPopupError={setAlwanPopupError}
-        alwanSocketConnectionInProgress={alwanSocketConnectionInProgress}
-        setAlwanSocketConnectionInProgress={
-          setAlwanSocketConnectionInProgress
-        }
-        balanceDeviceList={balanceDeviceList}
-        setisPrecisionShow={setisPrecisionShow}
-        barcodeDeviceList={barcodeDeviceList}
-        setIsBarcodeOnShow={setIsBarcodeOnShow}
-        zebraDeviceList={zebraDeviceList}
-        setIsZebraOnShow={setIsZebraOnShow}
+          username={username}
+          deviceList={deviceList}
+          licenses={licenses}
+          instanceURL={instanceURL}
+          token={token}
+          onDeviceConnected={handlePBDeviceConnection}
+          onDeviceDisConnect={handlePBDeviceDisconnect}
+          onGoBackToMeasure={goBackToMeasureScreen}
+          onLogout={handleLogout}
+          onHasDeviceDisconnectTimeout={(res) =>
+            setHasDeviceDisconnectTimeout(res)
+          }
+          connectedPBDevice={lastConnectedPBDevice}
+          onGetDeviceAndLicenses={handleGetDeviceAndLicenses}
+          handleCheckUpdate={handleCheckUpdatePage}
+          isNewUpdateAvailable={isNewUpdateAvailable}
+          onThirdPartyAPI={handleThirdPartyAPI}
+          showThirdPartyAPIPage={showThirdPartyAPIPage}
+          colorGateAPILog={colorGateAPILog}
+          socketConnection={socketConnection}
+          thirdPartyAPIUser={thirdPartyAPIUser}
+          colorGateConnection={colorGateConnection}
+          setColorGateConnection={setColorGateConnection}
+          colorGateSocketConnection={colorGateSocketConnection}
+          colorGatePopupError={colorGatePopupError}
+          colorGatePopupTitle={colorGatePopupTitle}
+          setColorGatePopupError={setColorGatePopupError}
+          socketConnectionInProgress={socketConnectionInProgress}
+          setSocketConnectionInProgress={setSocketConnectionInProgress}
+          alwanAPILog={alwanAPILog}
+          alwanConnection={alwanConnection}
+          setAlwanConnection={setAlwanConnection}
+          alwanSocketConnection={alwanSocketConnection}
+          alwanPopupError={alwanPopupError}
+          alwanPopupTitle={alwanPopupTitle}
+          setAlwanPopupError={setAlwanPopupError}
+          alwanSocketConnectionInProgress={alwanSocketConnectionInProgress}
+          setAlwanSocketConnectionInProgress={
+            setAlwanSocketConnectionInProgress
+          }
+          balanceDeviceList={balanceDeviceList}
+          setisPrecisionShow={setisPrecisionShow}
+          barcodeDeviceList={barcodeDeviceList}
+          setIsBarcodeOnShow={setIsBarcodeOnShow}
+          zebraDeviceList={zebraDeviceList}
+          setIsZebraOnShow={setIsZebraOnShow}
         />
       );
-    } if(isBarcodeOnShow){
+    }
+    if (isBarcodeOnShow) {
       return (
         <DeviceBarcode
-        username={username}
-        deviceList={deviceList}
-        licenses={licenses}
-        instanceURL={instanceURL}
-        token={token}
-        onDeviceConnected={handleBarcodeDeviceConnection}
-        onDeviceDisConnect={handleBarcodeDeviceDisconnect}
-        onGoBackToMeasure={goBackToMeasureScreen}
-        onLogout={handleLogout}
-        onHasDeviceDisconnectTimeout={(res) =>
-         setHasDeviceDisconnectTimeout(res)
-        }
-        lastConnectedBarcode={lastConnectedBarcode}
-        onGetDeviceAndLicenses={handleGetDeviceAndLicenses}
-        handleCheckUpdate={handleCheckUpdatePage}
-        isNewUpdateAvailable={isNewUpdateAvailable}
-        onThirdPartyAPI={handleThirdPartyAPI}
-        showThirdPartyAPIPage={showThirdPartyAPIPage}
-        colorGateAPILog={colorGateAPILog}
-        socketConnection={socketConnection}
-        thirdPartyAPIUser={thirdPartyAPIUser}
-        colorGateConnection={colorGateConnection}
-        setColorGateConnection={setColorGateConnection}
-        colorGateSocketConnection={colorGateSocketConnection}
-        colorGatePopupError={colorGatePopupError}
-        colorGatePopupTitle={colorGatePopupTitle}
-        setColorGatePopupError={setColorGatePopupError}
-        socketConnectionInProgress={socketConnectionInProgress}
-        setSocketConnectionInProgress={setSocketConnectionInProgress}
-        alwanAPILog={alwanAPILog}
-        alwanConnection={alwanConnection}
-        setAlwanConnection={setAlwanConnection}
-        alwanSocketConnection={alwanSocketConnection}
-        alwanPopupError={alwanPopupError}
-        alwanPopupTitle={alwanPopupTitle}
-        setAlwanPopupError={setAlwanPopupError}
-        alwanSocketConnectionInProgress={alwanSocketConnectionInProgress}
-        setAlwanSocketConnectionInProgress={
-          setAlwanSocketConnectionInProgress
-        }
-        balanceDeviceList={balanceDeviceList}
-        barcodeDeviceList={barcodeDeviceList}
-        zebraDeviceList={zebraDeviceList}
-        setisPrecisionShow={setisPrecisionShow}
-        setIsBarcodeOnShow={setIsBarcodeOnShow}
-        setIsZebraOnShow={setIsZebraOnShow}
+          username={username}
+          deviceList={deviceList}
+          licenses={licenses}
+          instanceURL={instanceURL}
+          token={token}
+          onDeviceConnected={handleBarcodeDeviceConnection}
+          onDeviceDisConnect={handleBarcodeDeviceDisconnect}
+          onGoBackToMeasure={goBackToMeasureScreen}
+          onLogout={handleLogout}
+          onHasDeviceDisconnectTimeout={(res) =>
+            setHasDeviceDisconnectTimeout(res)
+          }
+          lastConnectedBarcode={lastConnectedBarcode}
+          onGetDeviceAndLicenses={handleGetDeviceAndLicenses}
+          handleCheckUpdate={handleCheckUpdatePage}
+          isNewUpdateAvailable={isNewUpdateAvailable}
+          onThirdPartyAPI={handleThirdPartyAPI}
+          showThirdPartyAPIPage={showThirdPartyAPIPage}
+          colorGateAPILog={colorGateAPILog}
+          socketConnection={socketConnection}
+          thirdPartyAPIUser={thirdPartyAPIUser}
+          colorGateConnection={colorGateConnection}
+          setColorGateConnection={setColorGateConnection}
+          colorGateSocketConnection={colorGateSocketConnection}
+          colorGatePopupError={colorGatePopupError}
+          colorGatePopupTitle={colorGatePopupTitle}
+          setColorGatePopupError={setColorGatePopupError}
+          socketConnectionInProgress={socketConnectionInProgress}
+          setSocketConnectionInProgress={setSocketConnectionInProgress}
+          alwanAPILog={alwanAPILog}
+          alwanConnection={alwanConnection}
+          setAlwanConnection={setAlwanConnection}
+          alwanSocketConnection={alwanSocketConnection}
+          alwanPopupError={alwanPopupError}
+          alwanPopupTitle={alwanPopupTitle}
+          setAlwanPopupError={setAlwanPopupError}
+          alwanSocketConnectionInProgress={alwanSocketConnectionInProgress}
+          setAlwanSocketConnectionInProgress={
+            setAlwanSocketConnectionInProgress
+          }
+          balanceDeviceList={balanceDeviceList}
+          barcodeDeviceList={barcodeDeviceList}
+          zebraDeviceList={zebraDeviceList}
+          setisPrecisionShow={setisPrecisionShow}
+          setIsBarcodeOnShow={setIsBarcodeOnShow}
+          setIsZebraOnShow={setIsZebraOnShow}
         />
-      )
-  }
-  if(isZebraOnShow){
-    return (
-      <DeviceZebraPrinter
-      username={username}
-      deviceList={deviceList}
-      licenses={licenses}
-      instanceURL={instanceURL}
-      token={token}
-      onDeviceConnected={handleZebraDeviceConnection}
-      onDeviceDisConnect={handleZebraDeviceDisconnect}
-      onGoBackToMeasure={goBackToMeasureScreen}
-      onLogout={handleLogout}
-      onHasDeviceDisconnectTimeout={(res) =>
-       setHasDeviceDisconnectTimeout(res)
-      }
-      lastConnectedZebra={lastConnectedZebra}
-      onGetDeviceAndLicenses={handleGetDeviceAndLicenses}
-      handleCheckUpdate={handleCheckUpdatePage}
-      isNewUpdateAvailable={isNewUpdateAvailable}
-      onThirdPartyAPI={handleThirdPartyAPI}
-      showThirdPartyAPIPage={showThirdPartyAPIPage}
-      colorGateAPILog={colorGateAPILog}
-      socketConnection={socketConnection}
-      thirdPartyAPIUser={thirdPartyAPIUser}
-      colorGateConnection={colorGateConnection}
-      setColorGateConnection={setColorGateConnection}
-      colorGateSocketConnection={colorGateSocketConnection}
-      colorGatePopupError={colorGatePopupError}
-      colorGatePopupTitle={colorGatePopupTitle}
-      setColorGatePopupError={setColorGatePopupError}
-      socketConnectionInProgress={socketConnectionInProgress}
-      setSocketConnectionInProgress={setSocketConnectionInProgress}
-      alwanAPILog={alwanAPILog}
-      alwanConnection={alwanConnection}
-      setAlwanConnection={setAlwanConnection}
-      alwanSocketConnection={alwanSocketConnection}
-      alwanPopupError={alwanPopupError}
-      alwanPopupTitle={alwanPopupTitle}
-      setAlwanPopupError={setAlwanPopupError}
-      alwanSocketConnectionInProgress={alwanSocketConnectionInProgress}
-      setAlwanSocketConnectionInProgress={
-        setAlwanSocketConnectionInProgress
-      }
-      balanceDeviceList={balanceDeviceList}
-      setisPrecisionShow={setisPrecisionShow}
-      barcodeDeviceList={barcodeDeviceList}
-      setIsBarcodeOnShow={setIsBarcodeOnShow}
-      zebraDeviceList={zebraDeviceList}
-      setIsZebraOnShow={setIsZebraOnShow}
-      />
-    )
-}
+      );
+    }
+    if (isZebraOnShow) {
+      return (
+        <DeviceZebraPrinter
+          username={username}
+          deviceList={deviceList}
+          licenses={licenses}
+          instanceURL={instanceURL}
+          token={token}
+          onDeviceConnected={handleZebraDeviceConnection}
+          onDeviceDisConnect={handleZebraDeviceDisconnect}
+          onGoBackToMeasure={goBackToMeasureScreen}
+          onLogout={handleLogout}
+          onHasDeviceDisconnectTimeout={(res) =>
+            setHasDeviceDisconnectTimeout(res)
+          }
+          lastConnectedZebra={lastConnectedZebra}
+          onGetDeviceAndLicenses={handleGetDeviceAndLicenses}
+          handleCheckUpdate={handleCheckUpdatePage}
+          isNewUpdateAvailable={isNewUpdateAvailable}
+          onThirdPartyAPI={handleThirdPartyAPI}
+          showThirdPartyAPIPage={showThirdPartyAPIPage}
+          colorGateAPILog={colorGateAPILog}
+          socketConnection={socketConnection}
+          thirdPartyAPIUser={thirdPartyAPIUser}
+          colorGateConnection={colorGateConnection}
+          setColorGateConnection={setColorGateConnection}
+          colorGateSocketConnection={colorGateSocketConnection}
+          colorGatePopupError={colorGatePopupError}
+          colorGatePopupTitle={colorGatePopupTitle}
+          setColorGatePopupError={setColorGatePopupError}
+          socketConnectionInProgress={socketConnectionInProgress}
+          setSocketConnectionInProgress={setSocketConnectionInProgress}
+          alwanAPILog={alwanAPILog}
+          alwanConnection={alwanConnection}
+          setAlwanConnection={setAlwanConnection}
+          alwanSocketConnection={alwanSocketConnection}
+          alwanPopupError={alwanPopupError}
+          alwanPopupTitle={alwanPopupTitle}
+          setAlwanPopupError={setAlwanPopupError}
+          alwanSocketConnectionInProgress={alwanSocketConnectionInProgress}
+          setAlwanSocketConnectionInProgress={
+            setAlwanSocketConnectionInProgress
+          }
+          balanceDeviceList={balanceDeviceList}
+          setisPrecisionShow={setisPrecisionShow}
+          barcodeDeviceList={barcodeDeviceList}
+          setIsBarcodeOnShow={setIsBarcodeOnShow}
+          zebraDeviceList={zebraDeviceList}
+          setIsZebraOnShow={setIsZebraOnShow}
+        />
+      );
+    }
     if (!lastConnectedDevice) {
-      //when no last connected Device found, select device to connect
+      // when no last connected Device found, select device to connect
       return (
         <DeviceSelection
           username={username}
@@ -1918,7 +1922,8 @@ export default function App() {
           setIsZebraOnShow={setIsZebraOnShow}
         />
       );
-    } if (lastConnectedDevice) {
+    }
+    if (lastConnectedDevice) {
       // when lastConnectedDevice info available
       if (
         connectedDeviceList &&
@@ -1971,58 +1976,56 @@ export default function App() {
             setCurrentAction={setCurrentI1IO3Action}
           />
         );
-      } else {
-        return (
-          <DeviceMeasurement
-            username={username}
-            instanceURL={instanceURL}
-            connectedDevice={lastConnectedDevice}
-            deviceList={connectedDeviceList}
-            licenses={licenses}
-            token={token}
-            onLogout={handleLogout}
-            onChangeDevice={handleChangeDevice}
-            onDeviceDisConnect={handleDeviceDisconnect}
-            onSelectOtherDevice={handleSelectOtherDevice}
-            onGetDeviceAndLicenses={handleGetDeviceAndLicenses}
-            handleCheckUpdate={handleCheckUpdatePage}
-            isNewUpdateAvailable={isNewUpdateAvailable}
-            onThirdPartyAPI={handleThirdPartyAPI}
-            showThirdPartyAPIPage={showThirdPartyAPIPage}
-            colorGateAPILog={colorGateAPILog}
-            socketConnection={socketConnection}
-            thirdPartyAPIUser={thirdPartyAPIUser}
-            colorGateConnection={colorGateConnection}
-            setColorGateConnection={setColorGateConnection}
-            colorGateSocketConnection={colorGateSocketConnection}
-            colorGatePopupError={colorGatePopupError}
-            colorGatePopupTitle={colorGatePopupTitle}
-            setColorGatePopupError={setColorGatePopupError}
-            socketConnectionInProgress={socketConnectionInProgress}
-            setSocketConnectionInProgress={setSocketConnectionInProgress}
-            alwanAPILog={alwanAPILog}
-            alwanConnection={alwanConnection}
-            setAlwanConnection={setAlwanConnection}
-            alwanSocketConnection={alwanSocketConnection}
-            alwanPopupError={alwanPopupError}
-            alwanPopupTitle={alwanPopupTitle}
-            setAlwanPopupError={setAlwanPopupError}
-            alwanSocketConnectionInProgress={alwanSocketConnectionInProgress}
-            setAlwanSocketConnectionInProgress={
-              setAlwanSocketConnectionInProgress
-            }
-            balanceDeviceList={balanceDeviceList}
-            setisPrecisionShow={setisPrecisionShow}
-            barcodeDeviceList={barcodeDeviceList}
-            setIsBarcodeOnShow={setIsBarcodeOnShow}
-            zebraDeviceList={zebraDeviceList}
-            setIsZebraOnShow={setIsZebraOnShow}
-          />
-        );
       }
-    } else {
-      return <NewConnection />;
+      return (
+        <DeviceMeasurement
+          username={username}
+          instanceURL={instanceURL}
+          connectedDevice={lastConnectedDevice}
+          deviceList={connectedDeviceList}
+          licenses={licenses}
+          token={token}
+          onLogout={handleLogout}
+          onChangeDevice={handleChangeDevice}
+          onDeviceDisConnect={handleDeviceDisconnect}
+          onSelectOtherDevice={handleSelectOtherDevice}
+          onGetDeviceAndLicenses={handleGetDeviceAndLicenses}
+          handleCheckUpdate={handleCheckUpdatePage}
+          isNewUpdateAvailable={isNewUpdateAvailable}
+          onThirdPartyAPI={handleThirdPartyAPI}
+          showThirdPartyAPIPage={showThirdPartyAPIPage}
+          colorGateAPILog={colorGateAPILog}
+          socketConnection={socketConnection}
+          thirdPartyAPIUser={thirdPartyAPIUser}
+          colorGateConnection={colorGateConnection}
+          setColorGateConnection={setColorGateConnection}
+          colorGateSocketConnection={colorGateSocketConnection}
+          colorGatePopupError={colorGatePopupError}
+          colorGatePopupTitle={colorGatePopupTitle}
+          setColorGatePopupError={setColorGatePopupError}
+          socketConnectionInProgress={socketConnectionInProgress}
+          setSocketConnectionInProgress={setSocketConnectionInProgress}
+          alwanAPILog={alwanAPILog}
+          alwanConnection={alwanConnection}
+          setAlwanConnection={setAlwanConnection}
+          alwanSocketConnection={alwanSocketConnection}
+          alwanPopupError={alwanPopupError}
+          alwanPopupTitle={alwanPopupTitle}
+          setAlwanPopupError={setAlwanPopupError}
+          alwanSocketConnectionInProgress={alwanSocketConnectionInProgress}
+          setAlwanSocketConnectionInProgress={
+            setAlwanSocketConnectionInProgress
+          }
+          balanceDeviceList={balanceDeviceList}
+          setisPrecisionShow={setisPrecisionShow}
+          barcodeDeviceList={barcodeDeviceList}
+          setIsBarcodeOnShow={setIsBarcodeOnShow}
+          zebraDeviceList={zebraDeviceList}
+          setIsZebraOnShow={setIsZebraOnShow}
+        />
+      );
     }
+    return <NewConnection />;
   };
 
   return renderView();

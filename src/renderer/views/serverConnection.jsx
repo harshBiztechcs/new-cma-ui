@@ -1,7 +1,11 @@
+/* eslint-disable no-console */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react/prop-types */
+/* eslint-disable react-hooks/exhaustive-deps */
+
 import React, { useEffect, useState } from 'react';
 import Pagination from 'renderer/components/Pagination';
 import Timeline from 'renderer/components/Timeline';
-import cmaConnectIcon from '../assets/image/cma-connect-icon.png';
 import {
   CONNECTION_STATUS,
   CONNECT_SOCKET,
@@ -11,6 +15,8 @@ import {
   VERIFY_PB_DEVICE_CONNECTION,
 } from 'utility/constants';
 import HomeFooter from 'renderer/components/HomeFooter';
+import cmaConnectIcon from '../assets/image/cma-connect-icon.png';
+
 const { ipcRenderer } = window.electron;
 
 function ServerConnection({
@@ -27,7 +33,6 @@ function ServerConnection({
   onGetDeviceAndLicenses,
   handleCheckUpdate,
   isNewUpdateAvailable,
-  onDeviceReConnect,
   connectedPBDevice,
   onDevicePBConnection,
   onPBDeviceReConnect,
@@ -47,40 +52,6 @@ function ServerConnection({
   const [barcodeDeviceList, setBarcodeDeviceList] = useState([]);
   const [zebraDeviceList, setZebraDeviceList] = useState([]);
 
-  useEffect(() => {
-    // register on socket connection status event
-    ipcRenderer.on(GET_DEVICE_AND_LICENSES, onDeviceAndLicensesRes);
-    ipcRenderer.on(CONNECTION_STATUS, onConnectionStatus);
-    ipcRenderer.on(VERIFY_DEVICE_CONNECTION, onVerifyDeviceConnection);
-    ipcRenderer.on(VERIFY_PB_DEVICE_CONNECTION, onVerifyPBDeviceConnection);
-    ipcRenderer.on(SOCKET_CONNECTION, onSocketConnection);
-
-    //get device list and licenses
-    getDevicesAndLicenses();
-
-    // unregister connection status event listener
-    return () => {
-      ipcRenderer.removeListener(CONNECTION_STATUS, onConnectionStatus);
-      ipcRenderer.removeListener(
-        VERIFY_DEVICE_CONNECTION,
-        onVerifyDeviceConnection
-      );
-      ipcRenderer.removeListener(
-        VERIFY_PB_DEVICE_CONNECTION,
-        onVerifyPBDeviceConnection
-      );
-      ipcRenderer.removeListener(SOCKET_CONNECTION, onSocketConnection);
-      ipcRenderer.removeListener(
-        GET_DEVICE_AND_LICENSES,
-        onDeviceAndLicensesRes
-      );
-    };
-  }, []);
-
-  const getDevicesAndLicenses = () => {
-    ipcRenderer.send(GET_DEVICE_AND_LICENSES, { instanceURL, username, token });
-  };
-
   const updateDeviceList = (devices) => {
     if (devices) {
       const newDeviceList = [];
@@ -88,17 +59,17 @@ function ServerConnection({
       const newBarcodeDeviceList = [];
       const newZebraDeviceList = [];
 
-      for (const [deviceId, device] of Object.entries(devices)) {
+      Object.entries(devices).forEach(([deviceId, device]) => {
         if (device.is_precision_balance) {
           newBalanceDeviceList.push({ ...device, deviceId });
-        } else if (devices.deviceType === 'barcode_reader') {
+        } else if (device.deviceType === 'barcode_reader') {
           newBarcodeDeviceList.push({ ...device, deviceId });
-        } else if (devices.deviceType === 'label_printer') {
+        } else if (device.deviceType === 'label_printer') {
           newZebraDeviceList.push({ ...device, deviceId });
         } else {
           newDeviceList.push({ ...device, deviceId });
         }
-      }
+      });
 
       setDeviceList(newDeviceList);
       setPBDeviceList(newBalanceDeviceList);
@@ -112,17 +83,55 @@ function ServerConnection({
     updateDeviceList(args?.deviceRes?.devices ?? []);
 
     if (!serverError) {
-      ipcRenderer.send(CONNECT_SOCKET, {
-        username,
-        instanceURL,
-        token,
-        socketURL,
-      });
+      // ipcRenderer.send(CONNECT_SOCKET, {
+      //   username,
+      //   instanceURL,
+      //   token,
+      //   socketURL,
+      // });
     }
   };
 
+  const onConnectionStatus = (args) => {
+    if (args === 'connected') {
+      // Perform actions when connected
+      console.log('Connected to the server');
+    } else {
+      setError('Server Connection Failed !!');
+    }
+  };
+
+  const onVerifyDeviceConnection = (args) => {
+    if (args) {
+      onServerConnection();
+      onDeviceConnection(lastDevice);
+    } else {
+      onServerConnection();
+      onDeviceDisconnect();
+    }
+  };
+
+  const onVerifyPBDeviceConnection = (args) => {
+    if (args) {
+      onServerConnection();
+      onDevicePBConnection(connectedPBDevice);
+      onDeviceBarcodeConnection(lastConnectedBarcode);
+      onDeviceZebraConnection(lastConnectedZebra);
+    } else {
+      onServerConnection();
+      onPBDeviceDisconnect();
+    }
+  };
+
+  const onRetryConnection = () => {
+    ipcRenderer.send(CONNECT_SOCKET, {
+      username,
+      instanceURL,
+      token,
+      socketURL,
+    });
+  };
   const onSocketConnection = (args) => {
-    console.log('args onSocketConnection', args)
     if (args) {
       onServerConnection();
       // if (lastDevice) {
@@ -151,7 +160,7 @@ function ServerConnection({
           const updatedPBDeviceList = [...currentPBDeviceList];
 
           const lastPBDeviceInfo = updatedPBDeviceList.find(
-            (x) => x.deviceId == connectedPBDevice && x.status == 'available'
+            (x) => x.deviceId === connectedPBDevice && x.status === 'available',
           );
 
           if (lastPBDeviceInfo) {
@@ -169,13 +178,14 @@ function ServerConnection({
           const updatedBarcodeDeviceList = [...currentBarcodeDeviceList];
 
           const lastBarcodeDeviceInfo = updatedBarcodeDeviceList.find(
-            (x) => x.deviceId == lastConnectedBarcode && x.status == 'available'
+            (x) =>
+              x.deviceId === lastConnectedBarcode && x.status === 'available',
           );
 
           if (lastBarcodeDeviceInfo) {
             ipcRenderer.send(
               VERIFY_PB_DEVICE_CONNECTION,
-              lastBarcodeDeviceInfo
+              lastBarcodeDeviceInfo,
             );
           } else {
             onServerConnection();
@@ -190,7 +200,8 @@ function ServerConnection({
           const updatedZerbaDeviceList = [...currentBarcodeDeviceList];
 
           const lastZebraDeviceInfo = updatedZerbaDeviceList.find(
-            (x) => x.deviceId == lastConnectedZebra && x.status == 'available'
+            (x) =>
+              x.deviceId === lastConnectedZebra && x.status === 'available',
           );
 
           if (lastZebraDeviceInfo) {
@@ -204,44 +215,37 @@ function ServerConnection({
     }
   };
 
-  const onConnectionStatus = (args) => {
-    if (args == 'connected') {
-      // Perform actions when connected
-      console.log('Connected to the server');
-    } else {
-      setError('Server Connection Failed !!');
-    }
+  const getDevicesAndLicenses = () => {
+    ipcRenderer.send(GET_DEVICE_AND_LICENSES, { instanceURL, username, token });
   };
 
-  const onVerifyDeviceConnection = (args) => {
-    if (args) {
-      onServerConnection();
-      onDeviceConnection(lastDevice);
-    } else {
-      onServerConnection();
-      onDeviceDisconnect();
-    }
-  };
-  const onVerifyPBDeviceConnection = (args) => {
-    if (args) {
-      onServerConnection();
-      onDevicePBConnection(connectedPBDevice);
-      onDeviceBarcodeConnection(lastConnectedBarcode);
-      onDeviceZebraConnection(lastConnectedZebra);
-    } else {
-      onServerConnection();
-      onPBDeviceDisconnect();
-    }
-  };
+  useEffect(() => {
+    ipcRenderer.on(GET_DEVICE_AND_LICENSES, onDeviceAndLicensesRes);
+    ipcRenderer.on(CONNECTION_STATUS, onConnectionStatus);
+    ipcRenderer.on(VERIFY_DEVICE_CONNECTION, onVerifyDeviceConnection);
+    ipcRenderer.on(VERIFY_PB_DEVICE_CONNECTION, onVerifyPBDeviceConnection);
+    ipcRenderer.on(SOCKET_CONNECTION, onSocketConnection);
 
-  const onRetryConnection = () => {
-    ipcRenderer.send(CONNECT_SOCKET, {
-      username,
-      instanceURL,
-      token,
-      socketURL,
-    });
-  };
+    // get device list and licenses
+    getDevicesAndLicenses();
+
+    return () => {
+      ipcRenderer.removeListener(CONNECTION_STATUS, onConnectionStatus);
+      ipcRenderer.removeListener(
+        VERIFY_DEVICE_CONNECTION,
+        onVerifyDeviceConnection,
+      );
+      ipcRenderer.removeListener(
+        VERIFY_PB_DEVICE_CONNECTION,
+        onVerifyPBDeviceConnection,
+      );
+      ipcRenderer.removeListener(SOCKET_CONNECTION, onSocketConnection);
+      ipcRenderer.removeListener(
+        GET_DEVICE_AND_LICENSES,
+        onDeviceAndLicensesRes,
+      );
+    };
+  }, []);
 
   const onForceDisconnect = async () => {
     await onDeviceDisconnect();
@@ -269,17 +273,19 @@ function ServerConnection({
           <div className="right-side">
             <div className="center-section">
               <div className="server-connection-screen">
-                <img src={cmaConnectIcon} alt="CMA Connect Icon"></img>
+                <img src={cmaConnectIcon} alt="CMA Connect Icon" />
                 {!error && (
                   <span>Please wait while retrieving your licences</span>
                 )}
                 {error && (
                   <div>
                     <span style={{ marginTop: '20px' }}>{error}</span>
+
                     <div style={{ margin: '20px' }}>
-                      {error ==
+                      {error ===
                       'CMA Connect User ID is currently open in another session. Please try again after logging out from the other session.' ? (
                         <button
+                          type="button"
                           className="btn-secondary  mr-12"
                           onClick={onForceDisconnect}
                         >
@@ -287,6 +293,7 @@ function ServerConnection({
                         </button>
                       ) : (
                         <button
+                          type="button"
                           className="btn-secondary  mr-12"
                           onClick={onRetryConnection}
                         >
@@ -294,6 +301,7 @@ function ServerConnection({
                         </button>
                       )}
                       <button
+                        type="button"
                         className="btn-secondary  mr-12"
                         onClick={onLogout}
                       >

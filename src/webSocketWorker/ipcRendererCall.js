@@ -1,6 +1,5 @@
 const { ipcRenderer } = require('electron');
 const {
-  CONNECTION,
   SETTINGS,
   CALIBRATION,
   MEASUREMENT,
