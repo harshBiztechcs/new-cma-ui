@@ -10,13 +10,11 @@ const { getAssetPath } = require('../../util');
 let MyPrinter = null;
 let executablePath = null;
 
-// Set up printer executable path for Windows
 if (process.platform === 'win32') {
   executablePath = getAssetPath('SDK', 'zebra-printer', 'ZplToPrinter.dll');
   process.env.PATH = `${process.env.PATH}${path.delimiter}${executablePath}`;
 }
 
-// all sdk functions related to ci62 needs to expose here first
 const loadPrinterFunctions = () => {
   try {
     const myPrinterLibrary = koffi.load(executablePath);
@@ -29,16 +27,13 @@ const loadPrinterFunctions = () => {
       ),
     };
   } catch (error) {
-    console.error('Error loading ci62 library:', error);
     dialog.showMessageBox(null, {
-      title: 'Exposing Ci62 Library Functions',
-      message: `Error loading Ci62 library :- ${error.message} && DLL file exists =>${fs.existsSync(executablePath) ? 'yes' : 'no'} `,
+      title: 'Exposing Label Printer Library Functions',
+      message: `Error loading Label Printer library :- ${error} && DLL file exists =>${fs.existsSync(executablePath) ? 'yes' : 'no'} `,
     });
-    return null; // Return null in case of an error
   }
 };
 
-// Connection
 function parseDeviceOutput(output) {
   return output
     .trim()
@@ -46,7 +41,6 @@ function parseDeviceOutput(output) {
     .slice(1)
     .map((line) => {
       const [deviceId, manufacturer, name] = line.trim().split(/\s{2,}/);
-      // Extract VID and PID from DeviceID
       const [, VID, PID] =
         deviceId.match(/VID_([A-F0-9]+)&PID_([A-F0-9]+)/) || [];
       return {
@@ -69,7 +63,6 @@ function checkPrinterDeviceConnection() {
       'wmic path Win32_PnPEntity get Name,DeviceID,Manufacturer,PNPDeviceID',
       (error, stdout, stderr) => {
         if (error) {
-          // Set the response to false if an error occurs
           resolve(false);
           return;
         }
@@ -79,16 +72,13 @@ function checkPrinterDeviceConnection() {
           return;
         }
 
-        // Parse the output
         const devices = parseDeviceOutput(stdout);
 
-        // Check if any device matches the criteria
         const isPrinterFound = filterDevicesByVIDPID(
           devices,
           'ZDesigner ZD421-203dpi ZPL',
         );
 
-        // Resolve with the result
         resolve(isPrinterFound);
       },
     );
@@ -105,7 +95,6 @@ async function checkLabelPrinterConnection() {
   }
 }
 
-// Handle printing process
 async function handlePrintingProcess(data) {
   try {
     if (
