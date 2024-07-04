@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 const koffi = require('koffi');
 const path = require('path');
 const { dialog, app } = require('electron');
@@ -94,8 +95,6 @@ const I1_LAST_ERROR_NUMBER = 'LastErrorNumber';
 const I1_MEASUREMENT_MODE = 'MeasurementMode';
 const I1_REFLECTANCE_SCAN = 'ReflectanceScan';
 const I1_DUAL_REFLECTANCE_SCAN = 'DualReflectanceScan';
-const I1_PATCH_RECOGNITION_KEY = 'RecognitionKey';
-const I1_PATCH_RECOGNITION_BASIC = 'RecognitionBasic';
 const I1_RESULT_INDEX_KEY = 'ResultIndexKey';
 const I1_RESET = 'Reset';
 const I1_ALL = 'All';
@@ -368,7 +367,7 @@ const setI1IOOptions = (options) => {
     const setPrior = [];
 
     setPrior[I1_MEASUREMENT_MODE] =
-      options.ResultIndexKey == 'M0'
+      options.ResultIndexKey === 'M0'
         ? I1_REFLECTANCE_SCAN
         : I1_DUAL_REFLECTANCE_SCAN;
     //  setPrior[I1_MEASUREMENT_MODE] = I1_DUAL_REFLECTANCE_SCAN;
