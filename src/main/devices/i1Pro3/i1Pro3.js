@@ -1,5 +1,6 @@
+/* eslint-disable no-console */
+const fs = require('fs');
 const koffi = require('koffi');
-
 const path = require('path');
 const { dialog } = require('electron');
 const {
@@ -47,21 +48,15 @@ const {
   I1PRO3_ILLUMINATION_CONDITION_M1,
   I1PRO3_ILLUMINATION_CONDITION_M2,
   I1PRO3_PATCH_RECOGNITION_KEY,
-  I1PRO3_PATCH_RECOGNITION_BASIC,
-  I1PRO3_PATCH_RECOGNITION_CORRELATION,
-  I1PRO3_PATCH_RECOGNITION_POSITION,
   I1PRO3_PATCH_RECOGNITION_POSITION_DARK,
-  I1PRO3_PATCH_RECOGNITION_FLASH,
-  I1PRO3_PATCH_RECOGNITION_RECOGNIZED_PATCHES,
 } = require('./constants');
 const { getAssetPath } = require('../../util');
-const { checkCi62Calibration } = require('../ci62/ci62');
 
 // Allocate a buffer for the message with 256 bytes
-const msgBuffer = Buffer.alloc(256);
+let msgBuffer = Buffer.alloc(256);
 
 // Allocate a buffer for the message length (4 bytes for uint32)
-const msgLength = Buffer.alloc(4);
+let msgLength = Buffer.alloc(4);
 
 // Define float type
 
@@ -86,18 +81,24 @@ let dllDir = null;
 let measAvgNum = 1;
 let startMeasure = false;
 let measurementInterval = null;
-let measurementTimeout = null;
 let resultIndexKey = null;
 
 // constant
 const M0_M1_M2 = 'M0_M1_M2';
 
 try {
-  if (process.platform == 'win32') {
-    dllDir = getAssetPath('SDK', 'i1Pro3', 'x64');
+  if (process.platform === 'win32') {
+    dllDir = getAssetPath('SDK', 'i1Pro3', 'x64', 'i1Pro3Bridge.dll');
     process.env.PATH = `${process.env.PATH}${path.delimiter}${dllDir}`;
-  } else if (process.platform == 'darwin') {
-    dllDir = getAssetPath('SDK', 'i1Pro3', 'mac', 'i1Pro3Bridge', 'Output');
+  } else if (process.platform === 'darwin') {
+    dllDir = getAssetPath(
+      'SDK',
+      'i1Pro3',
+      'mac',
+      'i1Pro3Bridge',
+      'Output',
+      'i1Pro3Bridge.dylib',
+    );
   }
 } catch (error) {
   dialog.showMessageBox(null, {
@@ -110,48 +111,74 @@ let i1Pro3 = null;
 
 // all sdk functions related to i1Pro3 needs to expose here first
 
-const exposeLibraryFunctions = () => {
+const loadI1PRO3LibraryFunctions = () => {
   try {
-    // Load the library
-    const dllPath = path.join(dllDir, 'i1Pro3Bridge');
-    i1Pro3 = koffi.load(dllPath);
+    const i1Pro3Library = koffi.load(dllDir);
 
-    // Define the functions
-    i1Pro3.getSDKVersion = i1Pro3.func('const char* getSDKVersion()');
-    i1Pro3.getOption = i1Pro3.func(
-      'int getOption(const char*, const char*, int*)',
-    );
-    i1Pro3.setOption = i1Pro3.func('int setOption(const char*, const char*)');
-    i1Pro3.setGlobalOption = i1Pro3.func(
-      'int setGlobalOption(const char*, const char*)',
-    );
-    i1Pro3.getGlobalOption = i1Pro3.func(
-      'const char* getGlobalOption(const char*, char*, int*)',
-    );
-    i1Pro3.openDevice = i1Pro3.func('bool openDevice()');
-    i1Pro3.calibrateDevice = i1Pro3.func('int calibrateDevice()');
-    i1Pro3.calibrateReflectanceMode = i1Pro3.func(
-      'int calibrateReflectanceMode()',
-    );
-    i1Pro3.calibrateReflectanceM3Mode = i1Pro3.func(
-      'int calibrateReflectanceM3Mode()',
-    );
-    i1Pro3.setReflectanceSpotMode = i1Pro3.func('int setReflectanceSpotMode()');
-    i1Pro3.setReflectanceSpotM3Mode = i1Pro3.func(
-      'int setReflectanceSpotM3Mode()',
-    );
-    i1Pro3.triggerMeasurement = i1Pro3.func('int triggerMeasurement()');
-    i1Pro3.getSpectrum = i1Pro3.func('int getSpectrum(float*, int)');
-    i1Pro3.getTriStimulus = i1Pro3.func('int getTriStimulus(float*, int)');
-    i1Pro3.waitForButtonPressed = i1Pro3.func('bool waitForButtonPressed()');
-    i1Pro3.getButtonStatus = i1Pro3.func('int getButtonStatus()');
-    i1Pro3.getNumberOfAvailableSamples = i1Pro3.func(
-      'int getNumberOfAvailableSamples()',
-    );
+    i1Pro3 = {
+      getSDKVersion: i1Pro3Library.func('getSDKVersion', 'string', []),
+      getOption: i1Pro3Library.func('getOption', 'int', [
+        'string',
+        'string',
+        'int *',
+      ]),
+      setOption: i1Pro3Library.func('setOption', 'int', ['string', 'string']),
+      setGlobalOption: i1Pro3Library.func('setGlobalOption', 'int', [
+        'string',
+        'string',
+      ]),
+      getGlobalOption: i1Pro3Library.func('getGlobalOption', 'string', [
+        'string',
+        'char *',
+        'int *',
+      ]),
+      openDevice: i1Pro3Library.func('openDevice', 'bool', []),
+      calibrateDevice: i1Pro3Library.func('calibrateDevice', 'int', []),
+      calibrateReflectanceMode: i1Pro3Library.func(
+        'calibrateReflectanceMode',
+        'int',
+        [],
+      ),
+      calibrateReflectanceM3Mode: i1Pro3Library.func(
+        'calibrateReflectanceM3Mode',
+        'int',
+        [],
+      ),
+      setReflectanceSpotMode: i1Pro3Library.func(
+        'setReflectanceSpotMode',
+        'int',
+        [],
+      ),
+      setReflectanceSpotM3Mode: i1Pro3Library.func(
+        'setReflectanceSpotM3Mode',
+        'int',
+        [],
+      ),
+      triggerMeasurement: i1Pro3Library.func('triggerMeasurement', 'int', []),
+      getSpectrum: i1Pro3Library.func('getSpectrum', 'int', [
+        FloatArray,
+        'int',
+      ]),
+      getTriStimulus: i1Pro3Library.func('getTriStimulus', 'int', [
+        FloatArray,
+        'int',
+      ]),
+      waitForButtonPressed: i1Pro3Library.func(
+        'waitForButtonPressed',
+        'bool',
+        [],
+      ),
+      getButtonStatus: i1Pro3Library.func('getButtonStatus', 'int', []),
+      getNumberOfAvailableSamples: i1Pro3Library.func(
+        'getNumberOfAvailableSamples',
+        'int',
+        [],
+      ),
+    };
   } catch (error) {
     dialog.showMessageBox(null, {
-      title: 'Exposing Library Function',
-      message: `error loading i1Pro3 library: ${error?.message}`,
+      title: 'Exposing i1Pro3 Library Functions',
+      message: `Error loading i1Pro3 library :- ${error} && DLL file exists =>${fs.existsSync(dllDir) ? 'yes' : 'no'} `,
     });
   }
 };
@@ -390,18 +417,6 @@ const waitForButtonPressed = (callback) => {
   }
 };
 
-const setMeasTimeout = () => {
-  // 5 mins timeout for measurement btn press
-
-  measurementTimeout = setTimeout(() => {
-    clearI1Pro3MeasurementInterval();
-  }, 300000);
-};
-
-const clearMeasTimeout = () => {
-  clearTimeout(measurementTimeout);
-};
-
 // to clear measurement interval
 const clearI1Pro3MeasurementInterval = () => {
   clearInterval(measurementInterval);
@@ -488,9 +503,9 @@ const getMeasurementInfo = () => {
       I1PRO3_MEASURE_COUNT,
     ];
     measurementParams.forEach((name) => {
-      const msgBuffer = new Buffer.alloc(256);
+      msgBuffer = Buffer.alloc(256);
       msgBuffer.type = ref.types.char;
-      const msgLength = new Buffer.alloc(4);
+      msgLength = Buffer.alloc(4);
       msgLength.type = ref.types.uint32;
       msgLength.writeInt32LE(65000, 0);
       sEC = i1Pro3.getOption(name, msgBuffer, msgLength);
@@ -840,125 +855,9 @@ const calibrateDeviceStripMode = () => {
 
 // common function to get average of data array
 const getAverageData = (data, averageOf) => {
-  const avgData = [];
-  for (let i = 0; i < data[0].length; i++) {
-    avgData[i] = 0;
-    for (let j = 0; j < averageOf; j++) {
-      avgData[i] = avgData[i] + data[j][i];
-    }
-    avgData[i] = avgData[i] / averageOf;
-  }
-  return avgData;
-};
-
-const getAvgOfSingleResultKeyMeasurementOld = () => {
-  try {
-    const spectrumDatas = [];
-    const LABDatas = [];
-    const RGBDatas = [];
-    const avgSpectumData = [];
-    const avgLABData = [];
-    const avgRGBData = [];
-    for (let i = 0; i < measAvgNum; i++) {
-      const res = triggerMeasurement();
-      if (res) {
-        // get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
-        spectrumDatas[i] = getSpectrumResult();
-
-        LABDatas[i] = getLABResult();
-
-        RGBDatas[i] = getRGBResult();
-      } else {
-        const error = printErrorInfo();
-        return { res: false, error };
-      }
-    }
-
-    for (let i = 0; i < spectrumDatas[0].length; i++) {
-      avgSpectumData[i] = 0;
-      for (let j = 0; j < measAvgNum; j++) {
-        avgSpectumData[i] = avgSpectumData[i] + spectrumDatas[j][i];
-      }
-      avgSpectumData[i] = avgSpectumData[i] / measAvgNum;
-    }
-    const spectrumData = getSpectrumResult();
-    const LABData = getLABResult();
-    if (LABData && spectrumData) {
-      return { res: true, measData: { spectrumData, LABData }, error: null };
-    }
-    const error = printErrorInfo();
-    return { res: false, error: error.message };
-  } catch (error) {
-    return { res: false, error: error.message };
-  }
-};
-
-const getAvgOfAllResultKeyMeasurementOld = () => {
-  try {
-    const M0SpectrumData = [];
-    const M1SpectrumData = [];
-    const M2SpectrumData = [];
-    let M0LABData = [];
-    let M1LABData = [];
-    let M2LABData = [];
-    let avgM0SpectrumData = [];
-    let avgM1SpectrumData = [];
-    let avgM2SpectrumData = [];
-    let avgM0LABData = [];
-    let avgM1LABData = [];
-    let avgM2LABData = [];
-    for (let i = 0; i < measAvgNum; i++) {
-      const res = triggerMeasurement();
-      if (res) {
-        const M0MeasData = getIndexKeyMeasurementData(
-          I1PRO3_ILLUMINATION_CONDITION_M0,
-        );
-        const M1MeasData = getIndexKeyMeasurementData(
-          I1PRO3_ILLUMINATION_CONDITION_M1,
-        );
-        const M2MeasData = getIndexKeyMeasurementData(
-          I1PRO3_ILLUMINATION_CONDITION_M2,
-        );
-        // get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
-        M0SpectrumData[i] = M0MeasData.measData.spectrumData;
-        M1SpectrumData[i] = M1MeasData.measData.spectrumData;
-        M2SpectrumData[i] = M2MeasData.measData.spectrumData;
-        M0LABData = M0MeasData.measData.LABData;
-        M1LABData = M1MeasData.measData.LABData;
-        M2LABData = M2MeasData.measData.LABData;
-      } else {
-        const error = printErrorInfo();
-        return { res: false, error };
-      }
-    }
-
-    avgM0SpectrumData = getAverageData(M0SpectrumData, measAvgNum);
-    avgM1SpectrumData = getAverageData(M1SpectrumData, measAvgNum);
-    avgM2SpectrumData = getAverageData(M2SpectrumData, measAvgNum);
-    avgM0LABData = getAverageData(M0LABData, measAvgNum);
-    avgM1LABData = getAverageData(M1LABData, measAvgNum);
-    avgM2LABData = getAverageData(M2LABData, measAvgNum);
-    return {
-      res: true,
-      measData: {
-        M0SpectrumData: avgM0SpectrumData,
-        M1SpectrumData: avgM1SpectrumData,
-        M2SpectrumData: avgM2SpectrumData,
-        M0LABData: avgM0LABData,
-        M1LABData: avgM1LABData,
-        M2LABData: avgM2LABData,
-      },
-    };
-  } catch (error) {
-    return { res: false, error: { message: error?.message } };
-  }
-};
-
-const triggerAvgMeasurementOld = () => {
-  if (resultIndexKey == M0_M1_M2) {
-    return getAvgOfAllResultKeyMeasurement();
-  }
-  return getAvgOfSingleResultKeyMeasurement();
+  return data[0].map((_, i) => {
+    return data.reduce((acc, curr) => acc + curr[i], 0) / averageOf;
+  });
 };
 
 const waitForButtonPressPromise = () =>
@@ -1359,42 +1258,8 @@ const getRGBResult = () => {
   }
 };
 
-const test = () => {
-  exposeLibraryFunctions();
-  const isOpen = i1Pro3.openDevice();
-  console.log({ isOpen });
-  console.log({ erro: printErrorInfo() });
-  // const calRes = triggerCalibration();
-  // ['A','B','C','D50','D55','D65','D75','F2','F7','F11'].forEach(x=>{
-  //   console.log('setting..'+ x);
-  //   sEC = i1Pro3.setOption('Colorimetric.Illumination',x);
-  //   if(sEC !=0) printErrorInfo();
-  // });
-  // ['DIN','DINNB','ANSIA','ANSIE','ANSII','ANSIT','SPI'].forEach(x=>{
-  //   console.log('setting..'+ x);
-  //   sEC = i1Pro3.setOption('Colorimetric.DensityStandard',x);
-  //   if(sEC !=0) printErrorInfo();
-  // });
-  // ['TwoDegree','TenDegree'].forEach(x=>{
-  //   console.log('setting..'+ x);
-  //   sEC = i1Pro3.setOption('Colorimetric.Observer',x);
-  //   if(sEC !=0) printErrorInfo();
-  // });
-  // sEC = i1Pro3.setOption(I1PRO3_MEASUREMENT_MODE,I1PRO3_REFLECTANCE_SPOT);
-  // console.log({sEC});
-  // printErrorInfo();
-  // sEC = i1Pro3.setOption(I1PRO3_MEASUREMENT_MODE,I1PRO3_REFLECTANCE_M3_SPOT);
-  // console.log({sEC});
-  // printErrorInfo();
-  // measAvgNum = 3;
-  // const measRes = triggerAvgMeasurement();
-  // console.log({ measRes });
-};
-
-// test();
-
 module.exports = {
-  exposeLibraryFunctions,
+  loadI1PRO3LibraryFunctions,
   getSDKVersion,
   openDevice,
   printDeviceInfo,

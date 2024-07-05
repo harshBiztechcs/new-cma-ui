@@ -4,10 +4,10 @@ const path = require('path');
 const { getAssetPath } = require('../../util');
 
 let dllDir = null;
-if (process.platform == 'win32') {
+if (process.platform === 'win32') {
   dllDir = getAssetPath('SDK', 'eXact2', 'win', 'x64');
   process.env.PATH = `${process.env.PATH}${path.delimiter}${dllDir}`;
-} else if (process.platform == 'darwin') {
+} else if (process.platform === 'darwin') {
   dllDir = getAssetPath('SDK', 'eXact2', 'mac', 'x86_64');
 }
 
@@ -16,24 +16,6 @@ let filterType = 'M0';
 let startMeasure = false;
 let measureInterval = null;
 let measAvgNum = 1;
-const illuobsType = {
-  'A/2': 0,
-  'A/10': 1,
-  'C/2': 2,
-  'C/10': 3,
-  'D50/2': 4,
-  'D50/10': 5,
-  'D65/2': 8,
-  'D65/10': 9,
-  'F2/2': 12,
-  'F2/10': 13,
-  'F7/2': 14,
-  'F7/10': 15,
-  'F11/2': 20,
-  'F11/10': 21,
-  'F12/2': 22,
-  'F12/10': 23,
-};
 
 // constant
 const M0_M1_M2_M3 = 'M0_M1_M2_M3';
@@ -137,7 +119,7 @@ const loadExact2LibraryFunctions = () => {
 const connect = () => exact2.Connect();
 const disconnect = () => exact2.Disconnect();
 const isDataReady = () => exact2.IsDataReady();
-const setOption = (option, value) => exact2.SetOption(option, value);
+
 const setParam = (option, value) =>
   exact2.Execute(`PARAM SET ${option} ${value}`);
 
@@ -258,20 +240,6 @@ const disconnectExact2Device = () => {
   }
 };
 
-// set exact2 device params
-const setParams = (options) => {
-  try {
-    for (const key in options) {
-      const isSet = setParam(key, options[key]);
-      if (!(isSet == '<00>')) {
-        throw new Error(`Error setting ${key} - ${options[key]}`);
-      }
-    }
-    return { res: true, error: null };
-  } catch (error) {
-    return { res: false, error: error?.message };
-  }
-};
 
 const createExact2ConfigurationSettings = (options) => {
   const configObj = {};
@@ -360,23 +328,6 @@ const setExact2DeviceConfigurationStripMode = (obj) => {
   }
 };
 
-// manually perform calibration
-const performCalibration = () => {
-  try {
-    const allSteps = exact2.GetCalSteps().split(';');
-
-    allSteps.forEach((step) => {
-      const res = exact2.CalibrateStep(step);
-
-      if (!res) {
-        throw new Error(`Calibration failed for ${step}`);
-      }
-    });
-    return { res: true, error: null };
-  } catch (error) {
-    return { res: false, error: error.message };
-  }
-};
 
 // manually perform measurement
 const performMeasurement = () => {
@@ -709,16 +660,6 @@ const getAvgM0M1M2M3MeasurementDataStripMode = async (
 
     const scanStatusRes = await waitForScanStatusPromise();
     console.log({ scanStatusRes });
-
-    //   do {
-    //     await sleep(1000 * 5);
-    //     const ScanGetStatus = exact2.ScanGetStatus();
-    //     if (ScanGetStatus == 3) {
-    //         console.log('Scan is completed');
-    //         scanCompleted = true;
-    //     }
-    //     console.log({ ScanGetStatus });
-    // } while (!scanCompleted);
 
     if (scanStatusRes.res) {
       const ScanGetCount = exact2.ScanGetCount();

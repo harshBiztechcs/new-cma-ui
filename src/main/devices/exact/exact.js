@@ -4,10 +4,10 @@ const path = require('path');
 const { getAssetPath } = require('../../util');
 
 let dllDir = null;
-if (process.platform == 'win32') {
+if (process.platform === 'win32') {
   dllDir = getAssetPath('SDK', 'eXact', 'win', 'x64');
   process.env.PATH = `${process.env.PATH}${path.delimiter}${dllDir}`;
-} else if (process.platform == 'darwin') {
+} else if (process.platform === 'darwin') {
   dllDir = getAssetPath('SDK', 'eXact', 'mac', 'x86_64');
 }
 
@@ -100,7 +100,11 @@ const loadExactLibraryFunctions = () => {
     exact.SetOption = exact.stdcall('SetOption', 'bool', ['string', 'string']);
     exact.ScanIsSupported = exact.stdcall('ScanIsSupported', 'bool', []);
     exact.GetLastErrorCode = exact.stdcall('GetLastErrorCode', 'int', []);
-    exact.GetLastErrorString = exact.stdcall('GetLastErrorString', 'string', []);
+    exact.GetLastErrorString = exact.stdcall(
+      'GetLastErrorString',
+      'string',
+      [],
+    );
     exact.Execute = exact.stdcall('Execute', 'string', ['string']);
 
     return exact;
@@ -115,9 +119,7 @@ const loadExactLibraryFunctions = () => {
 
 const connect = () => exact.Connect();
 const disconnect = () => exact.Disconnect();
-const getAvailableSettings = () => exact.GetAvailableSettings();
 const isDataReady = () => exact.IsDataReady();
-const setOption = (option, value) => exact.SetOption(option, value);
 const setParam = (option, value) =>
   exact.Execute(`PARAM SET ${option} ${value}`);
 
@@ -234,36 +236,6 @@ const disconnectExactDevice = () => {
   }
 };
 
-// generalSettings
-const setAllOptions = (options) => {
-  try {
-    for (const key in options) {
-      const isSet = setOption(key, options[key]);
-      if (!isSet) {
-        throw new Error(`Error setting ${key} - ${options[key]}`);
-      }
-    }
-    return { res: true, error: null };
-  } catch (error) {
-    return { res: false, error: error?.message };
-  }
-};
-
-// set exact device params
-const setParams = (options) => {
-  try {
-    for (const key in options) {
-      const isSet = setParam(key, options[key]);
-      if (!(isSet == '<00>')) {
-        throw new Error(`Error setting ${key} - ${options[key]}`);
-      }
-    }
-    return { res: true, error: null };
-  } catch (error) {
-    return { res: false, error: error?.message };
-  }
-};
-
 const createExactConfigurationSettings = (options) => {
   const configObj = {};
   const illumination = options['Colorimetric.Illumination'];
@@ -316,24 +288,6 @@ const setExactDeviceConfiguration = (obj) => {
     return { res: true, error: null };
   } catch (error) {
     return { res: false, error: error?.message };
-  }
-};
-
-// manually perform calibration
-const performCalibration = () => {
-  try {
-    const allSteps = exact.GetCalSteps().split(';');
-
-    allSteps.forEach((step) => {
-      const res = exact.CalibrateStep(step);
-
-      if (!res) {
-        throw new Error(`Calibration failed for ${step}`);
-      }
-    });
-    return { res: true, error: null };
-  } catch (error) {
-    return { res: false, error: error.message };
   }
 };
 
@@ -640,100 +594,6 @@ const getExactAvgMeasurementData = () => {
   return getAvgResultIndexKeyMeasurementData();
 };
 
-const demo = () => {
-  try {
-    loadExactLibraryFunctions();
-    const interfaceVersion = exact.GetInterfaceVersion();
-    console.log({ interfaceVersion });
-    const allAvailableSettings = getAvailableSettings();
-    console.log({ allAvailableSettings });
-    allAvailableSettings.split(';').forEach((setting) => {
-      console.log(`${setting} ${exact.GetSettingOptions(setting)}`);
-      console.log(`default value ` + ` - ${exact.GetOption(setting)}`);
-    });
-
-    console.log({ calibrationSteps: exact.GetCalSteps() });
-
-    // test usb
-    console.log(exact.GetOption('Connection_Method'));
-    const setUSB = exact.SetOption('Connection_Method', 'USB');
-    console.log({ setUSB });
-    console.log(exact.GetOption('Connection_Method'));
-    console.log({ calStatus: exact.Execute('CALSTATUS GET') });
-
-    // test bluetooth
-    // console.log({ config : exact.Execute("BLUETOOTH CONFIG ALWAYSON") });
-    // console.log({ add : exact.Execute("BLUETOOTH GET ADDR")});
-    // const setBluetooh = exact.SetOption("Connection_Method", "eXact_014387");
-    // console.log({ config : exact.Execute("BLUETOOTH CONFIG ALWAYSON") });
-    // console.log({ add : exact.Execute("BLUETOOTH GET ADDR")});
-    // console.log({ setBluetooh });
-    // console.log(exact.GetOption("Connection_Method"));
-    console.log({ calStatus: exact.Execute('CALSTATUS GET') });
-    console.log({ isConnected: exact.IsConnected() });
-    const connRes = connectExactDevice();
-    console.log({ connRes });
-    // console.log({ disconnect : exact.Disconnect() })
-    console.log({ isConnected: exact.IsConnected() });
-    if (!connRes.res) return;
-    // info
-    console.log({ calibrationStandard: exact.GetCalibrationStandard() });
-    console.log({ serialNumber: exact.GetSerialNum() });
-    console.log({ calstatus: exact.GetCalStatus() });
-    console.log({ spectralCount: exact.GetSpectralSetCount() });
-    for (let index = 0; index < exact.GetSpectralSetCount(); index++) {
-      console.log(`spectralSetCount ${exact.GetSpectralSetName(index)}`);
-    }
-    console.log({ calStatus: exact.Execute('CALSTATUS GET') });
-    console.log({ aperture: exact.Execute('INSTRUMENT GET APERTURE') });
-    console.log({ isM0M1Compliant: exact.Execute('IsM0M1Compliant') });
-    console.log({ lastMeasurement: exact.Execute('SAMPLE GET LAB 0 M1') });
-    console.log({ lastMeasurement: exact.Execute('SAMPLE GET REFL 0 M1') });
-    console.log({ model: exact.Execute('SERIALNUM GET MODEL') });
-    console.log({ IsDataReady: isDataReady() });
-
-    // console.log(" illuobs get " + exact.Execute("PARAM GET ILLUMOBS"));
-    // console.log(" illuobs set " + exact.Execute("PARAM SET ILLUMOBS 5")); //working ?
-    //  console.log(" colorspace get " + exact.Execute("PARAM GET COLORSPACE"));
-    //  console.log(" colorspace set " + exact.Execute("PARAM SET COLORSPACE 2")); //working ?
-    // console.log({ default : exact.Execute("PARAM DEFAULT all")});
-    console.log(` illuobs get ${exact.Execute('PARAM GET ILLUMOBS')}`);
-    if (exact.GetCalStatus() == 1) {
-      console.log({ calibrationSteps: exact.GetCalSteps() });
-      const calres = performCalibration();
-      if (!calres.res) return;
-    }
-    console.log({ calstatus: exact.GetCalStatus() });
-    waitForExactCalibrationComplete(() => {
-      console.log('calibration completer');
-      const calResult = getExactWhiteCalibrationResult();
-      console.log({ calResult });
-      // console.log(" illuobs set " + exact.Execute("PARAM SET ILLUMOBS 4")); //“D50/2” //4
-      // console.log(" illuobs get " + exact.Execute("PARAM GET ILLUMOBS"));
-      const meanRes = performMeasurement();
-      console.log({ meanRes });
-      if (!meanRes.res) return;
-      const meanData = getExactMeasurementData();
-      console.log({ meanData });
-      console.log('updating measurement settings.....');
-      //  console.log(" illuobs set " + exact.Execute("PARAM SET ILLUMOBS 7")); //“D65/10” //7
-      //  console.log(" illuobs get " + exact.Execute("PARAM GET ILLUMOBS"));
-      console.log(` colorspace get ${exact.Execute('PARAM GET COLORSPACE')}`);
-      console.log(` colorspace set ${exact.Execute('PARAM SET COLORSPACE 2')}`); // working ?
-      const meanResD65 = performMeasurement();
-      console.log({ meanResD65 });
-      const meanDataD65 = getExactMeasurementData();
-      console.log({ meanDataD65 });
-      // waitForExactMeasurementComplete(() => {
-      //   const meanData = getExactMeasurementData();
-      //   console.log({ meanData });
-      // });
-    });
-  } catch (error) {
-    console.log({ error });
-  }
-};
-// demo();
 module.exports = {
   loadExactLibraryFunctions,
   connectExactDevice,

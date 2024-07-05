@@ -1,3 +1,4 @@
+const fs = require('fs');
 const koffi = require('koffi');
 
 const { dialog } = require('electron');
@@ -15,7 +16,6 @@ const {
   I1_ILLUMINATION_CONDITION_M0,
   I1_ILLUMINATION_CONDITION_M1,
   I1_ILLUMINATION_CONDITION_M2,
-  I1_ILLUMINATION_CONDITION_M3,
   OBSERVER_KEY,
   ILLUMINATION_KEY,
   I1_MEASURE_COUNT,
@@ -44,19 +44,6 @@ const FloatArraySize = arrayLength * floatTypeSize;
 const FloatArray = Buffer.alloc(FloatArraySize);
 msgLength.writeUInt32LE(65000, 0);
 
-// let ArrayType = require('ref-array-di')(ref);
-// let float = ref.types.float;
-// let FloatArray = ArrayType(float);
-
-// let sEC = null;
-// //msg buffer for error/result output
-// let msgBuffer = new Buffer.alloc(256);
-// msgBuffer.type = ref.types.char;
-// //msg buffer length pointer
-// let msgLength = new Buffer.alloc(4);
-// msgLength.type = ref.types.uint32;
-// msgLength.writeInt32LE(65000, 0);
-
 let dllDir = null;
 let measAvgNum = 1;
 let startMeasure = false;
@@ -66,51 +53,75 @@ let resultIndexKey = null;
 // constant
 const M0_M1_M2 = 'M0_M1_M2';
 
-if (process.platform == 'win32') {
-  dllDir = getAssetPath('SDK', 'i1Pro', 'win', 'x64');
+if (process.platform === 'win32') {
+  dllDir = getAssetPath('SDK', 'i1Pro', 'win', 'x64', 'i1ProBridge.dll');
   process.env.PATH = `${process.env.PATH}${path.delimiter}${dllDir}`;
-} else if (process.platform == 'darwin') {
-  dllDir = getAssetPath('SDK', 'i1Pro', 'mac', 'i1ProBridge', 'Output');
+} else if (process.platform === 'darwin') {
+  dllDir = getAssetPath(
+    'SDK',
+    'i1Pro',
+    'mac',
+    'i1ProBridge',
+    'Output',
+    'i1ProBridge.dylib',
+  );
 }
 
 let i1Pro = null;
 
 const loadI1ProLibraryFunctions = () => {
   try {
-    const dllPath = path.join(dllDir, 'i1ProBridge');
-    i1Pro = koffi.load(dllPath);
+    const i1Pro3Library = koffi.load(dllDir);
 
-    i1Pro.getOption = i1Pro.func(
-      'int getOption(const char*, const char*, int*)',
-    );
-    i1Pro.setOption = i1Pro.func('int setOption(const char*, const char*)');
-    i1Pro.setGlobalOption = i1Pro.func(
-      'int setGlobalOption(const char*, const char*)',
-    );
-    i1Pro.getGlobalOption = i1Pro.func(
-      'const char* getGlobalOption(const char*, char*, int*)',
-    );
-    i1Pro.getGlobalOptionD = i1Pro.func(
-      'const char* getGlobalOptionD(const char*)',
-    );
-    i1Pro.openDevice = i1Pro.func('bool openDevice()');
-    i1Pro.calibrate = i1Pro.func('int calibrate()');
-    i1Pro.calibrateReflectanceMode = i1Pro.func(
-      'int calibrateReflectanceMode()',
-    );
-    i1Pro.calibrateReflectanceM3Mode = i1Pro.func(
-      'int calibrateReflectanceM3Mode()',
-    );
-    i1Pro.triggerMeasurement = i1Pro.func('int triggerMeasurement()');
-    i1Pro.getSpectrum = i1Pro.func('int getSpectrum(float*, int)');
-    i1Pro.getTriStimulus = i1Pro.func('int getTriStimulus(float*, int)');
-    i1Pro.waitForButtonPressed = i1Pro.func('bool waitForButtonPressed()');
-    i1Pro.getButtonStatus = i1Pro.func('int getButtonStatus()');
-    i1Pro.getConnectionStatus = i1Pro.func('int getConnectionStatus()');
+    i1Pro = {
+      getOption: i1Pro3Library.func('getOption', 'int', [
+        'string',
+        'string',
+        'int *',
+      ]),
+      setOption: i1Pro3Library.func('setOption', 'int', ['string', 'string']),
+      setGlobalOption: i1Pro3Library.func('setGlobalOption', 'int', [
+        'string',
+        'string',
+      ]),
+      getGlobalOption: i1Pro3Library.func('getGlobalOption', 'string', [
+        'string',
+        'char *',
+        'int *',
+      ]),
+      openDevice: i1Pro3Library.func('openDevice', 'bool', []),
+      calibrate: i1Pro3Library.func('calibrate', 'int', []),
+      calibrateReflectanceMode: i1Pro3Library.func(
+        'calibrateReflectanceMode',
+        'int',
+        [],
+      ),
+      calibrateReflectanceM3Mode: i1Pro3Library.func(
+        'calibrateReflectanceM3Mode',
+        'int',
+        [],
+      ),
+      triggerMeasurement: i1Pro3Library.func('triggerMeasurement', 'int', []),
+      getSpectrum: i1Pro3Library.func('getSpectrum', 'int', [
+        FloatArray,
+        'int',
+      ]),
+      getTriStimulus: i1Pro3Library.func('getTriStimulus', 'int', [
+        FloatArray,
+        'int',
+      ]),
+      waitForButtonPressed: i1Pro3Library.func(
+        'waitForButtonPressed',
+        'bool',
+        [],
+      ),
+      getButtonStatus: i1Pro3Library.func('getButtonStatus', 'int', []),
+      getConnectionStatus: i1Pro3Library.func('getConnectionStatus', 'int', []),
+    };
   } catch (error) {
     dialog.showMessageBox(null, {
       title: 'Exposing I1Pro2 Library Functions',
-      message: `Error loading I1Pro2 library: ${error.message}`,
+      message: `Error loading I1Pro2 library :- ${error} && DLL file exists =>${fs.existsSync(dllDir) ? 'yes' : 'no'} `,
     });
   }
 };
@@ -120,7 +131,7 @@ const openI1ProDevice = () => {
   try {
     // check if connection is already open
     const connStatus = i1Pro.getConnectionStatus();
-    if (connStatus == connectionStatus.eI1ProOpen)
+    if (connStatus === connectionStatus.eI1ProOpen)
       return { res: true, error: null };
 
     const isOpen = i1Pro.openDevice();
@@ -619,61 +630,6 @@ const getActualMsgFromBuffer = (msgBuffer) => {
   const actualMsg = index == -1 ? msg : msg.substring(0, index);
   return actualMsg;
 };
-
-const testDemo = () => {
-  loadI1ProLibraryFunctions();
-  const openRes = openI1ProDevice();
-  console.log({ openRes });
-  if (!openRes.res) return;
-
-  // setOptions for test
-
-  const setOps = setI1ProDeviceOptions({ MeasurementMode: 'ReflectanceSpot' });
-
-  // value - measurement mode for a spot measurement with Tungsten filament lamp and UV Led. Only available for i1Pro RevE devices
-  // const setOps = setI1ProDeviceOptions({
-  //   MeasurementMode: "DualReflectanceSpot",
-  // }
-  // );
-
-  // value - measurement mode for a scan on a reflective surface (chart)
-  // const setOps = setI1ProDeviceOptions({
-  //   MeasurementMode: "ReflectanceScan",
-  //   RecognitionKey: "RecognitionBasic",
-  // });
-
-  // value - measurement mode for a scan on a reflective surface (chart)
-  // value - algorithm for scans with an i1Pro RevE ruler. Requires a valid I1_NUMBER_OF_PATCHES_PER_LINE value, which must be at least 6.
-  // const setOps = setI1ProDeviceOptions({
-  //   MeasurementMode: "DualReflectanceScan",
-  //   RecognitionKey: "RecognitionPosition",
-  //   PatchesPerLine: "6",
-  //   ScanDirectionKey: "1",
-  //   OnMeasurementSuccessNoLedIndication: "1",
-  // });
-
-  console.log({ setOps });
-  if (!setOps.res) return;
-  console.log('Press button for calibration !!');
-  waitForI1ProButtonPressed(() => {
-    const calRes = calibrateI1ProDevice();
-    console.log({ calRes });
-    if (!calRes.res) return;
-    console.log('Press button for measurement !!');
-    waitForI1ProButtonPressed(() => {
-      const mesRes = triggerI1ProMeasurement();
-      console.log({ mesRes });
-      if (!mesRes.res) return;
-      console.log({
-        spectralData: getI1ProSpectrumResult(),
-        LABData: getI1ProLABResult(),
-        RGBData: getI1ProRGBResult(),
-      });
-    });
-  });
-};
-
-// testDemo();
 
 module.exports = {
   loadI1ProLibraryFunctions,

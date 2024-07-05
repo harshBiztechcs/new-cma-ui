@@ -48,20 +48,20 @@ const loadI1io3LibraryFunctions = () => {
       ),
       getOption: i1io3Library.func('getOption', 'int', [
         'string',
-        'tring',
+        'string',
         'int*',
       ]),
-      setOption: i1io3Library.func('setOption', 'int', ['string', 'tring']),
+      setOption: i1io3Library.func('setOption', 'int', ['string', 'string']),
       setGlobalOption: i1io3Library.func('setGlobalOption', 'int', [
         'string',
-        'tring',
+        'string',
       ]),
-      getGlobalOption: i1io3Library.func('getGlobalOption', 'tring', [
+      getGlobalOption: i1io3Library.func('getGlobalOption', 'string', [
         'string',
         'char*',
         'int*',
       ]),
-      getGlobalOptionD: i1io3Library.func('getGlobalOptionD', 'tring', [
+      getGlobalOptionD: i1io3Library.func('getGlobalOptionD', 'string', [
         'string',
       ]),
       openDevice: i1io3Library.func('openDevice', 'bool', []),
@@ -86,7 +86,7 @@ const loadI1io3LibraryFunctions = () => {
         'int',
         'int',
         'float',
-        'tring',
+        'string',
         'bool',
         'int',
       ]),

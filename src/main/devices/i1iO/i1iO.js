@@ -1,4 +1,6 @@
+/* eslint-disable consistent-return */
 /* eslint-disable no-console */
+const fs = require('fs');
 const koffi = require('koffi');
 const path = require('path');
 const { dialog, app } = require('electron');
@@ -35,51 +37,87 @@ let measurementString = '';
 let startMeasure = false;
 let measurementInterval = null;
 
-const loadI1IOLibraryFunctions = async () => {
+const loadI1IOLibraryFunctions = () => {
   try {
-    i1iO = await koffi.load(dllDir);
+    const i1ioLibrary = koffi.load(dllDir);
 
-    const func = i1iO.func.bind(i1iO);
+    i1iO = {
+      registerTableExtensions: i1ioLibrary.func(
+        'registerTableExtensions',
+        'int',
+        [],
+      ),
+      getOption: i1ioLibrary.func('getOption', 'int', [
+        'string',
+        'string',
+        'int*',
+      ]),
+      setOption: i1ioLibrary.func('setOption', 'int', ['string', 'string']),
+      setGlobalOption: i1ioLibrary.func('setGlobalOption', 'int', [
+        'string',
+        'string',
+      ]),
+      getGlobalOption: i1ioLibrary.func('getGlobalOption', 'string', [
+        'string',
+        'char*',
+        'int*',
+      ]),
+      getGlobalOptionD: i1ioLibrary.func('getGlobalOptionD', 'string', [
+        'string',
+      ]),
+      openDevice: i1ioLibrary.func('openDevice', 'bool', []),
+      closeDevice: i1ioLibrary.func('closeDevice', 'int', []),
+      getButtonStatus: i1ioLibrary.func('getButtonStatus', 'int', []),
+      getTopLeftChartPosition: i1ioLibrary.func(
+        'getTopLeftChartPosition',
+        'bool',
+        [],
+      ),
+      getBottomLeftChartPosition: i1ioLibrary.func(
+        'getBottomLeftChartPosition',
+        'bool',
+        [],
+      ),
+      getBottomRightChartPosition: i1ioLibrary.func(
+        'getBottomRightChartPosition',
+        'bool',
+        [],
+      ),
+      scanChart: i1ioLibrary.func('scanChart', 'bool', [
+        'int',
+        'int',
+        'float',
+        'string',
+        'bool',
+        'int',
+      ]),
+      getConnectionStatus: i1ioLibrary.func('getConnectionStatus', 'int', []),
+      calibrateDevice: i1ioLibrary.func('calibrateDevice', 'int', []),
+      grabInitialPosition: i1ioLibrary.func('grabInitialPosition', 'bool', []),
+      setOutputDirPath: i1ioLibrary.func('setOutputDirPath', 'bool', [
+        'string',
+      ]),
+      openOutputFile: i1ioLibrary.func('openOutputFile', 'bool', []),
+      closeOutputFile: i1ioLibrary.func('closeOutputFile', 'bool', []),
+      getMeasurementString: i1ioLibrary.func('getMeasurementString', 'bool', [
+        'char*',
+      ]),
+      resetMeasurementString: i1ioLibrary.func(
+        'resetMeasurementString',
+        'bool',
+        [],
+      ),
+    };
 
-    i1iO.registerTableExtensions = func('int registerTableExtensions()');
-    i1iO.getOption = func('int getOption(const char*, const char*, int*)');
-    i1iO.setOption = func('int setOption(const char*, const char*)');
-    i1iO.setGlobalOption = func(
-      'int setGlobalOption(const char*, const char*)',
-    );
-    i1iO.getGlobalOption = func(
-      'const char* getGlobalOption(const char*, char*, int*)',
-    );
-    i1iO.getGlobalOptionD = func('const char* getGlobalOptionD(const char*)');
-    i1iO.openDevice = func('bool openDevice()');
-    i1iO.closeDevice = func('int closeDevice()');
-    i1iO.getButtonStatus = func('int getButtonStatus()');
-    i1iO.getTopLeftChartPosition = func('bool getTopLeftChartPosition()');
-    i1iO.getBottomLeftChartPosition = func('bool getBottomLeftChartPosition()');
-    i1iO.getBottomRightChartPosition = func(
-      'bool getBottomRightChartPosition()',
-    );
-    i1iO.scanChart = func(
-      'bool scanChart(int, int, float, const char*, bool, int)',
-    );
-    i1iO.getConnectionStatus = func('int getConnectionStatus()');
-    i1iO.calibrateDevice = func('int calibrateDevice()');
-    i1iO.grabInitialPosition = func('bool grabInitialPosition()');
-    i1iO.setOutputDirPath = func('bool setOutputDirPath(const char*)');
-    i1iO.openOutputFile = func('bool openOutputFile()');
-    i1iO.closeOutputFile = func('bool closeOutputFile()');
-    i1iO.getMeasurementString = func('bool getMeasurementString(char*)');
-    i1iO.resetMeasurementString = func('bool resetMeasurementString()');
-
-    await Promise.all([
-      i1iO.setOutputDirPath(userDataPath),
-      i1iO.openOutputFile(),
-    ]);
+    i1iO.setOutputDirPath(userDataPath);
+    i1iO.openOutputFile();
   } catch (error) {
+    console.error('Error loading i1io library:', error);
     dialog.showMessageBox(null, {
-      title: 'Exposing Library Function',
-      message: `Error loading I1IO library: ${error.message}`,
+      title: 'Exposing i1io Library Functions',
+      message: `Error loading i1io library :- ${error.message} && DLL file exists =>${fs.existsSync(dllDir) ? 'yes' : 'no'} `,
     });
+    return null; // Return null in case of an error
   }
 };
 
