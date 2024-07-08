@@ -1,33 +1,32 @@
 const axios = require('axios');
 
-const getLogInfo = ({
+// helper function
+const getLogInfo = (
   timeStamp,
-  duration = '-',
-  client = '-',
-  method = '-',
-  url = '-',
-  parameters = '-',
-  status = '-',
-  result = '-',
-}) => {
-  const currentDate = new Date();
+  duration,
+  client,
+  method,
+  url,
+  parameters,
+  status,
+  result
+) => ({
+  timeStamp,
+  date: new Date().toISOString().split('T')[0],
+  time: new Date().toLocaleTimeString(),
+  duration: duration ?? '-',
+  client: client ?? '-',
+  method: method ?? '-',
+  url: url ?? '-',
+  parameters: parameters
+    ? typeof parameters === 'object'
+      ? JSON.stringify(parameters)
+      : parameters
+    : '-',
+  status: status ?? '-',
+  result: result ?? '-',
+});
 
-  return {
-    timeStamp,
-    date: currentDate.toISOString().split('T')[0],
-    time: currentDate.toLocaleTimeString(),
-    duration,
-    client,
-    method,
-    url,
-    parameters:
-      parameters && typeof parameters === 'object'
-        ? JSON.stringify(parameters)
-        : parameters,
-    status,
-    result,
-  };
-};
 
 const isOnline = async (url) => {
   try {

@@ -3929,7 +3929,7 @@ autoUpdater.on('download-progress', (progressObj) => {
 ipcMain.on(CHECK_THIRD_PARTY_API_CONNECTION, async (_, args) => {
   const timeOnReq = Date.now();
   const { url, method, params } = args.colorGateAPI.request;
-  let logInfo = getLogInfo(
+  let log = getLogInfo(
     timeOnReq,
     null,
     null,
@@ -3940,7 +3940,7 @@ ipcMain.on(CHECK_THIRD_PARTY_API_CONNECTION, async (_, args) => {
     'Requested',
   );
   if (args.shouldLogged)
-    mainWindow?.webContents.send(COLOR_GATE_API_LOG, { ...args, logInfo });
+    mainWindow?.webContents.send(COLOR_GATE_API_LOG, { ...args, log });
   const res = await colorGateAPI(args);
   if (args.colorGateAPI?.response?.data) {
     colorGateBaseURL = args.colorGateAPI?.request?.baseURL;
@@ -3949,7 +3949,7 @@ ipcMain.on(CHECK_THIRD_PARTY_API_CONNECTION, async (_, args) => {
   }
   const timeOnRes = Date.now();
   const resDuration = (timeOnRes - timeOnReq) / 1000;
-  logInfo = getLogInfo(
+  log = getLogInfo(
     timeOnRes,
     resDuration,
     null,
@@ -3960,7 +3960,7 @@ ipcMain.on(CHECK_THIRD_PARTY_API_CONNECTION, async (_, args) => {
     res.statusText,
   );
   if (args.shouldLogged)
-    mainWindow?.webContents.send(COLOR_GATE_API_LOG, { ...args, logInfo });
+    mainWindow?.webContents.send(COLOR_GATE_API_LOG, { ...args, log });
   mainWindow?.webContents.send(CHECK_THIRD_PARTY_API_CONNECTION, res);
 });
 
@@ -3986,7 +3986,7 @@ ipcMain.on(COLOR_GATE_API_REQ, async (_, args) => {
 
   const timeOnReq = Date.now();
   const { url, method, params } = args.colorGateAPI.request;
-  let logInfo = getLogInfo(
+  let log = getLogInfo(
     timeOnReq,
     null,
     null,
@@ -3996,7 +3996,7 @@ ipcMain.on(COLOR_GATE_API_REQ, async (_, args) => {
     null,
     'Requested',
   );
-  mainWindow?.webContents.send(COLOR_GATE_API_LOG, { logInfo });
+  mainWindow?.webContents.send(COLOR_GATE_API_LOG, { log });
   args.colorGateAPI.request = {
     ...args.colorGateAPI.request,
     baseURL: colorGateBaseURL,
@@ -4015,7 +4015,7 @@ ipcMain.on(COLOR_GATE_API_REQ, async (_, args) => {
   const res = await colorGateAPI(args);
   const timeOnRes = Date.now();
   const resDuration = (timeOnRes - timeOnReq) / 1000;
-  logInfo = getLogInfo(
+  log = getLogInfo(
     timeOnRes,
     resDuration,
     null,
@@ -4025,7 +4025,7 @@ ipcMain.on(COLOR_GATE_API_REQ, async (_, args) => {
     res.status,
     res.statusText,
   );
-  mainWindow?.webContents.send(COLOR_GATE_API_LOG, { logInfo });
+  mainWindow?.webContents.send(COLOR_GATE_API_LOG, { log });
   webSocketWorkerWindow?.webContents.send(COLOR_GATE_API_RES, res);
 });
 
@@ -4077,7 +4077,7 @@ ipcMain.on(GET_APP_VERSION, () => {
 ipcMain.on(TEST_ALWAN_API_CONNECTION, async (_, args) => {
   const timeOnReq = Date.now();
   const { url, method, params } = args.alwanAPI.request;
-  let logInfo = getLogInfo(
+  let log = getLogInfo(
     timeOnReq,
     null,
     null,
@@ -4088,7 +4088,7 @@ ipcMain.on(TEST_ALWAN_API_CONNECTION, async (_, args) => {
     'Requested',
   );
   if (args.shouldLogged)
-    mainWindow?.webContents.send(ALWAN_API_LOG, { ...args, logInfo });
+    mainWindow?.webContents.send(ALWAN_API_LOG, { ...args, log });
   const res = await alwanAPI(args);
   if (args.alwanAPI?.response?.data) {
     alwanBaseURL = args.alwanAPI?.request?.baseURL;
@@ -4096,7 +4096,7 @@ ipcMain.on(TEST_ALWAN_API_CONNECTION, async (_, args) => {
   }
   const timeOnRes = Date.now();
   const resDuration = (timeOnRes - timeOnReq) / 1000;
-  logInfo = getLogInfo(
+  log = getLogInfo(
     timeOnRes,
     resDuration,
     null,
@@ -4107,7 +4107,7 @@ ipcMain.on(TEST_ALWAN_API_CONNECTION, async (_, args) => {
     res.statusText,
   );
   if (args.shouldLogged)
-    mainWindow?.webContents.send(ALWAN_API_LOG, { ...args, logInfo });
+    mainWindow?.webContents.send(ALWAN_API_LOG, { ...args, log });
   mainWindow?.webContents.send(TEST_ALWAN_API_CONNECTION, res);
 });
 

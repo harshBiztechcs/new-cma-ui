@@ -48,17 +48,35 @@ export default function ColorGate({
   const [ipv4, setipv4] = useState('');
 
   useEffect(() => {
-    ipcRenderer.on(GET_IP, (version) => {
-      console.log('version', version);
-      setApiBaseURL(`http://${version}`);
+    const handleGetIpResponse = (useEffect(() => {
+  const handleGetIpResponse = (ipVersion) => {
+    console.log('ipVersion', ipVersion);
+    setApiBaseURL(`https://${ipVersion}`);
+    setTimeout(() => {
+      setGettingLocalIp(false);
+    }, 100);
+    setIpv4(ipVersion);
+  };
+
+  ipcRenderer.on('getIp', handleGetIpResponse);
+  ipcRenderer.send('getIp');
+
+  return () => {
+    ipcRenderer.removeListener('getIp', handleGetIpResponse);
+  };
+}, []);) => {
+      setApiBaseURL(`https://${ipVersion}`);
       setTimeout(() => {
         setGettingLocalIp(false);
       }, 100);
-      setipv4(version);
-    });
-    ipcRenderer.send(GET_IP);
+      setIpv4(ipVersion);
+    };
+  
+    ipcRenderer.on('getIp', handleGetIpResponse);
+    ipcRenderer.send('getIp');
+  
     return () => {
-      ipcRenderer.removeAllListeners(GET_IP);
+      ipcRenderer.removeListener('getIp', handleGetIpResponse);
     };
   }, []);
 
