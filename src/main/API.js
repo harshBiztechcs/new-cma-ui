@@ -1,14 +1,42 @@
+/* eslint-disable no-console */
 // temporary solution - avoid TLS warning
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-const path = require('path');
 const { default: axios } = require('axios');
-const fs = require('fs');
 const fsp = require('fs/promises');
 const https = require('https');
 const FormData = require('form-data');
-const { getAssetPath } = require('./util');
 
 const config = new https.Agent({ rejectUnauthorized: false });
+
+const createErrorResponse = (
+  instanceURL,
+  deviceId,
+  deviceName,
+  serialNumber,
+) => {
+  return {
+    res: false,
+    instanceURL,
+    deviceId,
+    deviceName,
+    serialNumber,
+  };
+};
+
+const createSuccessResponse = (
+  instanceURL,
+  deviceId,
+  deviceName,
+  serialNumber,
+) => {
+  return {
+    res: true,
+    instanceURL,
+    deviceId,
+    deviceName,
+    serialNumber,
+  };
+};
 
 export const clientDeviceReconnectAPICall = async (
   instanceURL,
@@ -22,7 +50,9 @@ export const clientDeviceReconnectAPICall = async (
       undefined,
       config,
     );
-  } catch (error) {}
+  } catch (error) {
+    console.error('🚀 ~ file: API.js:23 ~ error:', error);
+  }
 };
 
 export const clientDeviceDisconnectAPICall = async (
@@ -70,36 +100,6 @@ export const clientDeviceDisconnectAPICall = async (
   }
 };
 
-const createSuccessResponse = (
-  instanceURL,
-  deviceId,
-  deviceName,
-  serialNumber,
-) => {
-  return {
-    res: true,
-    instanceURL,
-    deviceId,
-    deviceName,
-    serialNumber,
-  };
-};
-
-const createErrorResponse = (
-  instanceURL,
-  deviceId,
-  deviceName,
-  serialNumber,
-) => {
-  return {
-    res: false,
-    instanceURL,
-    deviceId,
-    deviceName,
-    serialNumber,
-  };
-};
-
 export const updateDeviceStatusAPICall = async (
   instanceURL,
   deviceId,
@@ -116,7 +116,9 @@ export const updateDeviceStatusAPICall = async (
       undefined,
       config,
     );
-  } catch (error) {}
+  } catch (error) {
+    console.log('🚀 ~ file: API.js:120 ~ error:', error);
+  }
 };
 
 export const switchConnetionModeAPICall = async (
@@ -129,20 +131,22 @@ export const switchConnetionModeAPICall = async (
       `${instanceURL}/cma_connect/api/switchConnetionMode?isConnectWithBT=${isConnectWithBT}&deviceId=${deviceId}`,
       undefined,
     );
-    const response = await Promise.race([responsePromise, timeoutPromise]);
+    await Promise.race([responsePromise]);
     console.log(
       `${instanceURL}/cma_connect/api/switchConnetionMode?isConnectWithBT=${isConnectWithBT}&deviceId=${deviceId}`,
     );
-  } catch (error) {}
+  } catch (error) {
+    console.log('🚀 ~ file: API.js:139 ~ error:', error);
+  }
 };
 // get device list and licences details
-export const getDeviceListAPICall = async (instanceURL, username, token) => {
+export const getDeviceListAPICall = async (instanceURL, username) => {
   try {
     const res = await axios.get(
       `${instanceURL}/cma/licence/get_device_list?user=${username}`,
       config,
     );
-    if (res.status == 200) {
+    if (res.status === 200) {
       const devices = res.data?.device_dict;
       return { res: true, devices, error: null };
     }
@@ -152,17 +156,17 @@ export const getDeviceListAPICall = async (instanceURL, username, token) => {
   }
 };
 
-export const getLicensesAPICall = async (instanceURL, token) => {
+export const getLicensesAPICall = async (instanceURL) => {
   try {
     const res = await axios.get(
       `${instanceURL}/cma/licence/get_licence_details`,
       config,
     );
-    if (res.status == 200) {
+    if (res.status === 200) {
       const licenses = res.data;
       return { res: true, licenses, error: null };
     }
-    return { res: false, licenses: null, error: errorMsg };
+    return { res: false, licenses: null, error: '' };
   } catch (error) {
     return { res: false, licenses: null, error: error?.message };
   }
@@ -197,7 +201,7 @@ export const getToken = async ({ instanceURL, username, password }) => {
       httpsAgent: new https.Agent({ rejectUnauthorized: false }),
       signal: abortController.signal, // Pass the signal to axios request
     };
-    console.log('requestConfig', requestConfig)
+    console.log('requestConfig', requestConfig);
 
     const responsePromise = axios.post(
       `${instanceURL}/api/token_request`,
@@ -205,11 +209,11 @@ export const getToken = async ({ instanceURL, username, password }) => {
       requestConfig,
     );
     const response = await Promise.race([responsePromise, timeoutPromise]);
-    console.log('response', response)
+    console.log('response', response);
 
     console.log({ params: { user: username, pass: password } });
 
-    if (response.data && response.status == 200) {
+    if (response.data && response.status === 200) {
       const {
         access_token: token,
         expire_date: tokenExpiry,
@@ -226,9 +230,7 @@ export const getToken = async ({ instanceURL, username, password }) => {
         };
       }
 
-      const parsedExpiry = Date.parse(tokenExpiry);
-      const tokenExpiryTime = isNaN(parsedExpiry) ? null : parsedExpiry;
-
+      const tokenExpiryTime = Date.parse(tokenExpiry);
       return { res: true, token, tokenExpiry: tokenExpiryTime };
     }
     return {
@@ -251,20 +253,20 @@ export const getToken = async ({ instanceURL, username, password }) => {
 
 export const getDeviceInstanceLink = async (url) => {
   try {
-    const res = await new Promise((resolve, reject) =>
+    const response = await new Promise((resolve) => {
       setTimeout(() => {
-        resolve({
-          status: 200,
-          data: { status: 200, url },
-        });
-      }, 100),
-    );
-    if (res.status == 200) {
-      if (res.data?.status == 200 && res.data?.url) {
-        return { res: true, error: null, url: res.data?.url };
-      }
-      return { res: false, error: 'Error Getting Instance URL', url: null };
+        resolve({ status: 200, data: { status: 200, url } });
+      }, 100);
+    });
+
+    if (
+      response.status === 200 &&
+      response.data?.status === 200 &&
+      response.data?.url
+    ) {
+      return { res: true, error: null, url: response.data.url };
     }
+
     return { res: false, error: 'Error Getting Instance URL', url: null };
   } catch (error) {
     return { res: false, error: 'Error Getting Instance URL', url: null };
@@ -302,7 +304,7 @@ export const login = async (hostUrl, email, password, token) => {
     const responsePromise = axios.post(loginUrl, undefined, requestConfig);
     const response = await Promise.race([responsePromise, timeoutPromise]);
 
-    if (response.status == 200) {
+    if (response.status === 200) {
       const {
         status,
         web_socket_url: socketURL,
@@ -310,7 +312,7 @@ export const login = async (hostUrl, email, password, token) => {
         colorgate_user: thirdPartyAPIUser,
       } = response.data;
 
-      if (status == 200) {
+      if (status === 200) {
         return {
           res: true,
           error: null,
@@ -362,15 +364,8 @@ export const colorGateAPIOLD = async () => {
   }
 };
 
-const checkIfEmptyObject = (obj) => {
-  if (obj && Object.getPrototypeOf(obj) === Object.prototype) {
-    for (const property in obj) {
-      return false;
-    }
-    return true;
-  }
-  return false;
-};
+const checkIfEmptyObject = (obj) =>
+  typeof obj === 'object' && obj !== null && Object.keys(obj).length === 0;
 
 // function to write/replace file
 const writeFile = async (filename, content) => {
@@ -404,7 +399,7 @@ export const colorGateAPI = async (args) => {
 
   try {
     // modify request object before calling api
-    if (args.colorGateAPI?.type && args.colorGateAPI?.type == 'file') {
+    if (args.colorGateAPI?.type && args.colorGateAPI?.type === 'file') {
       // if request body type is file then convert into buffer before hitting to api
       try {
         const timeBeforeBuffer = Date.now();
@@ -517,7 +512,7 @@ export const colorGateAPI = async (args) => {
     args.statusText = res.statusText;
 
     // change in request obj after response, to be send to websocket
-    if (args.colorGateAPI?.type && args.colorGateAPI?.type == 'file') {
+    if (args.colorGateAPI?.type && args.colorGateAPI?.type === 'file') {
       args.colorGateAPI.request.data = 'encoded base64 string';
     }
 
@@ -530,7 +525,7 @@ export const colorGateAPI = async (args) => {
       // modified response obj before sending to websocket
       if (
         args.colorGateAPI?.type &&
-        args.colorGateAPI?.type == 'binary_response_data' &&
+        args.colorGateAPI?.type === 'binary_response_data' &&
         Buffer.isBuffer(data)
       ) {
         // in case response is binary string on successful request
@@ -551,7 +546,7 @@ export const colorGateAPI = async (args) => {
     console.log({ message: err.message });
 
     // change in request obj after response, to be send to websocket
-    if (args.colorGateAPI?.type && args.colorGateAPI?.type == 'file') {
+    if (args.colorGateAPI?.type && args.colorGateAPI?.type === 'file') {
       args.colorGateAPI.request.data = 'encoded base64 string';
     }
 
@@ -561,7 +556,7 @@ export const colorGateAPI = async (args) => {
       args.status = status;
       args.statusText = statusText ?? 'Failed';
       if (err.response.data) {
-        if (args.colorGateAPI.type == 'binary_response_data') {
+        if (args.colorGateAPI.type === 'binary_response_data') {
           data = JSON.parse(err.response.data);
         } else {
           data = err.response.data;
@@ -590,7 +585,7 @@ export const alwanAPI = async (args) => {
 
   try {
     // modify request object before calling api
-    if (args.alwanAPI?.type && args.alwanAPI?.type == 'file') {
+    if (args.alwanAPI?.type && args.alwanAPI?.type === 'file') {
       // if request body type is file then convert into buffer before hitting to api
       try {
         const timeBeforeBuffer = Date.now();
@@ -624,7 +619,7 @@ export const alwanAPI = async (args) => {
     args.statusText = res.statusText;
 
     // change in request obj after response, to be send to websocket
-    if (args.alwanAPI?.type && args.alwanAPI?.type == 'file') {
+    if (args.alwanAPI?.type && args.alwanAPI?.type === 'file') {
       args.alwanAPI.request.data = 'encoded base64 string';
     }
 
@@ -637,7 +632,7 @@ export const alwanAPI = async (args) => {
       // modified response obj before sending to websocket
       if (
         args.alwanAPI?.type &&
-        args.alwanAPI?.type == 'binary_response_data' &&
+        args.alwanAPI?.type === 'binary_response_data' &&
         Buffer.isBuffer(data)
       ) {
         // in case response is binary string on successful request
@@ -658,7 +653,7 @@ export const alwanAPI = async (args) => {
     console.log({ message: err.message });
 
     // change in request obj after response, to be send to websocket
-    if (args.alwanAPI?.type && args.alwanAPI?.type == 'file') {
+    if (args.alwanAPI?.type && args.alwanAPI?.type === 'file') {
       args.alwanAPI.request.data = 'encoded base64 string';
     }
 
@@ -668,7 +663,7 @@ export const alwanAPI = async (args) => {
       args.status = status;
       args.statusText = statusText ?? 'Failed';
       if (err.response.data) {
-        if (args.alwanAPI.type == 'binary_response_data') {
+        if (args.alwanAPI.type === 'binary_response_data') {
           data = JSON.parse(err.response.data);
         } else {
           data = err.response.data;
@@ -705,10 +700,10 @@ export const updateColorGateUserStatusAPICall = async (
       : `${instanceURL}/cma_connect/api/colorgate/status?status=${status}&licence=${licence}`;
     const res = await axios.post(url);
     console.log(res.status);
-    if (res.status == 200) {
+    if (res.status === 200) {
       const status = res.data?.status;
       const errorMessage = res.data?.error_message;
-      if (status == 200) {
+      if (status === 200) {
         console.log(
           `==== update colorGate user status ${instanceURL} ${status} ${licence} api success ====`,
         );
@@ -720,7 +715,7 @@ export const updateColorGateUserStatusAPICall = async (
       return {
         result: false,
         error:
-          errorMessage ?? status == 'disconnect'
+          errorMessage ?? status === 'disconnect'
             ? 'Deactivating third party licence failed'
             : 'Activating third party licence failed',
       };
@@ -728,7 +723,7 @@ export const updateColorGateUserStatusAPICall = async (
     return {
       result: false,
       error:
-        status == 'disconnect'
+        status === 'disconnect'
           ? 'Deactivating third party licence failed'
           : 'Activating third party licence failed',
     };
@@ -757,10 +752,10 @@ export const updateAlwanUserStatusAPICall = async (
       : `${instanceURL}/cma_connect/api/alwan/status?status=${status}&licence=${licence}`;
     const res = await axios.post(url);
     console.log(res.status);
-    if (res.status == 200) {
+    if (res.status === 200) {
       const status = res.data?.status;
       const errorMessage = res.data?.error_message;
-      if (status == 200) {
+      if (status === 200) {
         console.log(
           `==== update alwan user status ${instanceURL} ${status} ${licence} api success ====`,
         );
@@ -772,7 +767,7 @@ export const updateAlwanUserStatusAPICall = async (
       return {
         result: false,
         error:
-          errorMessage ?? status == 'disconnect'
+          errorMessage ?? status === 'disconnect'
             ? 'Deactivating third party licence failed'
             : 'Activating third party licence failed',
       };
@@ -780,7 +775,7 @@ export const updateAlwanUserStatusAPICall = async (
     return {
       result: false,
       error:
-        status == 'disconnect'
+        status === 'disconnect'
           ? 'Deactivating third party licence failed'
           : 'Activating third party licence failed',
     };
