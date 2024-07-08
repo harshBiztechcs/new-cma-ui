@@ -27,6 +27,8 @@ import ThirdPartyAPI from 'renderer/components/ThirdPartyAPI';
 import HomeFooter from 'renderer/components/HomeFooter';
 import PBDeviceList from 'renderer/components/PBDeviceList';
 
+const { ipcRenderer } = window.electron;
+
 function DevicePrecision({
   username,
   deviceList,
@@ -84,41 +86,41 @@ function DevicePrecision({
   useEffect(() => {
     //register on verify device connection event
     //after device has been stored on server with username
-    window.electron.ipcRenderer.on(VERIFY_DEVICE_CONNECTION, onVerifyDeviceConnection);
-    window.electron.ipcRenderer.on(CLOSE_PB_DEVICE, onCloseDevice);
-    window.electron.ipcRenderer.on(DEVICE_DISCONNECT_TIMEOUT, onDeviceDisconnectTimeout);
-    window.electron.ipcRenderer.on(GET_DEVICE_AND_LICENSES, onDeviceAndLicensesRes);
-    window.electron.ipcRenderer.on(GET_DEVICE_INSTANCE_URL, onGetDeviceInstanceLink);
-    window.electron.ipcRenderer.on(DEVICE_CONNECTION, onDeviceConnection);
-    window.electron.ipcRenderer.on(DEVICE_DISCONNECTION, onDeviceRelease);
-    window.electron.ipcRenderer.on(CHECK_PB_DEVICE_CONNECTION, onCheckDeviceConnection);
+    ipcRenderer.on(VERIFY_DEVICE_CONNECTION, onVerifyDeviceConnection);
+    ipcRenderer.on(CLOSE_PB_DEVICE, onCloseDevice);
+    ipcRenderer.on(DEVICE_DISCONNECT_TIMEOUT, onDeviceDisconnectTimeout);
+    ipcRenderer.on(GET_DEVICE_AND_LICENSES, onDeviceAndLicensesRes);
+    ipcRenderer.on(GET_DEVICE_INSTANCE_URL, onGetDeviceInstanceLink);
+    ipcRenderer.on(DEVICE_CONNECTION, onDeviceConnection);
+    ipcRenderer.on(DEVICE_DISCONNECTION, onDeviceRelease);
+    ipcRenderer.on(CHECK_PB_DEVICE_CONNECTION, onCheckDeviceConnection);
     //get latest device list and licenses
     handleRefresh();
 
     return () => {
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         VERIFY_DEVICE_CONNECTION,
         onVerifyDeviceConnection
       );
-      window.electron.ipcRenderer.removeListener(CLOSE_PB_DEVICE, onCloseDevice);
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(CLOSE_PB_DEVICE, onCloseDevice);
+      ipcRenderer.removeListener(
         DEVICE_DISCONNECT_TIMEOUT,
         onDeviceDisconnectTimeout
       );
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         GET_DEVICE_AND_LICENSES,
         onDeviceAndLicensesRes
       );
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         GET_DEVICE_INSTANCE_URL,
         onGetDeviceInstanceLink
       );
-      window.electron.ipcRenderer.removeListener(DEVICE_CONNECTION, onDeviceConnection);
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(DEVICE_CONNECTION, onDeviceConnection);
+      ipcRenderer.removeListener(
         CHECK_PB_DEVICE_CONNECTION,
         onCheckDeviceConnection
       );
-      window.electron.ipcRenderer.removeListener(DEVICE_DISCONNECTION, onDeviceRelease);
+      ipcRenderer.removeListener(DEVICE_DISCONNECTION, onDeviceRelease);
 
       stopCheckDeviceConnectionInterval();
     };
@@ -171,7 +173,7 @@ function DevicePrecision({
   // const onDisconnectCurrentDevice = (deviceId) => {
   //   const device = balanceDeviceList.find((dev) => dev.deviceId == deviceId);
 
-  //   window.electron.ipcRenderer.send(CLOSE_DEVICE, {
+  //   ipcRenderer.send(CLOSE_DEVICE, {
   //     forceClose: true,
   //     deviceType: device?.deviceType,
   //     deviceId,
@@ -183,7 +185,7 @@ function DevicePrecision({
   const onDisconnectCurrentPBDevice = (deviceId) => {
     const device = balanceDeviceList.find((dev) => dev.deviceId == deviceId);
     stopCheckDeviceConnectionInterval();
-    window.electron.ipcRenderer.send(CLOSE_PB_DEVICE, {
+    ipcRenderer.send(CLOSE_PB_DEVICE, {
       forceClose: true,
       deviceType: device?.deviceType,
       deviceId: deviceId,
@@ -196,12 +198,12 @@ function DevicePrecision({
     setCurrentPBDevice(deviceId);
     setPBDeviceType(device?.deviceType);
     if (device) {
-      window.electron.ipcRenderer.send(VERIFY_DEVICE_CONNECTION, device);
+      ipcRenderer.send(VERIFY_DEVICE_CONNECTION, device);
     }
   };
 
   const openLinkInBrowser = async () => {
-    window.electron.ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
+    ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
   };
 
   const onGetDeviceInstanceLink = (args) => {
@@ -249,14 +251,14 @@ function DevicePrecision({
       device &&
       (device.deviceType === 'I1IO3' || device.deviceType === 'I1IO2')
     ) {
-      window.electron.ipcRenderer.send(DISCONNECT_DEVICE, device);
-      window.electron.ipcRenderer.send(DEVICE_DISCONNECT_API_CALL, {
+      ipcRenderer.send(DISCONNECT_DEVICE, device);
+      ipcRenderer.send(DEVICE_DISCONNECT_API_CALL, {
         instanceURL,
         deviceName: device?.deviceType,
         deviceId: device?.deviceId,
       });
     }
-    window.electron.ipcRenderer.send(VERIFY_DEVICE_CONNECTION, device);
+    ipcRenderer.send(VERIFY_DEVICE_CONNECTION, device);
     setDisconnectModal(false);
     setDeviceConnectionStatus(false);
   };
@@ -268,7 +270,7 @@ function DevicePrecision({
   };
 
   const handleRefresh = () => {
-    window.electron.ipcRenderer.send(GET_DEVICE_AND_LICENSES, { instanceURL, username, token });
+    ipcRenderer.send(GET_DEVICE_AND_LICENSES, { instanceURL, username, token });
   };
 
   const onDeviceAndLicensesRes = useCallback((args) => {
@@ -286,29 +288,29 @@ function DevicePrecision({
   };
 
   const handleSendAPIReq = () => {
-    window.electron.ipcRenderer.send(COLOR_GATE_API_BUTTON_CLICK, null);
+    ipcRenderer.send(COLOR_GATE_API_BUTTON_CLICK, null);
   };
 
   const SpectroDeviceButton = () => {
-    window.electron.ipcRenderer.send(CURRENT_TAB_UPDATE, 1);
+    ipcRenderer.send(CURRENT_TAB_UPDATE, 1);
     setisPrecisionShow(false);
     setIsBarcodeOnShow(false);
     setIsZebraOnShow(false);
   };
   const precisionBalanceButton = () => {
-    window.electron.ipcRenderer.send(CURRENT_TAB_UPDATE, 2);
+    ipcRenderer.send(CURRENT_TAB_UPDATE, 2);
     setisPrecisionShow(true);
     setIsBarcodeOnShow(false);
     setIsZebraOnShow(false);
   };
   const barcodeScannerButton = () => {
-    window.electron.ipcRenderer.send(CURRENT_TAB_UPDATE, 3);
+    ipcRenderer.send(CURRENT_TAB_UPDATE, 3);
     setIsBarcodeOnShow(true);
     setisPrecisionShow(false);
     setIsZebraOnShow(false);
   };
   const zebraPrinterButton = () => {
-    window.electron.ipcRenderer.send(CURRENT_TAB_UPDATE, 4);
+    ipcRenderer.send(CURRENT_TAB_UPDATE, 4);
     setIsZebraOnShow(true);
     setisPrecisionShow(false);
     setIsBarcodeOnShow(false);
@@ -324,7 +326,7 @@ function DevicePrecision({
           device.deviceType !== 'CI62_COLORSCOUT' &&
           device.deviceType !== 'CI64_COLORSCOUT'
         ) {
-          window.electron.ipcRenderer.send(CHECK_PB_DEVICE_CONNECTION, device);
+          ipcRenderer.send(CHECK_PB_DEVICE_CONNECTION, device);
         }
       }, 3000);
       return intervalCount;

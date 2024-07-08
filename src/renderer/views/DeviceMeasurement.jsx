@@ -32,6 +32,8 @@ import MultiFilesSelector from 'renderer/components/MultiFilesSelector';
 import ThirdPartyAPI from 'renderer/components/ThirdPartyAPI';
 import HomeFooter from 'renderer/components/HomeFooter';
 
+const { ipcRenderer } = window.electron;
+
 function DeviceMeasurement({
   username,
   instanceURL,
@@ -94,49 +96,49 @@ function DeviceMeasurement({
 
   useEffect(() => {
     // register current action event
-    window.electron.ipcRenderer.on(GET_DEVICE_AND_LICENSES, onDeviceAndLicensesRes);
-    window.electron.ipcRenderer.on(CURRENT_ACTION, onCurrentAction);
-    window.electron.ipcRenderer.on(CHECK_DEVICE_CONNECTION, onCheckDeviceConnection);
-    window.electron.ipcRenderer.on(CLOSE_DEVICE, onCloseDevice);
-    window.electron.ipcRenderer.on(SHOW_DIALOG, onShowDialog);
-    window.electron.ipcRenderer.on(GET_SAMPLES_DATA, onSamplesData);
-    window.electron.ipcRenderer.on(CLEAR_SAMPLES, onClearSamplesRes);
-    window.electron.ipcRenderer.on(DEVICE_DISCONNECT_TIMEOUT, onDeviceDisconnectTimeout);
-    window.electron.ipcRenderer.on(GET_DEVICE_INSTANCE_URL, onGetDeviceInstanceLink);
-    window.electron.ipcRenderer.on(DEVICE_CONNECTION, onDeviceConnection);
-    window.electron.ipcRenderer.on(DEVICE_DISCONNECTION, onDeviceRelease);
-    window.electron.ipcRenderer.on(MEASURE_IN_PROGRESS, onMeasureInProgress);
-    window.electron.ipcRenderer.on(REFRESH_DEVICES_AND_LICENSES, onRefreshDevicesLicenses);
+    ipcRenderer.on(GET_DEVICE_AND_LICENSES, onDeviceAndLicensesRes);
+    ipcRenderer.on(CURRENT_ACTION, onCurrentAction);
+    ipcRenderer.on(CHECK_DEVICE_CONNECTION, onCheckDeviceConnection);
+    ipcRenderer.on(CLOSE_DEVICE, onCloseDevice);
+    ipcRenderer.on(SHOW_DIALOG, onShowDialog);
+    ipcRenderer.on(GET_SAMPLES_DATA, onSamplesData);
+    ipcRenderer.on(CLEAR_SAMPLES, onClearSamplesRes);
+    ipcRenderer.on(DEVICE_DISCONNECT_TIMEOUT, onDeviceDisconnectTimeout);
+    ipcRenderer.on(GET_DEVICE_INSTANCE_URL, onGetDeviceInstanceLink);
+    ipcRenderer.on(DEVICE_CONNECTION, onDeviceConnection);
+    ipcRenderer.on(DEVICE_DISCONNECTION, onDeviceRelease);
+    ipcRenderer.on(MEASURE_IN_PROGRESS, onMeasureInProgress);
+    ipcRenderer.on(REFRESH_DEVICES_AND_LICENSES, onRefreshDevicesLicenses);
     //get latest device list and licenses
     handleRefresh();
 
     //unregister current action event
     return () => {
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         GET_DEVICE_AND_LICENSES,
         onDeviceAndLicensesRes
       );
-      window.electron.ipcRenderer.removeListener(CURRENT_ACTION, onCurrentAction);
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(CURRENT_ACTION, onCurrentAction);
+      ipcRenderer.removeListener(
         CHECK_DEVICE_CONNECTION,
         onCheckDeviceConnection
       );
-      window.electron.ipcRenderer.removeListener(CLOSE_DEVICE, onCloseDevice);
-      window.electron.ipcRenderer.removeListener(SHOW_DIALOG, onShowDialog);
-      window.electron.ipcRenderer.removeListener(GET_SAMPLES_DATA, onSamplesData);
-      window.electron.ipcRenderer.removeListener(CLEAR_SAMPLES, onClearSamplesRes);
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(CLOSE_DEVICE, onCloseDevice);
+      ipcRenderer.removeListener(SHOW_DIALOG, onShowDialog);
+      ipcRenderer.removeListener(GET_SAMPLES_DATA, onSamplesData);
+      ipcRenderer.removeListener(CLEAR_SAMPLES, onClearSamplesRes);
+      ipcRenderer.removeListener(
         DEVICE_DISCONNECT_TIMEOUT,
         onDeviceDisconnectTimeout
       );
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         GET_DEVICE_INSTANCE_URL,
         onGetDeviceInstanceLink
       );
-      window.electron.ipcRenderer.removeListener(DEVICE_CONNECTION, onDeviceConnection);
-      window.electron.ipcRenderer.removeListener(DEVICE_DISCONNECTION, onDeviceRelease);
-      window.electron.ipcRenderer.removeListener(MEASURE_IN_PROGRESS, onMeasureInProgress);
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(DEVICE_CONNECTION, onDeviceConnection);
+      ipcRenderer.removeListener(DEVICE_DISCONNECTION, onDeviceRelease);
+      ipcRenderer.removeListener(MEASURE_IN_PROGRESS, onMeasureInProgress);
+      ipcRenderer.removeListener(
         REFRESH_DEVICES_AND_LICENSES,
         onRefreshDevicesLicenses
       );
@@ -154,8 +156,8 @@ function DeviceMeasurement({
   useEffect(() => {
     const device = deviceList.find((x) => x.deviceId == currentDevice);
     if (updateDeviceStatus && isDisconnected) {
-      window.electron.ipcRenderer.send(UPDATE_DEVICE_RECONNECTION, device);
-      window.electron.ipcRenderer.send(DEVICE_RECONNECT_API_CALL, {
+      ipcRenderer.send(UPDATE_DEVICE_RECONNECTION, device);
+      ipcRenderer.send(DEVICE_RECONNECT_API_CALL, {
         instanceURL,
         deviceName: device?.deviceType,
         deviceId: device?.deviceId,
@@ -164,8 +166,8 @@ function DeviceMeasurement({
       setIsDisconnected(false);
     }
     if (!updateDeviceStatus) {
-      window.electron.ipcRenderer.send(DISCONNECT_DEVICE, device);
-      window.electron.ipcRenderer.send(DEVICE_DISCONNECT_API_CALL, {
+      ipcRenderer.send(DISCONNECT_DEVICE, device);
+      ipcRenderer.send(DEVICE_DISCONNECT_API_CALL, {
         instanceURL,
         deviceName: device?.deviceType,
         deviceId: device?.deviceId,
@@ -185,7 +187,7 @@ function DeviceMeasurement({
           device.deviceType !== 'CI62_COLORSCOUT' ||
           device.deviceType !== 'CI64_COLORSCOUT'
         ) {
-          window.electron.ipcRenderer.send(CHECK_DEVICE_CONNECTION, deviceType);
+          ipcRenderer.send(CHECK_DEVICE_CONNECTION, deviceType);
         }
       }, 3000);
       return intervalCount;
@@ -255,7 +257,7 @@ function DeviceMeasurement({
     setLoadingMsg('Exporting samples, please wait...');
     setIsSampleInProgress(true);
     const device = deviceList.find((x) => x.deviceId == currentDevice);
-    window.electron.ipcRenderer.send(GET_SAMPLES_DATA, device?.deviceType);
+    ipcRenderer.send(GET_SAMPLES_DATA, device?.deviceType);
   };
 
   const onClearSamples = () => {
@@ -263,7 +265,7 @@ function DeviceMeasurement({
     setLoadingMsg('Clearing samples, please wait...');
     setIsSampleInProgress(true);
     const device = deviceList.find((x) => x.deviceId == currentDevice);
-    window.electron.ipcRenderer.send(CLEAR_SAMPLES, device?.deviceType);
+    ipcRenderer.send(CLEAR_SAMPLES, device?.deviceType);
   };
 
   const onCheckDeviceConnection = ( args) => {
@@ -292,7 +294,7 @@ function DeviceMeasurement({
   };
 
   const onGoToInstance = async () => {
-    window.electron.ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
+    ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
   };
 
   const onGetDeviceInstanceLink = (args) => {
@@ -305,7 +307,7 @@ function DeviceMeasurement({
   };
 
   const onDisconnectDeviceAfterTimeout = (deviceType) => {
-    window.electron.ipcRenderer.send(CLOSE_DEVICE, {
+    ipcRenderer.send(CLOSE_DEVICE, {
       forceClose: false,
       deviceType,
       deviceId: currentDevice,
@@ -315,7 +317,7 @@ function DeviceMeasurement({
 
   const onDisconnectCurrentDevice = () => {
     const device = deviceList.find((x) => x.deviceId == currentDevice);
-    window.electron.ipcRenderer.send(CLOSE_DEVICE, {
+    ipcRenderer.send(CLOSE_DEVICE, {
       forceClose: false,
       deviceType: device?.deviceType,
       deviceId: device?.deviceId,
@@ -324,7 +326,7 @@ function DeviceMeasurement({
   };
 
   const handleRefresh = () => {
-    window.electron.ipcRenderer.send(GET_DEVICE_AND_LICENSES, { instanceURL, username, token });
+    ipcRenderer.send(GET_DEVICE_AND_LICENSES, { instanceURL, username, token });
   };
 
   const onRefreshDevicesLicenses = (args) => {
@@ -383,7 +385,7 @@ function DeviceMeasurement({
 
   const onForceDisconnect = () => {
     const device = deviceList.find((x) => x.deviceId == currentDevice);
-    window.electron.ipcRenderer.send(CLOSE_DEVICE, {
+    ipcRenderer.send(CLOSE_DEVICE, {
       forceClose: true,
       deviceType: device?.deviceType,
       deviceId: device?.deviceId,
@@ -619,25 +621,25 @@ function DeviceMeasurement({
   };
 
   const SpectroDeviceButton = () => {
-    window.electron.ipcRenderer.send(CURRENT_TAB_UPDATE, 1);
+    ipcRenderer.send(CURRENT_TAB_UPDATE, 1);
     setisPrecisionShow(false);
     setIsBarcodeOnShow(false);
     setIsZebraOnShow(false);
   };
   const precisionBalanceButton = () => {
-    window.electron.ipcRenderer.send(CURRENT_TAB_UPDATE, 2);
+    ipcRenderer.send(CURRENT_TAB_UPDATE, 2);
     setisPrecisionShow(true);
     setIsBarcodeOnShow(false);
     setIsZebraOnShow(false);
   };
   const barcodeScannerButton = () => {
-    window.electron.ipcRenderer.send(CURRENT_TAB_UPDATE, 3);
+    ipcRenderer.send(CURRENT_TAB_UPDATE, 3);
     setIsBarcodeOnShow(true);
     setisPrecisionShow(false);
     setIsZebraOnShow(false);
   };
   const zebraPrinterButton = () => {
-    window.electron.ipcRenderer.send(CURRENT_TAB_UPDATE, 4);
+    ipcRenderer.send(CURRENT_TAB_UPDATE, 4);
     setIsZebraOnShow(true);
     setisPrecisionShow(false);
     setIsBarcodeOnShow(false);

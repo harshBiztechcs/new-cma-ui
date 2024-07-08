@@ -1,13 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import DevicePageTitle from 'renderer/components/DeviceHeader';
-import DeviceLicense from 'renderer/components/DeviceLicense';
 import Pagination from 'renderer/components/Pagination';
 import Timeline from 'renderer/components/Timeline';
 import {
   CHECK_DEVICE_CONNECTION,
   CLEAR_SAMPLES,
   CLOSE_DEVICE,
-  CURRENT_ACTION,
   DEVICE_CONNECTION,
   DEVICE_DISCONNECT_API_CALL,
   DEVICE_DISCONNECT_TIMEOUT,
@@ -25,13 +23,15 @@ import {
   SCAN_MEASUREMENT_RES,
   EXPORT_LAST_SCAN_DATA,
 } from 'utility/constants';
-import MeasureDeviceList from 'renderer/components/MeasureDeviceList';
+
 import PopupModal from 'renderer/components/PopupModal';
 import { downloadCSV } from 'utility/DownloadCSV';
 import Loader from 'renderer/components/Loader';
-import MultiFilesSelector from 'renderer/components/MultiFilesSelector';
+
 import ThirdPartyAPI from 'renderer/components/ThirdPartyAPI';
 import HomeFooter from 'renderer/components/HomeFooter';
+
+const { ipcRenderer } = window.electron;
 
 function ColorMatch({
   username,
@@ -92,54 +92,54 @@ function ColorMatch({
 
   useEffect(() => {
     // register current action event
-    window.electron.ipcRenderer.on(GET_DEVICE_AND_LICENSES, onDeviceAndLicensesRes);
-    window.electron.ipcRenderer.on(CHECK_DEVICE_CONNECTION, onCheckDeviceConnection);
-    window.electron.ipcRenderer.on(CLOSE_DEVICE, onCloseDevice);
-    window.electron.ipcRenderer.on(SHOW_DIALOG, onShowDialog);
-    window.electron.ipcRenderer.on(GET_SAMPLES_DATA, onSamplesData);
-    window.electron.ipcRenderer.on(CLEAR_SAMPLES, onClearSamplesRes);
-    window.electron.ipcRenderer.on(DEVICE_DISCONNECT_TIMEOUT, onDeviceDisconnectTimeout);
-    window.electron.ipcRenderer.on(GET_DEVICE_INSTANCE_URL, onGetDeviceInstanceLink);
-    window.electron.ipcRenderer.on(DEVICE_CONNECTION, onDeviceConnection);
-    window.electron.ipcRenderer.on(DEVICE_DISCONNECTION, onDeviceRelease);
-    window.electron.ipcRenderer.on(MEASURE_IN_PROGRESS, onMeasureInProgress);
-    window.electron.ipcRenderer.on(REFRESH_DEVICES_AND_LICENSES, onRefreshDevicesLicenses);
-    window.electron.ipcRenderer.on(SCAN_MEASUREMENT_RES, onScanMeasurementRes);
-    window.electron.ipcRenderer.on(EXPORT_LAST_SCAN_DATA, onExportLastScanData);
+    ipcRenderer.on(GET_DEVICE_AND_LICENSES, onDeviceAndLicensesRes);
+    ipcRenderer.on(CHECK_DEVICE_CONNECTION, onCheckDeviceConnection);
+    ipcRenderer.on(CLOSE_DEVICE, onCloseDevice);
+    ipcRenderer.on(SHOW_DIALOG, onShowDialog);
+    ipcRenderer.on(GET_SAMPLES_DATA, onSamplesData);
+    ipcRenderer.on(CLEAR_SAMPLES, onClearSamplesRes);
+    ipcRenderer.on(DEVICE_DISCONNECT_TIMEOUT, onDeviceDisconnectTimeout);
+    ipcRenderer.on(GET_DEVICE_INSTANCE_URL, onGetDeviceInstanceLink);
+    ipcRenderer.on(DEVICE_CONNECTION, onDeviceConnection);
+    ipcRenderer.on(DEVICE_DISCONNECTION, onDeviceRelease);
+    ipcRenderer.on(MEASURE_IN_PROGRESS, onMeasureInProgress);
+    ipcRenderer.on(REFRESH_DEVICES_AND_LICENSES, onRefreshDevicesLicenses);
+    ipcRenderer.on(SCAN_MEASUREMENT_RES, onScanMeasurementRes);
+    ipcRenderer.on(EXPORT_LAST_SCAN_DATA, onExportLastScanData);
     // get latest device list and licenses
     handleRefresh();
 
     // unregister current action event
     return () => {
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         GET_DEVICE_AND_LICENSES,
-        onDeviceAndLicensesRes
+        onDeviceAndLicensesRes,
       );
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         CHECK_DEVICE_CONNECTION,
-        onCheckDeviceConnection
+        onCheckDeviceConnection,
       );
-      window.electron.ipcRenderer.removeListener(CLOSE_DEVICE, onCloseDevice);
-      window.electron.ipcRenderer.removeListener(SHOW_DIALOG, onShowDialog);
-      window.electron.ipcRenderer.removeListener(GET_SAMPLES_DATA, onSamplesData);
-      window.electron.ipcRenderer.removeListener(CLEAR_SAMPLES, onClearSamplesRes);
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(CLOSE_DEVICE, onCloseDevice);
+      ipcRenderer.removeListener(SHOW_DIALOG, onShowDialog);
+      ipcRenderer.removeListener(GET_SAMPLES_DATA, onSamplesData);
+      ipcRenderer.removeListener(CLEAR_SAMPLES, onClearSamplesRes);
+      ipcRenderer.removeListener(
         DEVICE_DISCONNECT_TIMEOUT,
-        onDeviceDisconnectTimeout
+        onDeviceDisconnectTimeout,
       );
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         GET_DEVICE_INSTANCE_URL,
-        onGetDeviceInstanceLink
+        onGetDeviceInstanceLink,
       );
-      window.electron.ipcRenderer.removeListener(DEVICE_CONNECTION, onDeviceConnection);
-      window.electron.ipcRenderer.removeListener(DEVICE_DISCONNECTION, onDeviceRelease);
-      window.electron.ipcRenderer.removeListener(MEASURE_IN_PROGRESS, onMeasureInProgress);
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(DEVICE_CONNECTION, onDeviceConnection);
+      ipcRenderer.removeListener(DEVICE_DISCONNECTION, onDeviceRelease);
+      ipcRenderer.removeListener(MEASURE_IN_PROGRESS, onMeasureInProgress);
+      ipcRenderer.removeListener(
         REFRESH_DEVICES_AND_LICENSES,
-        onRefreshDevicesLicenses
+        onRefreshDevicesLicenses,
       );
-      window.electron.ipcRenderer.removeListener(SCAN_MEASUREMENT_RES, onScanMeasurementRes);
-      window.electron.ipcRenderer.removeListener(EXPORT_LAST_SCAN_DATA, onExportLastScanData);
+      ipcRenderer.removeListener(SCAN_MEASUREMENT_RES, onScanMeasurementRes);
+      ipcRenderer.removeListener(EXPORT_LAST_SCAN_DATA, onExportLastScanData);
     };
   }, []);
 
@@ -154,8 +154,13 @@ function ColorMatch({
       const device = deviceList.find((x) => x.deviceId == currentDevice);
       if (device) {
         deviceConnectionInterval = setInterval(() => {
-          if(device.deviceType !== 'I1IO3' || device.deviceType !== 'I1IO2' || device.deviceType !== 'CI62_COLORSCOUT' || device.deviceType !== 'CI64_COLORSCOUT'){
-            window.electron.ipcRenderer.send(CHECK_DEVICE_CONNECTION, device?.deviceType);
+          if (
+            device.deviceType !== 'I1IO3' ||
+            device.deviceType !== 'I1IO2' ||
+            device.deviceType !== 'CI62_COLORSCOUT' ||
+            device.deviceType !== 'CI64_COLORSCOUT'
+          ) {
+            ipcRenderer.send(CHECK_DEVICE_CONNECTION, device?.deviceType);
           }
         }, 3000);
       }
@@ -168,8 +173,8 @@ function ColorMatch({
   useEffect(() => {
     const device = deviceList.find((x) => x.deviceId == currentDevice);
     if (updateDeviceStatus && isDisconnected) {
-      window.electron.ipcRenderer.send(UPDATE_DEVICE_RECONNECTION, device);
-      window.electron.ipcRenderer.send(DEVICE_RECONNECT_API_CALL, {
+      ipcRenderer.send(UPDATE_DEVICE_RECONNECTION, device);
+      ipcRenderer.send(DEVICE_RECONNECT_API_CALL, {
         instanceURL,
         deviceName: device?.deviceType,
         deviceId: device?.deviceId,
@@ -178,8 +183,8 @@ function ColorMatch({
       setIsDisconnected(false);
     }
     if (!updateDeviceStatus) {
-      window.electron.ipcRenderer.send(DISCONNECT_DEVICE, device);
-      window.electron.ipcRenderer.send(DEVICE_DISCONNECT_API_CALL, {
+      ipcRenderer.send(DISCONNECT_DEVICE, device);
+      ipcRenderer.send(DEVICE_DISCONNECT_API_CALL, {
         instanceURL,
         deviceName: device?.deviceType,
         deviceId: device?.deviceId,
@@ -238,14 +243,14 @@ function ColorMatch({
     setLoadingMsg('Exporting samples, please wait...');
     setIsSampleInProgress(true);
     const device = deviceList.find((x) => x.deviceId == currentDevice);
-    window.electron.ipcRenderer.send(GET_SAMPLES_DATA, device?.deviceType);
+    ipcRenderer.send(GET_SAMPLES_DATA, device?.deviceType);
   };
 
   const onClearSamples = () => {
     setLoadingMsg('Clearing samples, please wait...');
     setIsSampleInProgress(true);
     const device = deviceList.find((x) => x.deviceId == currentDevice);
-    window.electron.ipcRenderer.send(CLEAR_SAMPLES, device?.deviceType);
+    ipcRenderer.send(CLEAR_SAMPLES, device?.deviceType);
   };
 
   const onCheckDeviceConnection = (args) => {
@@ -274,7 +279,7 @@ function ColorMatch({
   };
 
   const onGoToInstance = async () => {
-    window.electron.ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
+    ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
   };
 
   const onGetDeviceInstanceLink = (args) => {
@@ -287,26 +292,26 @@ function ColorMatch({
   };
 
   const onDisconnectDeviceAfterTimeout = (deviceType) => {
-    window.electron.ipcRenderer.send(CLOSE_DEVICE, {
+    ipcRenderer.send(CLOSE_DEVICE, {
       forceClose: false,
       deviceType,
       deviceId: currentDevice,
-      instanceURL
+      instanceURL,
     });
   };
 
   const onDisconnectCurrentDevice = () => {
     const device = deviceList.find((x) => x.deviceId == currentDevice);
-    window.electron.ipcRenderer.send(CLOSE_DEVICE, {
+    ipcRenderer.send(CLOSE_DEVICE, {
       forceClose: false,
       deviceType: device?.deviceType,
       deviceId: device?.deviceId,
-      instanceURL
+      instanceURL,
     });
   };
 
   const handleRefresh = () => {
-    window.electron.ipcRenderer.send(GET_DEVICE_AND_LICENSES, { instanceURL, username, token });
+    ipcRenderer.send(GET_DEVICE_AND_LICENSES, { instanceURL, username, token });
   };
 
   const onRefreshDevicesLicenses = (args) => {
@@ -316,9 +321,9 @@ function ColorMatch({
   };
 
   const onDeviceAndLicensesRes = useCallback((args) => {
-    console.log('args 0123', args)
+    console.log('args 0123', args);
     onGetDeviceAndLicenses(args);
-  },[]);
+  }, []);
 
   const onDeviceConnection = (args) => {
     // if device connected successfully from equipment app then refresh device list and licenses
@@ -340,17 +345,17 @@ function ColorMatch({
 
   const onMeasureInProgress = (args) => {
     setForceDisconnectError(
-      'Measurement is in progress, are you sure you want to disconnect ?'
+      'Measurement is in progress, are you sure you want to disconnect ?',
     );
   };
 
   const onForceDisconnect = () => {
     const device = deviceList.find((x) => x.deviceId == currentDevice);
-    window.electron.ipcRenderer.send(CLOSE_DEVICE, {
+    ipcRenderer.send(CLOSE_DEVICE, {
       forceClose: true,
       deviceType: device?.deviceType,
       deviceId: device?.deviceId,
-      instanceURL
+      instanceURL,
     });
   };
 
@@ -365,12 +370,12 @@ function ColorMatch({
       },
       measurement: { hasMeasured: false, measurementData: {}, error: '' },
     };
-    window.electron.ipcRenderer.send(MEASUREMENT, deviceConnection);
+    ipcRenderer.send(MEASUREMENT, deviceConnection);
   };
 
   const onClickExportLastScanData = () => {
     if (scanRes && scanRes.measurement && scanRes.measurement.hasMeasured) {
-      window.electron.ipcRenderer.send(EXPORT_LAST_SCAN_DATA, null);
+      ipcRenderer.send(EXPORT_LAST_SCAN_DATA, null);
     }
   };
 

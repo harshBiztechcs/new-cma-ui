@@ -1,11 +1,6 @@
 import React from 'react';
 import { css } from '@emotion/css';
-import emailIcon from '../assets/image/email_icon.svg';
 import checkSvg from '../assets/image/tick.svg';
-import { GET_APP_VERSION } from 'utility/constants';
-
-
-const currentAppVersion = window.electron.ipcRenderer.send(GET_APP_VERSION, null);
 
 const checkSvgStyle = css`
   &::before {

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
+import { LOGIN } from 'utility/constants';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import cmaConnectLogo from '../assets/image/cma-connect.jpg';
 
-import { LOGIN } from 'utility/constants';
+const { ipcRenderer } = window.electron;
 
 function Login({
   afterLogin,
@@ -20,9 +21,9 @@ function Login({
 
   useEffect(() => {
     // register event
-    window.electron.ipcRenderer.on(LOGIN, onLogin);
+    ipcRenderer.on(LOGIN, onLogin);
     return () => {
-      window.electron.ipcRenderer.removeListener(LOGIN, onLogin);
+      ipcRenderer.removeListener(LOGIN, onLogin);
     };
   }, []);
 
@@ -45,8 +46,8 @@ function Login({
       remember,
     };
 
-    //perform login
-    window.electron.ipcRenderer.send(LOGIN, login);
+    // perform login
+    ipcRenderer.send(LOGIN, login);
   };
 
   const onLogin = (args) => {
@@ -109,7 +110,7 @@ function Login({
                           defaultChecked={remember}
                           onChange={() => setRemember(!remember)}
                         />
-                        <span className="checkmark"></span>
+                        <span className="checkmark" />
                       </label>
                     </div>
                     <button type="submit" className="btn-primary">

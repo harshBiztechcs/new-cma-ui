@@ -30,6 +30,8 @@ import ThirdPartyAPI from 'renderer/components/ThirdPartyAPI';
 import HomeFooter from 'renderer/components/HomeFooter';
 import DeviceScanModal from 'renderer/components/DeviceScanModal';
 
+const { ipcRenderer } = window.electron;
+
 function DeviceSelection({
   username,
   deviceList,
@@ -88,60 +90,60 @@ function DeviceSelection({
   useEffect(() => {
     // register on verify device connection event
     // after device has been stored on server with username
-    window.electron.ipcRenderer.on(
+    ipcRenderer.on(
       VERIFY_DEVICE_CONNECTION,
       onVerifyDeviceConnection,
     );
-    window.electron.ipcRenderer.on(
+    ipcRenderer.on(
       CHECK_ROP_DEVICE_CONNECTION,
       onCheckDeviceConnection,
     );
-    window.electron.ipcRenderer.on(CLOSE_DEVICE, onCloseDevice);
-    window.electron.ipcRenderer.on(
+    ipcRenderer.on(CLOSE_DEVICE, onCloseDevice);
+    ipcRenderer.on(
       DEVICE_DISCONNECT_TIMEOUT,
       onDeviceDisconnectTimeout,
     );
-    window.electron.ipcRenderer.on(
+    ipcRenderer.on(
       GET_DEVICE_AND_LICENSES,
       onDeviceAndLicensesRes,
     );
-    window.electron.ipcRenderer.on(
+    ipcRenderer.on(
       GET_DEVICE_INSTANCE_URL,
       onGetDeviceInstanceLink,
     );
-    window.electron.ipcRenderer.on(DEVICE_CONNECTION, onDeviceConnection);
-    window.electron.ipcRenderer.on(DEVICE_DISCONNECTION, onDeviceRelease);
+    ipcRenderer.on(DEVICE_CONNECTION, onDeviceConnection);
+    ipcRenderer.on(DEVICE_DISCONNECTION, onDeviceRelease);
     // get latest device list and licenses
     handleRefresh();
 
     return () => {
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         VERIFY_DEVICE_CONNECTION,
         onVerifyDeviceConnection,
       );
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         CHECK_ROP_DEVICE_CONNECTION,
         onCheckDeviceConnection,
       );
 
-      window.electron.ipcRenderer.removeListener(CLOSE_DEVICE, onCloseDevice);
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(CLOSE_DEVICE, onCloseDevice);
+      ipcRenderer.removeListener(
         DEVICE_DISCONNECT_TIMEOUT,
         onDeviceDisconnectTimeout,
       );
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         GET_DEVICE_AND_LICENSES,
         onDeviceAndLicensesRes,
       );
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         GET_DEVICE_INSTANCE_URL,
         onGetDeviceInstanceLink,
       );
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         DEVICE_CONNECTION,
         onDeviceConnection,
       );
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         DEVICE_DISCONNECTION,
         onDeviceRelease,
       );
@@ -149,7 +151,7 @@ function DeviceSelection({
   }, []);
 
   useEffect(() => {
-    window.electron.ipcRenderer.send(GET_MAC_ADDRESS, deviceAddress);
+    ipcRenderer.send(GET_MAC_ADDRESS, deviceAddress);
   }, [deviceAddress]);
 
   const onDeviceRelease = (args) => {
@@ -198,7 +200,7 @@ function DeviceSelection({
   };
 
   const connectionMode = async (args) => {
-    window.electron.ipcRenderer.send(SWITCH_TO_YS3060_CONNECTION_MODE, {
+    ipcRenderer.send(SWITCH_TO_YS3060_CONNECTION_MODE, {
       args,
       instanceURL,
     });
@@ -207,7 +209,7 @@ function DeviceSelection({
   const onDisconnectCurrentDevice = (deviceId) => {
     const device = deviceList.find((dev) => dev.deviceId == deviceId);
 
-    window.electron.ipcRenderer.send(CLOSE_DEVICE, {
+    ipcRenderer.send(CLOSE_DEVICE, {
       forceClose: true,
       deviceType: device?.deviceType,
       deviceId,
@@ -224,12 +226,12 @@ function DeviceSelection({
     await connectionMode(false);
     setDeviceType(device?.deviceType);
     if (device) {
-      window.electron.ipcRenderer.send(VERIFY_DEVICE_CONNECTION, device);
+      ipcRenderer.send(VERIFY_DEVICE_CONNECTION, device);
     }
   };
 
   const openLinkInBrowser = async () => {
-    window.electron.ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
+    ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
   };
 
   const onGetDeviceInstanceLink = (args) => {
@@ -261,14 +263,14 @@ function DeviceSelection({
       device &&
       (device.deviceType === 'I1IO3' || device.deviceType === 'I1IO2')
     ) {
-      window.electron.ipcRenderer.send(DISCONNECT_DEVICE, device);
-      window.electron.ipcRenderer.send(DEVICE_DISCONNECT_API_CALL, {
+      ipcRenderer.send(DISCONNECT_DEVICE, device);
+      ipcRenderer.send(DEVICE_DISCONNECT_API_CALL, {
         instanceURL,
         deviceName: device?.deviceType,
         deviceId: device?.deviceId,
       });
     }
-    window.electron.ipcRenderer.send(VERIFY_DEVICE_CONNECTION, device);
+    ipcRenderer.send(VERIFY_DEVICE_CONNECTION, device);
     setDisconnectModal(false);
   };
 
@@ -284,12 +286,12 @@ function DeviceSelection({
     const device = deviceList.find((dev) => dev.deviceId == currentDevice);
 
     if (device) {
-      window.electron.ipcRenderer.send(VERIFY_DEVICE_CONNECTION, device);
+      ipcRenderer.send(VERIFY_DEVICE_CONNECTION, device);
     }
   };
 
   const handleRefresh = () => {
-    window.electron.ipcRenderer.send(GET_DEVICE_AND_LICENSES, {
+    ipcRenderer.send(GET_DEVICE_AND_LICENSES, {
       instanceURL,
       username,
       token,
@@ -316,32 +318,32 @@ function DeviceSelection({
     setIsConnectedWithBT(true);
     connectionMode(true);
     if (device) {
-      window.electron.ipcRenderer.send(
+      ipcRenderer.send(
         CHECK_ROP_DEVICE_CONNECTION,
         'CMA-ROP64E-UV-BT',
       );
     }
   }
   const SpectroDeviceButton = () => {
-    window.electron.ipcRenderer.send(CURRENT_TAB_UPDATE, 1);
+    ipcRenderer.send(CURRENT_TAB_UPDATE, 1);
     setisPrecisionShow(false);
     setIsBarcodeOnShow(false);
     setIsZebraOnShow(false);
   };
   const precisionBalanceButton = () => {
-    window.electron.ipcRenderer.send(CURRENT_TAB_UPDATE, 2);
+    ipcRenderer.send(CURRENT_TAB_UPDATE, 2);
     setisPrecisionShow(true);
     setIsBarcodeOnShow(false);
     setIsZebraOnShow(false);
   };
   const barcodeScannerButton = () => {
-    window.electron.ipcRenderer.send(CURRENT_TAB_UPDATE, 3);
+    ipcRenderer.send(CURRENT_TAB_UPDATE, 3);
     setIsBarcodeOnShow(true);
     setisPrecisionShow(false);
     setIsZebraOnShow(false);
   };
   const zebraPrinterButton = () => {
-    window.electron.ipcRenderer.send(CURRENT_TAB_UPDATE, 4);
+    ipcRenderer.send(CURRENT_TAB_UPDATE, 4);
     setIsZebraOnShow(true);
     setisPrecisionShow(false);
     setIsBarcodeOnShow(false);

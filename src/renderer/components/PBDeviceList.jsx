@@ -9,41 +9,42 @@ import i1ioIcon from '../assets/image/i1io.jpeg';
 import precisionBalanceIcon from '../assets/image/Precision-balance.png';
 import onlineIndicatorImg from '../assets/image/online-indicator.svg';
 
+const { ipcRenderer } = window.electron;
+
 const getDeviceImg = (deviceType) => {
   switch (deviceType) {
     case 'I1PRO3':
       return i1pro3Icon;
-      break;
+
     case 'I1PRO2':
       return i1pro2Icon;
-      break;
+
     case 'CI64':
       return ci64Icon;
-      break;
+
     case 'CI64UV':
       return ci64Icon;
-      break;
+
     case 'CI62':
       return ci64Icon;
-      break;
+
     case 'EXACT':
       return exactIcon;
-      break;
+
     case 'EXACT2':
       return exact2Icon;
-      break;
+
     case 'I1IO3':
       return i1ioIcon;
-      break;
+
     case 'I1IO2':
       return i1ioIcon;
-      break;
+
     case 'PRECISION_BALANCE':
-        return precisionBalanceIcon;
-        break;
+      return precisionBalanceIcon;
+
     default:
       return i1pro3Icon;
-      break;
   }
 };
 
@@ -52,8 +53,7 @@ function PBDeviceList({
   onConnectPBDevice,
   onDisconnectPBDevice,
   connectedPBDevice,
-  onGoBackToMeasure,
-  instanceURL
+  instanceURL,
 }) {
   const [device, setDevice] = useState(connectedPBDevice);
 
@@ -74,11 +74,11 @@ function PBDeviceList({
   };
 
   const onGoToInstance = async () => {
-    window.electron.ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
+    ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
   };
 
   const render =
-  pbDeviceList.length == 0 ? (
+    pbDeviceList.length == 0 ? (
       <p style={{ textAlign: 'center' }}>No Devices Available Currently</p>
     ) : (
       <div className="products-list">
@@ -100,7 +100,7 @@ function PBDeviceList({
                 key={dev.deviceId}
                 style={getListStyle(
                   dev.status,
-                  dev.deviceId == connectedPBDevice
+                  dev.deviceId == connectedPBDevice,
                 )}
               >
                 <td>
@@ -112,7 +112,9 @@ function PBDeviceList({
                         defaultChecked={dev.deviceId == connectedPBDevice}
                         // defaultChecked={dev.status == 'connected'}
                         // disabled={dev.status !== 'available'}
-                        disabled={connectedPBDevice || dev.status !== 'available'}
+                        disabled={
+                          connectedPBDevice || dev.status !== 'available'
+                        }
                         onChange={() => {
                           setDevice(dev.deviceId);
                         }}
@@ -177,10 +179,10 @@ function PBDeviceList({
                 {connectedPBDevice && (
                   <>
                     <button
-                        className="btn-primary mr-12"
-                        onClick={onGoToInstance}
-                        >
-                        Go to instance
+                      className="btn-primary mr-12"
+                      onClick={onGoToInstance}
+                    >
+                      Go to instance
                     </button>
                     <button
                       className="btn-primary mr-12"

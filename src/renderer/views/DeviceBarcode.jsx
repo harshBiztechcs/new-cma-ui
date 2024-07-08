@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import DevicePageTitle from 'renderer/components/DeviceHeader';
-import DeviceLicense from 'renderer/components/DeviceLicense';
 import Pagination from 'renderer/components/Pagination';
 import Timeline from 'renderer/components/Timeline';
 import ConnectModal from 'renderer/components/ConnectModal';
@@ -12,20 +11,19 @@ import {
   GET_DEVICE_INSTANCE_URL,
   DEVICE_DISCONNECTION,
   VERIFY_DEVICE_CONNECTION,
-  COLOR_GATE_API_REQ,
   COLOR_GATE_API_BUTTON_CLICK,
   DISCONNECT_DEVICE,
   DEVICE_DISCONNECT_API_CALL,
   DEVICE_CONNECTION,
-  CHECK_DEVICE_CONNECTION,
   CHECK_BARCODE_DEVICE_CONNECTION,
   CURRENT_TAB_UPDATE,
 } from 'utility/constants';
-import DeviceList from 'renderer/components/DeviceList';
 import PopupModal from 'renderer/components/PopupModal';
 import ThirdPartyAPI from 'renderer/components/ThirdPartyAPI';
 import HomeFooter from 'renderer/components/HomeFooter';
 import BarcodeDeviceList from 'renderer/components/BarcodeDeviceList';
+
+const { ipcRenderer } = window.electron;
 
 function DeviceBarcode({
   username,
@@ -84,26 +82,26 @@ function DeviceBarcode({
   useEffect(() => {
     // register on verify device connection event
     // after device has been stored on server with username
-    window.electron.ipcRenderer.on(
+    ipcRenderer.on(
       VERIFY_DEVICE_CONNECTION,
       onVerifyDeviceConnection,
     );
-    window.electron.ipcRenderer.on(CLOSE_PB_DEVICE, onCloseDevice);
-    window.electron.ipcRenderer.on(
+    ipcRenderer.on(CLOSE_PB_DEVICE, onCloseDevice);
+    ipcRenderer.on(
       DEVICE_DISCONNECT_TIMEOUT,
       onDeviceDisconnectTimeout,
     );
-    window.electron.ipcRenderer.on(
+    ipcRenderer.on(
       GET_DEVICE_AND_LICENSES,
       onDeviceAndLicensesRes,
     );
-    window.electron.ipcRenderer.on(
+    ipcRenderer.on(
       GET_DEVICE_INSTANCE_URL,
       onGetDeviceInstanceLink,
     );
-    window.electron.ipcRenderer.on(DEVICE_CONNECTION, onDeviceConnection);
-    window.electron.ipcRenderer.on(DEVICE_DISCONNECTION, onDeviceRelease);
-    window.electron.ipcRenderer.on(
+    ipcRenderer.on(DEVICE_CONNECTION, onDeviceConnection);
+    ipcRenderer.on(DEVICE_DISCONNECTION, onDeviceRelease);
+    ipcRenderer.on(
       CHECK_BARCODE_DEVICE_CONNECTION,
       onCheckDeviceConnection,
     );
@@ -111,35 +109,35 @@ function DeviceBarcode({
     handleRefresh();
 
     return () => {
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         VERIFY_DEVICE_CONNECTION,
         onVerifyDeviceConnection,
       );
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         CLOSE_PB_DEVICE,
         onCloseDevice,
       );
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         DEVICE_DISCONNECT_TIMEOUT,
         onDeviceDisconnectTimeout,
       );
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         GET_DEVICE_AND_LICENSES,
         onDeviceAndLicensesRes,
       );
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         GET_DEVICE_INSTANCE_URL,
         onGetDeviceInstanceLink,
       );
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         DEVICE_CONNECTION,
         onDeviceConnection,
       );
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         CHECK_BARCODE_DEVICE_CONNECTION,
         onCheckDeviceConnection,
       );
-      window.electron.ipcRenderer.removeListener(
+      ipcRenderer.removeListener(
         DEVICE_DISCONNECTION,
         onDeviceRelease,
       );
@@ -194,7 +192,7 @@ function DeviceBarcode({
   // const onDisconnectCurrentDevice = (deviceId) => {
   //   const device = balanceDeviceList.find((dev) => dev.deviceId == deviceId);
 
-  //   window.electron.ipcRenderer.send(CLOSE_DEVICE, {
+  //   ipcRenderer.send(CLOSE_DEVICE, {
   //     forceClose: true,
   //     deviceType: device?.deviceType,
   //     deviceId,
@@ -206,7 +204,7 @@ function DeviceBarcode({
   const onDisconnectCurrentBarcodeDevice = (deviceId) => {
     const device = barcodeDeviceList.find((dev) => dev.deviceId == deviceId);
     stopCheckDeviceConnectionInterval();
-    window.electron.ipcRenderer.send(CLOSE_PB_DEVICE, {
+    ipcRenderer.send(CLOSE_PB_DEVICE, {
       forceClose: true,
       deviceType: device?.deviceType,
       deviceId,
@@ -219,12 +217,12 @@ function DeviceBarcode({
     setCurrentBarcodeDevice(deviceId);
     setBarcodeDeviceType(device?.deviceType);
     if (device) {
-      window.electron.ipcRenderer.send(VERIFY_DEVICE_CONNECTION, device);
+      ipcRenderer.send(VERIFY_DEVICE_CONNECTION, device);
     }
   };
 
   const openLinkInBrowser = async () => {
-    window.electron.ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
+    ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
   };
 
   const onGetDeviceInstanceLink = (args) => {
@@ -254,7 +252,7 @@ function DeviceBarcode({
     }
   };
 
-  const onCheckDeviceConnection = ( args) => {
+  const onCheckDeviceConnection = (args) => {
     if (args.status) {
       setDeviceConnectionStatus(false);
     } else {
@@ -274,14 +272,14 @@ function DeviceBarcode({
       device &&
       (device.deviceType === 'I1IO3' || device.deviceType === 'I1IO2')
     ) {
-      window.electron.ipcRenderer.send(DISCONNECT_DEVICE, device);
-      window.electron.ipcRenderer.send(DEVICE_DISCONNECT_API_CALL, {
+      ipcRenderer.send(DISCONNECT_DEVICE, device);
+      ipcRenderer.send(DEVICE_DISCONNECT_API_CALL, {
         instanceURL,
         deviceName: device?.deviceType,
         deviceId: device?.deviceId,
       });
     }
-    window.electron.ipcRenderer.send(VERIFY_DEVICE_CONNECTION, device);
+    ipcRenderer.send(VERIFY_DEVICE_CONNECTION, device);
     setDisconnectModal(false);
     setDeviceConnectionStatus(false);
   };
@@ -293,7 +291,7 @@ function DeviceBarcode({
   };
 
   const handleRefresh = () => {
-    window.electron.ipcRenderer.send(GET_DEVICE_AND_LICENSES, {
+    ipcRenderer.send(GET_DEVICE_AND_LICENSES, {
       instanceURL,
       username,
       token,
@@ -315,29 +313,29 @@ function DeviceBarcode({
   };
 
   const handleSendAPIReq = () => {
-    window.electron.ipcRenderer.send(COLOR_GATE_API_BUTTON_CLICK, null);
+    ipcRenderer.send(COLOR_GATE_API_BUTTON_CLICK, null);
   };
 
   const SpectroDeviceButton = () => {
-    window.electron.ipcRenderer.send(CURRENT_TAB_UPDATE, 1);
+    ipcRenderer.send(CURRENT_TAB_UPDATE, 1);
     setisPrecisionShow(false);
     setIsBarcodeOnShow(false);
     setIsZebraOnShow(false);
   };
   const precisionBalanceButton = () => {
-    window.electron.ipcRenderer.send(CURRENT_TAB_UPDATE, 2);
+    ipcRenderer.send(CURRENT_TAB_UPDATE, 2);
     setisPrecisionShow(true);
     setIsBarcodeOnShow(false);
     setIsZebraOnShow(false);
   };
   const barcodeScannerButton = () => {
-    window.electron.ipcRenderer.send(CURRENT_TAB_UPDATE, 3);
+    ipcRenderer.send(CURRENT_TAB_UPDATE, 3);
     setIsBarcodeOnShow(true);
     setisPrecisionShow(false);
     setIsZebraOnShow(false);
   };
   const zebraPrinterButton = () => {
-    window.electron.ipcRenderer.send(CURRENT_TAB_UPDATE, 4);
+    ipcRenderer.send(CURRENT_TAB_UPDATE, 4);
     setIsZebraOnShow(true);
     setisPrecisionShow(false);
     setIsBarcodeOnShow(false);
@@ -353,7 +351,7 @@ function DeviceBarcode({
           device.deviceType !== 'CI62_COLORSCOUT' &&
           device.deviceType !== 'CI64_COLORSCOUT'
         ) {
-          window.electron.ipcRenderer.send(
+          ipcRenderer.send(
             CHECK_BARCODE_DEVICE_CONNECTION,
             device,
           );

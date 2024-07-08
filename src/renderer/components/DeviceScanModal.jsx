@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import BluetoothConnectSVG from '../assets/image/Bluetooth-connect.svg';
 import { BLUETOOTH_SCAN_DEVICE } from 'utility/constants';
+import BluetoothConnectSVG from '../assets/image/Bluetooth-connect.svg';
 
+const { ipcRenderer } = window.electron;
 
 function DeviceScanModal({
   onConfirm,
@@ -15,10 +16,10 @@ function DeviceScanModal({
   const [showNextButton, setShowNextButton] = useState(false);
 
   useEffect(() => {
-    window.electron.ipcRenderer.on(BLUETOOTH_SCAN_DEVICE, onDeviceListReceived);
+    ipcRenderer.on(BLUETOOTH_SCAN_DEVICE, onDeviceListReceived);
     scanBluetoothDevice();
     return () => {
-      window.electron.ipcRenderer.removeListener(BLUETOOTH_SCAN_DEVICE, onDeviceListReceived);
+      ipcRenderer.removeListener(BLUETOOTH_SCAN_DEVICE, onDeviceListReceived);
     };
   }, []);
 
@@ -34,7 +35,7 @@ function DeviceScanModal({
 
   const scanBluetoothDevice = async () => {
     setIsLoading(true);
-    window.electron.ipcRenderer.send(BLUETOOTH_SCAN_DEVICE);
+    ipcRenderer.send(BLUETOOTH_SCAN_DEVICE);
   };
 
   const handleOptionChange = (e) => {
@@ -53,7 +54,7 @@ function DeviceScanModal({
     <div id="deviceScanModal" className="modal">
       <div className="modal-content">
         <span className="close">X</span>
-        <img src={BluetoothConnectSVG} alt="Connect"></img>
+        <img src={BluetoothConnectSVG} alt="Connect" />
         <h4>Select Device</h4>
         {isLoading ? (
           <div>Loading...</div>
