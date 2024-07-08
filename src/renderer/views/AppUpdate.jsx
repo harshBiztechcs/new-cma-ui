@@ -1,10 +1,8 @@
-import React from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Timeline from 'renderer/components/Timeline';
 import { GET_APP_VERSION } from 'utility/constants';
 import cmaConnectIcon from '../assets/image/cma-connect-icon.png';
 
-
-const currentAppVersion = window.electron.ipcRenderer.send(GET_APP_VERSION, null);
 const updateNoteBoxStyle = {
   border: '1px solid #e4e7ec',
   boxSizing: 'border-box',
@@ -43,6 +41,23 @@ function AutoUpdate({
   downloadProgress,
 }) {
   const progressBarStyle = { width: `${downloadProgress}%`, marginTop: '0px' };
+
+  const [currentAppVersion, setCurrentAppVersion] = useState('');
+
+  const getAppVersion = useCallback((version) => {
+    setCurrentAppVersion(version);
+  }, []);
+
+  useEffect(() => {
+    const { ipcRenderer } = window.electron;
+
+    ipcRenderer.on(GET_APP_VERSION, getAppVersion);
+    ipcRenderer.send(GET_APP_VERSION);
+
+    return () => {
+      ipcRenderer.removeAllListeners(GET_APP_VERSION);
+    };
+  }, [getAppVersion]);
 
   return (
     <div id="main" className="cma-connect-page">

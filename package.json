@@ -41,6 +41,10 @@
     "publish-win": "ts-node ./.erb/scripts/clean.js dist && npm run build && npm run build:websocket-worker && electron-builder build --win --publish always"
   },
   "browserslist": [],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CMAIDT/ColorPortal.git"
+  },
   "prettier": {
     "singleQuote": true,
     "overrides": [
@@ -93,7 +97,7 @@
     "axios": "^1.7.2",
     "electron-debug": "^3.2.0",
     "electron-log": "^4.4.8",
-    "electron-updater": "^6.1.4",
+    "electron-updater": "^4.3.9",
     "koffi": "^2.8.10",
     "minify-all-js": "^0.1.9",
     "papaparse": "^5.4.1",

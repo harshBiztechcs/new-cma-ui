@@ -1,0 +1,6 @@
+provider: github
+url: https://github.com/CMAIDT/ColorPortal.git
+useMultipleRangeRequest: false
+channel: latest
+updaterCacheDirName: ./
+

@@ -155,12 +155,9 @@ const loadI1PRO3LibraryFunctions = () => {
         [],
       ),
       triggerMeasurement: i1Pro3Library.func('triggerMeasurement', 'int', []),
-      getSpectrum: i1Pro3Library.func('getSpectrum', 'int', [
-        FloatArray,
-        'int',
-      ]),
+      getSpectrum: i1Pro3Library.func('getSpectrum', 'int', ['float*', 'int']),
       getTriStimulus: i1Pro3Library.func('getTriStimulus', 'int', [
-        FloatArray,
+        'float*',
         'int',
       ]),
       waitForButtonPressed: i1Pro3Library.func(
@@ -176,6 +173,7 @@ const loadI1PRO3LibraryFunctions = () => {
       ),
     };
   } catch (error) {
+    console.log('error', error);
     dialog.showMessageBox(null, {
       title: 'Exposing i1Pro3 Library Functions',
       message: `Error loading i1Pro3 library :- ${error} && DLL file exists =>${fs.existsSync(dllDir) ? 'yes' : 'no'} `,

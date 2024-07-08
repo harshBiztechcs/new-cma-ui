@@ -102,12 +102,9 @@ const loadI1ProLibraryFunctions = () => {
         [],
       ),
       triggerMeasurement: i1Pro3Library.func('triggerMeasurement', 'int', []),
-      getSpectrum: i1Pro3Library.func('getSpectrum', 'int', [
-        FloatArray,
-        'int',
-      ]),
+      getSpectrum: i1Pro3Library.func('getSpectrum', 'int', ['float*', 'int']),
       getTriStimulus: i1Pro3Library.func('getTriStimulus', 'int', [
-        FloatArray,
+        'float*',
         'int',
       ]),
       waitForButtonPressed: i1Pro3Library.func(

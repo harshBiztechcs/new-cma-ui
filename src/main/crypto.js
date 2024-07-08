@@ -4,30 +4,29 @@ const password = 'jiEKG3rLcWdu1IO0GKhHLQMrpFaPk2n3';
 
 const decrypt = (input) => {
   try {
-    // Convert urlsafe base64 to normal base64
-    const base64Input = input.replace(/-/g, '+').replace(/_/g, '/');
-    // Convert from base64 to binary string
-    const edata = Buffer.from(base64Input, 'base64');
+    const inputBase64 = input.replace(/\-/g, '+').replace(/_/g, '/');
+    const edata = Buffer.from(inputBase64, 'base64').toString('binary');
 
-    // Create key from password
-    const key = crypto.createHash('md5').update(password).digest();
-    // Create iv from password and key
+    const key = crypto.createHash('md5').update(password).digest('hex');
     const iv = crypto
       .createHash('md5')
-      .update(password + key)
-      .digest();
+      .update(`${password}${key}`)
+      .digest('hex')
+      .slice(0, 16);
 
-    // Decipher encrypted data
-    const decipher = crypto.createDecipheriv(
-      'aes-256-cbc',
-      key,
-      iv.slice(0, 16),
-    );
+    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+    let plaintext;
 
-    let decrypted = decipher.update(edata, 'binary', 'utf8');
-    decrypted += decipher.final('utf8');
+    if (process.version.startsWith('v0.')) {
+      const decrypted =
+        decipher.update(edata, 'binary', 'utf8') + decipher.final('utf8');
+      plaintext = decrypted;
+    } else {
+      plaintext =
+        decipher.update(edata, 'binary', 'utf8') + decipher.final('utf8');
+    }
 
-    return { success: true, message: decrypted };
+    return { success: true, message: plaintext };
   } catch (error) {
     return { success: false, message: 'CMA connect decryption failed' };
   }

@@ -226,7 +226,7 @@ import {
 } from './devices/zebra_printer/printZebraLabel';
 import {
   openDevice,
-  exposeLibraryFunctions,
+  loadI1PRO3LibraryFunctions,
   setDeviceOptions,
   calibrateDevice,
   calibrateDeviceStripMode,
@@ -402,7 +402,7 @@ const createWebSocketWorkerWindow = () => {
 const loadInitialLibraries = () => {
   try {
     // exposing/load i1Pro3 library function
-    exposeLibraryFunctions();
+    loadI1PRO3LibraryFunctions();
 
     // exposing/load exact library function
     loadExactLibraryFunctions();
@@ -1247,7 +1247,6 @@ const verifyDeviceConnection = async (deviceName) => {
         }
         break;
       }
-
 
       case 'CMA-ROP64E-UV-BT': {
         // case 'CMA-ROP64E-UV-BT_COLORSCOUT':
