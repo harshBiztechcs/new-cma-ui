@@ -1,4 +1,8 @@
+/* eslint-disable jsx-a11y/anchor-is-valid */
+/* eslint-disable jsx-a11y/label-has-associated-control */
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useState } from 'react';
+import PropTypes from 'prop-types';
 import { LOGIN } from 'utility/constants';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -6,18 +10,27 @@ import cmaConnectLogo from '../assets/image/cma-connect.jpg';
 
 const { ipcRenderer } = window.electron;
 
-function Login({
-  afterLogin,
-  onCreateNewConnection,
-  preUsername,
-  instanceURL,
-  token,
-}) {
+function Login({ afterLogin, onCreateNewConnection, instanceURL, token }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState('');
   const [reqMsg, setReqMsg] = useState('');
+
+  const onLogin = (args) => {
+    if (args.res) {
+      const connInfo = {
+        ...args,
+        socketURL: args.socketURL,
+        thirdPartyAPIUser: args.thirdPartyAPIUser,
+      };
+      afterLogin(connInfo);
+      setError('');
+      setReqMsg('');
+    } else {
+      setError(args.error);
+    }
+  };
 
   useEffect(() => {
     // register event
@@ -30,9 +43,9 @@ function Login({
   const handleSubmit = async (e) => {
     e.preventDefault();
     let valError = '';
-    if (username.trim() == '') {
+    if (username.trim() === '') {
       valError = 'Username is required !!';
-    } else if (password.trim() == '') {
+    } else if (password.trim() === '') {
       valError = 'Password is required !!';
     }
     setError(valError);
@@ -48,21 +61,6 @@ function Login({
 
     // perform login
     ipcRenderer.send(LOGIN, login);
-  };
-
-  const onLogin = (args) => {
-    if (args.res) {
-      const connInfo = {
-        ...args,
-        socketURL: args.socketURL,
-        thirdPartyAPIUser: args.thirdPartyAPIUser,
-      };
-      afterLogin(connInfo);
-      setError('');
-      setReqMsg('');
-    } else {
-      setError(args.error);
-    }
   };
 
   return (
@@ -118,8 +116,16 @@ function Login({
                     </button>
                   </div>
                   <p className="update-token">
-                    Need to update the token ?{' '}
-                    <a onClick={onCreateNewConnection}>New connection</a>
+                    Need to update the token?{' '}
+                    <a
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        onCreateNewConnection();
+                      }}
+                    >
+                      New connection
+                    </a>
                   </p>
                   {error && (
                     <p className="login-error-msg">
@@ -145,5 +151,12 @@ function Login({
     </div>
   );
 }
+
+Login.propTypes = {
+  afterLogin: PropTypes.func.isRequired,
+  onCreateNewConnection: PropTypes.func.isRequired,
+  instanceURL: PropTypes.string.isRequired,
+  token: PropTypes.string.isRequired,
+};
 
 export default Login;
