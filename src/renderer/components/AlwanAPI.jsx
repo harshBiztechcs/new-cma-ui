@@ -11,6 +11,8 @@ import APILogList from './APILogList';
 
 const { ipcRenderer } = window.electron;
 
+ipcRenderer.send(GET_IP);
+
 const IndicatorStyle = {
   background: '#28B62C',
   display: 'inline-block',
@@ -43,12 +45,12 @@ export default function AlwanAPI({
   const [ipv4, setipv4] = useState('');
 
   useEffect(() => {
-    ipcRenderer.on(GET_IP, (version) => {
-      setApiBaseURL(`http://${version}`);
+    ipcRenderer.on(GET_IP, (ipAddress) => {
+      setApiBaseURL(`https://${ipAddress}`);
       setTimeout(() => {
         setGettingLocalIp(false);
       }, 100);
-      setipv4(version);
+      setipv4(ipAddress);
     });
     ipcRenderer.send(GET_IP);
     return () => {

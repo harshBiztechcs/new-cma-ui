@@ -11,9 +11,7 @@ import {
 import APILogList from './APILogList';
 
 const { ipcRenderer } = window.electron;
-
-// const ipv4 = ipcRenderer.send(GET_IP, null);
-// const ipAddress = ipv4 ? `https://${ipv4}` : '';
+ipcRenderer.send(GET_IP);
 
 const IndicatorStyle = {
   background: '#28B62C',
@@ -48,35 +46,16 @@ export default function ColorGate({
   const [ipv4, setipv4] = useState('');
 
   useEffect(() => {
-    const handleGetIpResponse = (useEffect(() => {
-  const handleGetIpResponse = (ipVersion) => {
-    console.log('ipVersion', ipVersion);
-    setApiBaseURL(`https://${ipVersion}`);
-    setTimeout(() => {
-      setGettingLocalIp(false);
-    }, 100);
-    setIpv4(ipVersion);
-  };
-
-  ipcRenderer.on('getIp', handleGetIpResponse);
-  ipcRenderer.send('getIp');
-
-  return () => {
-    ipcRenderer.removeListener('getIp', handleGetIpResponse);
-  };
-}, []);) => {
-      setApiBaseURL(`https://${ipVersion}`);
+    ipcRenderer.on(GET_IP, (ipAddress) => {
+      setApiBaseURL(`https://${ipAddress}`);
       setTimeout(() => {
         setGettingLocalIp(false);
       }, 100);
-      setIpv4(ipVersion);
-    };
-  
-    ipcRenderer.on('getIp', handleGetIpResponse);
-    ipcRenderer.send('getIp');
-  
+      setipv4(ipAddress);
+    });
+    ipcRenderer.send(GET_IP);
     return () => {
-      ipcRenderer.removeListener('getIp', handleGetIpResponse);
+      ipcRenderer.removeAllListeners(GET_IP);
     };
   }, []);
 
