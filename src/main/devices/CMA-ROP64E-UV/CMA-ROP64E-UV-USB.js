@@ -1,29 +1,28 @@
+/* eslint-disable no-console */
+/* eslint-disable consistent-return */
+const fs = require('fs');
+const koffi = require('koffi');
 const path = require('path');
 const { dialog } = require('electron');
 const { spawn } = require('child_process');
-const { SerialPort } = require('serialport');
-const koffi = require('koffi');
 const { getAssetPath } = require('../../util');
+const { listSystemUSBDevices } = require('../../utility');
 
-let dllDirectory = null;
+let dllDir = null;
+let gratingSpectrometer = null;
 let cDemoFilePath = null;
-const calibrateFilePath = null;
 let settingFilePath = null;
 let informationFilePath = null;
-let gratingspectrometer = null;
 let manuallyMesurment = null;
 
-const handleSize = 8; // Assuming 8 bytes for pointer size
-
-// Allocate memory for the handle
-const spectrometerHandle = Buffer.alloc(handleSize);
-
-// const NH_SpectrometerHandle = ref.refType('void');
-// const spectrometerHandle = ref.alloc(NH_SpectrometerHandle);
-
 if (process.platform === 'win32') {
-  dllDirectory = getAssetPath('SDK', 'CMA-ROP64E-UV', 'x64');
-  process.env.PATH = `${process.env.PATH}${path.delimiter}${dllDirectory}`;
+  dllDir = getAssetPath(
+    'SDK',
+    'CMA-ROP64E-UV',
+    'x64',
+    'GratingSpectrometer.dll',
+  );
+  process.env.PATH = `${process.env.PATH}${path.delimiter}${dllDir}`;
 
   cDemoFilePath = getAssetPath(
     'SDK',
@@ -43,149 +42,173 @@ if (process.platform === 'win32') {
     'Manually_mesurment',
     'manuallyMesurment',
   );
-  informationFilePath = getAssetPath(
-    'SDK',
-    'CMA-ROP64E-UV',
-    'Device_Information',
-    'getDeviceInformation',
-  );
 }
 
 // all sdk functions related to ci64UV needs to expose here first
 const loadSpectrometerLibraryFunctions = () => {
   try {
-    const dllPath = path.join(dllDirectory, 'GratingSpectrometerApi');
-    const spectrometerLib = koffi.load(dllPath);
+    // Check if the DLL file exists
+    // Load the DLL
+    const spectrometerLibrary = koffi.load(dllDir);
 
-    spectrometerLib.NH_OpenDevice = koffi.func(
-      'int NH_OpenDevice(void*, const char*)',
-    );
-    spectrometerLib.NH_CloseDevice = koffi.func('void NH_CloseDevice(void*)');
+    // Define the function signatures
+    gratingSpectrometer = {
+      open_connection: spectrometerLibrary.func('open_connection', 'bool', []),
+      close_connection: spectrometerLibrary.func(
+        'close_connection',
+        'void',
+        [],
+      ),
+      GetInstrumentInfo: spectrometerLibrary.func(
+        'GetInstrumentInfo',
+        'string',
+        [],
+        {
+          stdcall: true,
+        },
+      ),
+      scan_ble_devices: spectrometerLibrary.func(
+        'scan_ble_devices',
+        'string',
+        [],
+        {
+          stdcall: true,
+        },
+      ),
+      connectByBle: spectrometerLibrary.func(
+        'connectByBle',
+        'bool',
+        ['string'],
+        {
+          stdcall: true,
+        },
+      ),
+      measureWithUSB: spectrometerLibrary.func(
+        'measureWithUSB',
+        'string',
+        ['string', 'string', 'string', 'string'],
+        { stdcall: true },
+      ),
+      measurementParameterWithUSB: spectrometerLibrary.func(
+        'measurementParameterWithUSB',
+        'string',
+        ['string', 'string', 'string', 'string'],
+        { stdcall: true },
+      ),
+      GetInstrumentInfoBT: spectrometerLibrary.func(
+        'GetInstrumentInfoBT',
+        'string',
+        ['string'],
+        { stdcall: true },
+      ),
+    };
   } catch (error) {
+    console.error('Error loading ROP64 USB library:', error);
     dialog.showMessageBox(null, {
-      title: 'Exposing CMA-ROP64E-UV Library Functions',
-      message: 'error loading CMA-ROP64E-UV library',
+      title: 'Exposing ROP64 USB Library Functions',
+      message: `Error loading ROP64 USB library :- ${error.message} && DLL file exists =>${fs.existsSync(dllDir) ? 'yes' : 'no'} `,
     });
+    return null; // Return null in case of an error
   }
 };
 
-function terminateChildProcess(childProcess) {
-  childProcess.kill(); // Terminate the child process
-}
-
-async function runCPlusPlusProgram(executablePath, args = []) {
-  console.log('Run C-Demo Code...', executablePath);
-  return new Promise((resolve, reject) => {
-    const childProcess = spawn(executablePath, args);
-
-    childProcess.stdout.on('data', (data) => {
-      terminateChildProcess(childProcess);
-      resolve(data.toString());
-    });
-
-    childProcess.stderr.on('data', (data) => {
-      reject('failure.');
-    });
-
-    childProcess.on('exit', (code, signal) => {});
-
-    childProcess.on('error', (error) => {
-      reject(error);
-    });
-
-    process.stdin.resume();
-
-    const handleTermination = () => {
-      terminateChildProcess(childProcess);
-      process.exit();
-    };
-
-    process.on('SIGINT', handleTermination);
-    process.on('SIGTERM', handleTermination);
-  });
-}
-
-function convertStringToObject(inputString) {
-  const lines = inputString.trim().split('\n');
-  const resultObject = {};
-
-  lines.forEach((line) => {
-    const [key, value] = line.split(':').map((item) => item.trim());
-    resultObject[key] = isNaN(value) ? value : parseFloat(value) || value;
-  });
-
-  return resultObject;
-}
-
-async function trimObjectValues(obj) {
-  for (const key in obj) {
-    if (typeof obj[key] === 'string') {
-      obj[key] = obj[key].trim();
-    } else if (Array.isArray(obj[key])) {
-      obj[key] = obj[key].map((value) => value.trim());
-    } else if (typeof obj[key] === 'object') {
-      await trimObjectValues(obj[key]); // Use await for recursive call
-    }
-  }
-}
-
 async function closeSpectrometerDevice() {
   try {
-    console.log('Spectrometer closed successfully.');
-    await gratingspectrometer.NH_CloseDevice(spectrometerHandle);
+    await gratingSpectrometer.close_connection();
     return { res: true, error: null };
   } catch (error) {
-    return { res: false, error };
+    return {
+      res: false,
+      error: `Error closing spectrometer: ${error.message}`,
+    };
   }
 }
 
 async function openSpectrometerDevice() {
   try {
     await closeSpectrometerDevice();
-    const result = await gratingspectrometer.NH_OpenDevice(
-      spectrometerHandle,
-      null,
-    );
+    const result = await gratingSpectrometer.open_connection();
 
-    if (result === 0) {
-      console.log('Spectrometer opened successfully.');
+    if (result) {
       return { res: true, error: null };
     }
     return { res: false, error: 'Failed to open spectrometer' };
   } catch (error) {
-    return { res: false, error };
+    return {
+      res: false,
+      error: `Error opening spectrometer: ${error.message}`,
+    };
   }
 }
+
 async function checkCMAROP64EConnection() {
   try {
-    const ports = await SerialPort.list();
-    const connectedPort = ports.find(
-      (port) => port.vendorId === '1782' && port.productId === '4D00',
-    );
+    const output = await listSystemUSBDevices();
+
+    // Search for the specific devices in the output
+    const isConnected = output.includes('1782') && output.includes('4D00');
 
     return {
-      res: !!connectedPort,
+      res: isConnected,
       errorMessage: null,
     };
   } catch (error) {
     return {
       res: false,
-      errorMessage: `Error connecting to the CMA-ROP64E-UV: ${error}`,
+      errorMessage: `Error connecting to the device: ${error}`,
     };
   }
 }
 
-async function getInformationDevice() {
+async function getDeviceInfoFromUSBPort() {
   try {
     await closeSpectrometerDevice();
-    const informationData = await runCPlusPlusProgram(informationFilePath);
-    const parsedData = convertStringToObject(informationData);
-    return { res: true, data: parsedData.SN, error: null };
+    const serialNumber = await gratingSpectrometer.GetInstrumentInfo();
+
+    if (
+      typeof serialNumber === 'string' &&
+      serialNumber.trim() !== '' &&
+      !serialNumber.includes("Can't parse data")
+    ) {
+      return { res: true, data: serialNumber, error: null };
+    }
+    return {
+      res: false,
+      data: null,
+      error: 'Failed to retrieve device information',
+    };
   } catch (error) {
     return {
       res: false,
       data: null,
-      error: `Information retrieval error: ${error}`,
+      error: `Error retrieving device information: ${error.message}`,
+    };
+  }
+}
+
+async function setSpectrometerOptionsViaUSB(options) {
+  try {
+    await closeSpectrometerDevice();
+    const isSettingsApplied =
+      await gratingSpectrometer.measurementParameterWithUSB(
+        options['Colorimetric.Observer'],
+        options['Colorimetric.Illumination'],
+        options.Specular,
+        `${options.UV}`,
+      );
+    if (isSettingsApplied) {
+      return { res: true, data: null, error: null };
+    }
+    return {
+      res: false,
+      data: null,
+      error: 'Failed to apply spectrometer settings',
+    };
+  } catch (error) {
+    return {
+      res: false,
+      data: null,
+      error: `Error applying spectrometer settings: ${error.message}`,
     };
   }
 }
@@ -194,188 +217,44 @@ async function calibrateSpectrometerDevice() {
   return { res: true, error: null };
 }
 
-async function settingSpectrometerOptions(options) {
+async function performAutomaticMeasurement(options) {
   try {
+    await loadSpectrometerLibraryFunctions();
     await closeSpectrometerDevice();
-
-    const args = [
-      options['Colorimetric.Illumination'],
-      'NH_Phi8',
-      options.Specular,
+    const measurementResult = await gratingSpectrometer.measureWithUSB(
       options['Colorimetric.Observer'],
-      options.UV,
-    ];
-    const data = await runCPlusPlusProgram(settingFilePath, args);
-    console.log('Setting Device successfully');
-    return { res: true, data: null, error: null };
-  } catch (error) {
-    console.error('Setting error:', error);
-    return {
-      res: false,
-      data: null,
-      error: `Please disconnect and reconnect your device`,
-    };
-  }
-}
-
-async function measureDeviceManually(settingsData) {
-  try {
-    await closeSpectrometerDevice();
-    const args = [
-      settingsData['Colorimetric.Observer'],
-      settingsData['Colorimetric.Illumination'],
-    ];
-    const measurementData = await runCPlusPlusProgram(manuallyMesurment, args);
-
-    if (measurementData) {
-      const parsedMeasurementData = JSON.parse(measurementData);
-      await trimObjectValues(parsedMeasurementData);
-      console.log('Manually Measurement Device Data retrieved successfully');
-      return { res: true, data: parsedMeasurementData, error: null };
+      options['Colorimetric.Illumination'],
+      options.Specular,
+      `${options.UV}`,
+    );
+    console.log('measurementResult', measurementResult);
+    if (!measurementResult) {
+      throw new Error('No measurement result received');
     }
-
-    return {
-      res: false,
-      data: null,
-      error: `Please disconnect and reconnect your device`,
-    };
+    const data = JSON.parse(measurementResult);
+    return { res: true, data, error: null };
   } catch (error) {
-    console.error('Measurement error:', error);
     return {
       res: false,
       data: null,
-      error: `Please disconnect and reconnect your device`,
+      error: `Measurement error: ${error.message}`,
     };
   }
 }
 
-async function measureDeviceAutomatic(settingsData) {
-  try {
-    await closeSpectrometerDevice();
-    const args = [
-      settingsData['Colorimetric.Observer'],
-      settingsData['Colorimetric.Illumination'],
-      settingsData.Specular,
-      settingsData.UV,
-    ];
-    const measurementData = await runCPlusPlusProgram(cDemoFilePath, args);
+async function measureDeviceManually() {}
 
-    if (measurementData) {
-      const parsedMeasurementData = JSON.parse(measurementData);
-      await trimObjectValues(parsedMeasurementData);
-      console.log('Automatic Measurement Device Data retrieved successfully');
-      return { res: true, data: parsedMeasurementData, error: null };
-    }
-
-    return {
-      res: false,
-      data: null,
-      error: `Please disconnect and reconnect your device`,
-    };
-  } catch (error) {
-    console.error('Measurement error:', error);
-    return {
-      res: false,
-      data: null,
-      error: `Please disconnect and reconnect your device`,
-    };
-  }
-}
-
-async function calculateAverages(dataArray) {
-  if (!Array.isArray(dataArray) || dataArray.length === 0) {
-    throw new Error('Input data array is either not an array or empty.');
-  }
-
-  const wavelengthRange = dataArray[0].SCI['Wavelength Range'];
-
-  // Initialize variables to store sum of L*, a*, and b* values for SCI and SCE
-  let sum_L_SCI = 0;
-  let sum_a_SCI = 0;
-  let sum_b_SCI = 0;
-  let sum_L_SCE = 0;
-  let sum_a_SCE = 0;
-  let sum_b_SCE = 0;
-
-  // Initialize arrays to store sum of data values for SCI and SCE
-  const sumValues_SCI = Array(dataArray[0].SCI.data.length).fill(0);
-  const sumValues_SCE = Array(dataArray[0].SCE.data.length).fill(0);
-
-  // Iterate over dataArray to calculate sums
-  dataArray.forEach((item) => {
-    // SCI
-    sum_L_SCI += parseFloat(item.SCI['L*']);
-    sum_a_SCI += parseFloat(item.SCI['a*']);
-    sum_b_SCI += parseFloat(item.SCI['b*']);
-
-    // SCE
-    sum_L_SCE += parseFloat(item.SCE['L*']);
-    sum_a_SCE += parseFloat(item.SCE['a*']);
-    sum_b_SCE += parseFloat(item.SCE['b*']);
-
-    // SCI data
-    item.SCI.data.forEach((value, index) => {
-      sumValues_SCI[index] += parseFloat(value);
-    });
-
-    // SCE data
-    item.SCE.data.forEach((value, index) => {
-      sumValues_SCE[index] += parseFloat(value);
-    });
-  });
-
-  // Calculate averages for L*, a*, and b* values
-  const avg_L_SCI = (sum_L_SCI / dataArray.length).toFixed(2);
-  const avg_a_SCI = (sum_a_SCI / dataArray.length).toFixed(2);
-  const avg_b_SCI = (sum_b_SCI / dataArray.length).toFixed(2);
-
-  const avg_L_SCE = (sum_L_SCE / dataArray.length).toFixed(2);
-  const avg_a_SCE = (sum_a_SCE / dataArray.length).toFixed(2);
-  const avg_b_SCE = (sum_b_SCE / dataArray.length).toFixed(2);
-
-  // Calculate averages for data values
-  const avgValues_SCI = sumValues_SCI.map((sum) =>
-    (sum / dataArray.length).toFixed(2),
-  );
-  const avgValues_SCE = sumValues_SCE.map((sum) =>
-    (sum / dataArray.length).toFixed(2),
-  );
-
-  // Output in the specified format
-  const output = {
-    res: true,
-    data: {
-      SCI: {
-        'L*': avg_L_SCI,
-        'a*': avg_a_SCI,
-        'b*': avg_b_SCI,
-        'Wavelength Range': wavelengthRange,
-        Interval: '10nm',
-        data: avgValues_SCI,
-      },
-      SCE: {
-        'L*': avg_L_SCE,
-        'a*': avg_a_SCE,
-        'b*': avg_b_SCE,
-        'Wavelength Range': wavelengthRange,
-        Interval: '10nm',
-        data: avgValues_SCE,
-      },
-    },
-    error: null,
-  };
-  return output;
-}
+async function calculateAverages() {}
 
 module.exports = {
   loadSpectrometerLibraryFunctions,
   openSpectrometerDevice,
   closeSpectrometerDevice,
+  checkCMAROP64EConnection,
   calibrateSpectrometerDevice,
   measureDeviceManually,
-  measureDeviceAutomatic,
-  settingSpectrometerOptions,
-  getInformationDevice,
-  checkCMAROP64EConnection,
+  performAutomaticMeasurement,
+  setSpectrometerOptionsViaUSB,
+  getDeviceInfoFromUSBPort,
   calculateAverages,
 };

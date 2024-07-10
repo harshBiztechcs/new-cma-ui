@@ -263,11 +263,13 @@ import {
   closeSpectrometerDevice,
   calibrateSpectrometerDevice,
   measureDeviceManually,
-  getInformationDevice,
-  settingSpectrometerOptions,
-  measureDeviceAutomatic,
+  getDeviceInfoFromUSBPort,
+  setSpectrometerOptionsViaUSB,
+  performAutomaticMeasurement,
   checkCMAROP64EConnection,
   calculateAverages,
+  loadSpectrometerLibraryFunctions,
+  openSpectrometerDevice,
 } from './devices/CMA-ROP64E-UV/CMA-ROP64E-UV-USB';
 import {
   checkPrecisionConnection,
@@ -423,7 +425,7 @@ const loadInitialLibraries = () => {
       // exposing/load Ci62 library function
       loadCi62LibraryFunctions();
       // exposing/load Spectrometer library function
-      // loadSpectrometerLibraryFunctions();
+      loadSpectrometerLibraryFunctions();
       // exposing/load Ci64 library function
       loadCi64LibraryFunctions();
       // exposing/load Ci64UV library function
@@ -749,9 +751,9 @@ const openDeviceAndGetInfo = async (msgType, content) => {
               result = await getInformationDeviceWithBT();
             }
           } else {
-            result = await checkCMAROP64EConnection();
+            result = await openSpectrometerDevice();
             if (result.res) {
-              result = await getInformationDevice();
+              result = await getDeviceInfoFromUSBPort();
             }
           }
 
@@ -776,7 +778,7 @@ const openDeviceAndGetInfo = async (msgType, content) => {
           content.deviceConnection.deviceType,
         );
         if (result.res) {
-          const deviceInfo = await getInformationDevice();
+          const deviceInfo = await getDeviceInfoFromUSBPort();
           if (deviceInfo.res) {
             return {
               res: true,
@@ -1227,9 +1229,9 @@ const verifyDeviceConnection = async (deviceName) => {
               result = await getInformationDeviceWithBT();
             }
           } else {
-            result = await checkCMAROP64EConnection();
+            result = await openSpectrometerDevice();
             if (result.res) {
-              result = await getInformationDevice();
+              result = await getDeviceInfoFromUSBPort();
             }
           }
 
@@ -2403,7 +2405,7 @@ const measureCi64UV = (args) => {
 
 // seting
 const settingSpectrometer = async (args) => {
-  const result = await settingSpectrometerOptions(args?.settings?.options);
+  const result = await setSpectrometerOptionsViaUSB(args?.settings?.options);
   if (!result.res) {
     args.error = { message: result.error };
   }
@@ -2466,30 +2468,20 @@ const measureROPWithUSB = async (measurementArgs) => {
     const isManuallyMeasured = settings.measurement_type === 'manually';
     const measurementFunction = isManuallyMeasured
       ? measureDeviceManually
-      : measureDeviceAutomatic;
+      : performAutomaticMeasurement;
 
     updateCurrentAction(
       `Waiting for ${
         isManuallyMeasured ? 'manually' : 'automatic'
       } measurement to complete via USB...`,
     );
+    const result = await measurementFunction(settings);
 
-    if (settings.MeasAverageNum) {
-      const lastMeasurementResult = [];
-      for (
-        let index = 0;
-        index < parseInt(settings.MeasAverageNum, 10);
-        index++
-      ) {
-        const result = await measurementFunction(settings);
-        if (result.res) {
-          lastMeasurementResult.push(result.data); // Store the last value
-        }
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-      const averages = await calculateAverages(lastMeasurementResult);
-      handleMeasurementResult(averages, measurementArgs);
+    if (result.res) {
+      handleMeasurementResult(result, measurementArgs);
     }
+
+    console.log('measurementArgs', measurementArgs)
 
     webSocketWorkerWindow.webContents.send(MEASUREMENT, measurementArgs);
   } catch (error) {

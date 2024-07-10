@@ -24,7 +24,7 @@ const {
 } = require('../ci64UV/ci64UV');
 const {
   checkCMAROP64EConnection,
-  measureDeviceAutomatic,
+  performAutomaticMeasurement,
 } = require('../CMA-ROP64E-UV/CMA-ROP64E-UV-USB');
 const {
   checkBluetoothConnection,
@@ -1164,7 +1164,7 @@ async function scanChartAutomaticColorScout(
             } else if (deviceType == 'CI64UV') {
               measureRes = performMeasurementCi64UV();
             } else if (deviceType == 'CMA-ROP64E-UV') {
-              measureRes = await measureDeviceAutomatic({
+              measureRes = await performAutomaticMeasurement({
                 'Colorimetric.Observer': settingsData['Colorimetric.Observer'],
                 'Colorimetric.Illumination':
                   settingsData['Colorimetric.Illumination'],
