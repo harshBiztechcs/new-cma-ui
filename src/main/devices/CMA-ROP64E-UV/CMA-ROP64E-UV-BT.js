@@ -1,10 +1,8 @@
-const path = require('path');
-const { dialog } = require('electron');
+/* eslint-disable no-console */
 const { spawn } = require('child_process');
-const { SerialPort } = require('serialport');
-const ReadlineParser = require('@serialport/parser-readline');
 const { getAssetPath } = require('../../util');
 const { closeSpectrometerDevice } = require('./CMA-ROP64E-UV-USB');
+const { listSystemUSBDevices } = require('../../utility');
 
 let autoMeasurementFilePath = null;
 let measurementParamsFilePath = null;
@@ -46,43 +44,21 @@ if (process.platform === 'win32') {
   );
 }
 
-async function findConnectedPort() {
-  try {
-    const ports = await SerialPort.list();
-    const connectedPort = ports.find(
-      (port) => port.vendorId === '1A86' && port.productId === '7523',
-    );
-    if (connectedPort) {
-      return {
-        res: true,
-        data: connectedPort,
-        error: null,
-      };
-    }
-    return {
-      res: false,
-      data: null,
-      error: 'No connected port found.',
-    };
-  } catch (error) {
-    return {
-      res: false,
-      data: null,
-      error: `Error finding connected port: ${error}`,
-    };
-  }
-}
-
 async function checkBluetoothConnection() {
   try {
-    // await closeSpectrometerDevice();
-    const { res, data, error } = await findConnectedPort();
-    return { res, data, error };
+    const output = await listSystemUSBDevices();
+
+    // Search for the specific devices in the output
+    const isConnected = output.includes('1A86') && output.includes('7523');
+
+    return {
+      res: isConnected,
+      errorMessage: null,
+    };
   } catch (error) {
     return {
       res: false,
-      data: null,
-      error: `Error checking connection: ${error}`,
+      errorMessage: `Error connecting to the device: ${error}`,
     };
   }
 }
@@ -114,18 +90,6 @@ async function executeCPlusPlusProgram(executablePath, args = []) {
       process.exit();
     });
   });
-}
-
-function parseDataStringToObject(inputString) {
-  const lines = inputString.trim().split('\n');
-  const resultObject = {};
-
-  lines.forEach((line) => {
-    const [key, value] = line.split(':').map((item) => item.trim());
-    resultObject[key] = isNaN(value) ? value : parseFloat(value) || value;
-  });
-
-  return resultObject;
 }
 
 async function trimObjectValues(obj) {

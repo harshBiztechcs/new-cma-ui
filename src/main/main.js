@@ -2446,6 +2446,19 @@ const handleMeasurementError = (error, measurementArgs) => {
   webSocketWorkerWindow.webContents.send(MEASUREMENT, measurementArgs);
 };
 
+const handleMeasurementResult = (result, measurementArgs) => {
+  if (result.res) {
+    clearTimeout(deviceMeasurementTimeout);
+    measurementArgs.measurement.hasMeasured = true;
+    measurementArgs.measurement.measurementData = result.data;
+    updateCurrentAction('Measurement Complete.');
+  } else {
+    measurementArgs.measurement.hasMeasured = false;
+    measurementArgs.error = { message: result.error || 'Measurement failed' };
+    updateCurrentAction('Measurement failed.');
+  }
+};
+
 // function for measure Spectrometer device type with USB
 const measureROPWithUSB = async (measurementArgs) => {
   try {
@@ -2475,13 +2488,25 @@ const measureROPWithUSB = async (measurementArgs) => {
         isManuallyMeasured ? 'manually' : 'automatic'
       } measurement to complete via USB...`,
     );
-    const result = await measurementFunction(settings);
 
-    if (result.res) {
-      handleMeasurementResult(result, measurementArgs);
+    if (settings.MeasAverageNum) {
+      const lastMeasurementResult = [];
+      for (
+        let index = 0;
+        index < parseInt(settings.MeasAverageNum, 10);
+        index++
+      ) {
+        const result = await measurementFunction(settings);
+        if (result.res) {
+          lastMeasurementResult.push(result.data); // Store the last value
+        }
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      const averages = await calculateAverages(lastMeasurementResult);
+      handleMeasurementResult(averages, measurementArgs);
     }
 
-    console.log('measurementArgs', measurementArgs)
+    console.log('measurementArgs', measurementArgs);
 
     webSocketWorkerWindow.webContents.send(MEASUREMENT, measurementArgs);
   } catch (error) {
@@ -2542,18 +2567,7 @@ const measureROPWithBluetooth = async (measurementArgs) => {
   }
 };
 
-const handleMeasurementResult = (result, measurementArgs) => {
-  if (result.res) {
-    clearTimeout(deviceMeasurementTimeout);
-    measurementArgs.measurement.hasMeasured = true;
-    measurementArgs.measurement.measurementData = result.data;
-    updateCurrentAction('Measurement Complete.');
-  } else {
-    measurementArgs.measurement.hasMeasured = false;
-    measurementArgs.error = { message: result.error || 'Measurement failed' };
-    updateCurrentAction('Measurement failed.');
-  }
-};
+
 
 // function for setting on I1Pro device type
 const settingI1Pro2 = (args) => {

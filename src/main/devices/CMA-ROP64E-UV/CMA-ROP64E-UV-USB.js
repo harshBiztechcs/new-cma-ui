@@ -1,5 +1,5 @@
-/* eslint-disable no-console */
 /* eslint-disable consistent-return */
+/* eslint-disable no-console */
 const fs = require('fs');
 const koffi = require('koffi');
 const path = require('path');
@@ -12,7 +12,6 @@ let dllDir = null;
 let gratingSpectrometer = null;
 let cDemoFilePath = null;
 let settingFilePath = null;
-let informationFilePath = null;
 let manuallyMesurment = null;
 
 if (process.platform === 'win32') {
@@ -112,6 +111,76 @@ const loadSpectrometerLibraryFunctions = () => {
   }
 };
 
+function terminateChildProcess(childProcess) {
+  if (!childProcess.killed) {
+    childProcess.kill('SIGINT');
+    childProcess.kill('SIGTERM');
+  }
+}
+
+async function runCPlusPlusProgram(executablePath, args = []) {
+  console.log(
+    `Running C++ program at ${executablePath} with args ${args.join(' ')}`,
+  );
+
+  return new Promise((resolve, reject) => {
+    const childProcess = spawn(executablePath, args);
+
+    childProcess.stdout.on('data', (data) => {
+      terminateChildProcess(childProcess);
+      resolve(data.toString().trim()); // trim to remove trailing newline
+    });
+
+    childProcess.stderr.on('data', (errorData) => {
+      reject(new Error(`${errorData.toString().trim()}`));
+    });
+
+    childProcess.on('exit', (code) => {
+      if (code !== 0) {
+        reject(new Error(`${code}`));
+      }
+    });
+
+    childProcess.on('error', (error) => {
+      reject(new Error(`${error.message}`));
+    });
+
+    process.stdin.resume();
+
+    const handleTermination = () => {
+      terminateChildProcess(childProcess);
+      process.exit(1); // exit with non-zero code to indicate error
+    };
+
+    process.on('SIGINT', handleTermination);
+    process.on('SIGTERM', handleTermination);
+  });
+}
+
+function trimObjectValues(obj) {
+  if (typeof obj !== 'object' || obj === null) {
+    return obj;
+  }
+
+  return Object.entries(obj).reduce(
+    (acc, [key, value]) => {
+      if (typeof value === 'string') {
+        acc[key] = value.trim();
+      } else if (Array.isArray(value)) {
+        acc[key] = value.map((item) =>
+          typeof item === 'string' ? item.trim() : trimObjectValues(item),
+        );
+      } else if (typeof value === 'object') {
+        acc[key] = trimObjectValues(value);
+      } else {
+        acc[key] = value;
+      }
+      return acc;
+    },
+    Array.isArray(obj) ? [] : {},
+  );
+}
+
 async function closeSpectrometerDevice() {
   try {
     await gratingSpectrometer.close_connection();
@@ -186,75 +255,156 @@ async function getDeviceInfoFromUSBPort() {
   }
 }
 
-async function setSpectrometerOptionsViaUSB(options) {
-  try {
-    await closeSpectrometerDevice();
-    const isSettingsApplied =
-      await gratingSpectrometer.measurementParameterWithUSB(
-        options['Colorimetric.Observer'],
-        options['Colorimetric.Illumination'],
-        options.Specular,
-        `${options.UV}`,
-      );
-    if (isSettingsApplied) {
-      return { res: true, data: null, error: null };
-    }
-    return {
-      res: false,
-      data: null,
-      error: 'Failed to apply spectrometer settings',
-    };
-  } catch (error) {
-    return {
-      res: false,
-      data: null,
-      error: `Error applying spectrometer settings: ${error.message}`,
-    };
-  }
-}
-
 async function calibrateSpectrometerDevice() {
   return { res: true, error: null };
 }
 
-async function performAutomaticMeasurement(options) {
+async function setSpectrometerOptionsViaUSB(options) {
   try {
-    await loadSpectrometerLibraryFunctions();
     await closeSpectrometerDevice();
-    const measurementResult = await gratingSpectrometer.measureWithUSB(
-      options['Colorimetric.Observer'],
+
+    const args = [
       options['Colorimetric.Illumination'],
+      'NH_Phi8',
       options.Specular,
-      `${options.UV}`,
-    );
-    console.log('measurementResult', measurementResult);
-    if (!measurementResult) {
-      throw new Error('No measurement result received');
-    }
-    const data = JSON.parse(measurementResult);
-    return { res: true, data, error: null };
+      options['Colorimetric.Observer'],
+      options.UV,
+    ];
+    await runCPlusPlusProgram(settingFilePath, args);
+    console.log('Setting Device successfully');
+    return { res: true, data: null, error: null };
   } catch (error) {
+    console.error('Setting error:', error);
     return {
       res: false,
       data: null,
-      error: `Measurement error: ${error.message}`,
+      error: `Please disconnect and reconnect your device`,
     };
   }
 }
 
-async function measureDeviceManually() {}
+async function measureDeviceManually(settingsData) {
+  try {
+    await closeSpectrometerDevice();
+    const args = [
+      settingsData['Colorimetric.Observer'],
+      settingsData['Colorimetric.Illumination'],
+    ];
+    const measurementData = await runCPlusPlusProgram(manuallyMesurment, args);
 
-async function calculateAverages() {}
+    if (measurementData) {
+      const parsedMeasurementData = JSON.parse(measurementData);
+      await trimObjectValues(parsedMeasurementData);
+      console.log('Manually Measurement Device Data retrieved successfully');
+      return { res: true, data: parsedMeasurementData, error: null };
+    }
+
+    return {
+      res: false,
+      data: null,
+      error: `Please disconnect and reconnect your device`,
+    };
+  } catch (error) {
+    console.error('Measurement error:', error);
+    return {
+      res: false,
+      data: null,
+      error: `Please disconnect and reconnect your device`,
+    };
+  }
+}
+
+async function performAutomaticMeasurement(settingsData) {
+  try {
+    await closeSpectrometerDevice();
+    const args = [
+      settingsData['Colorimetric.Observer'],
+      settingsData['Colorimetric.Illumination'],
+      settingsData.Specular,
+      settingsData.UV,
+    ];
+    const measurementData = await runCPlusPlusProgram(cDemoFilePath, args);
+
+    if (measurementData) {
+      const parsedMeasurementData = JSON.parse(measurementData);
+      await trimObjectValues(parsedMeasurementData);
+      console.log('Automatic Measurement Device Data retrieved successfully');
+      return { res: true, data: parsedMeasurementData, error: null };
+    }
+
+    return {
+      res: false,
+      data: null,
+      error: `Please disconnect and reconnect your device`,
+    };
+  } catch (error) {
+    console.error('Measurement error:', error);
+    return {
+      res: false,
+      data: null,
+      error: `Please disconnect and reconnect your device`,
+    };
+  }
+}
+
+function calculateAverages(measurements) {
+  if (!Array.isArray(measurements) || measurements.length === 0) {
+    throw new Error(
+      'Input measurements array is either not an array or empty.',
+    );
+  }
+
+  const wavelengthRange = measurements[0].SCI['Wavelength Range'];
+  const dataLength = measurements[0].SCI.data.length;
+
+  const initialSums = {
+    SCI: { L: 0, a: 0, b: 0, data: new Array(dataLength).fill(0) },
+    SCE: { L: 0, a: 0, b: 0, data: new Array(dataLength).fill(0) },
+  };
+
+  const sums = measurements.reduce((acc, measurement) => {
+    ['SCI', 'SCE'].forEach((mode) => {
+      acc[mode].L += parseFloat(measurement[mode]['L*']);
+      acc[mode].a += parseFloat(measurement[mode]['a*']);
+      acc[mode].b += parseFloat(measurement[mode]['b*']);
+
+      measurement[mode].data.forEach((value, index) => {
+        acc[mode].data[index] += parseFloat(value);
+      });
+    });
+    return acc;
+  }, initialSums);
+
+  const count = measurements.length;
+  const averages = {};
+
+  ['SCI', 'SCE'].forEach((mode) => {
+    averages[mode] = {
+      'L*': (sums[mode].L / count).toFixed(2),
+      'a*': (sums[mode].a / count).toFixed(2),
+      'b*': (sums[mode].b / count).toFixed(2),
+      'Wavelength Range': wavelengthRange,
+      Interval: '10nm',
+      data: sums[mode].data.map((sum) => (sum / count).toFixed(2)),
+    };
+  });
+
+  return {
+    res: true,
+    data: averages,
+    error: null,
+  };
+}
 
 module.exports = {
   loadSpectrometerLibraryFunctions,
   openSpectrometerDevice,
   closeSpectrometerDevice,
-  checkCMAROP64EConnection,
   calibrateSpectrometerDevice,
   measureDeviceManually,
   performAutomaticMeasurement,
   setSpectrometerOptionsViaUSB,
   getDeviceInfoFromUSBPort,
+  checkCMAROP64EConnection,
   calculateAverages,
 };
