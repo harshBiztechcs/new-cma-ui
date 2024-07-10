@@ -1,3 +1,6 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react/prop-types */
 import React, { useCallback, useEffect, useState } from 'react';
 import DevicePageTitle from 'renderer/components/DeviceHeader';
 import Pagination from 'renderer/components/Pagination';
@@ -11,7 +14,6 @@ import {
   GET_DEVICE_INSTANCE_URL,
   DEVICE_DISCONNECTION,
   VERIFY_DEVICE_CONNECTION,
-  COLOR_GATE_API_BUTTON_CLICK,
   DISCONNECT_DEVICE,
   DEVICE_DISCONNECT_API_CALL,
   DEVICE_CONNECTION,
@@ -79,77 +81,44 @@ function DeviceBarcode({
   const [deviceConnectionInterval, setDeviceConnectionInterval] = useState(0);
   const [deviceConnectionStatus, setDeviceConnectionStatus] = useState(false);
 
-  useEffect(() => {
-    // register on verify device connection event
-    // after device has been stored on server with username
-    ipcRenderer.on(
-      VERIFY_DEVICE_CONNECTION,
-      onVerifyDeviceConnection,
-    );
-    ipcRenderer.on(CLOSE_PB_DEVICE, onCloseDevice);
-    ipcRenderer.on(
-      DEVICE_DISCONNECT_TIMEOUT,
-      onDeviceDisconnectTimeout,
-    );
-    ipcRenderer.on(
-      GET_DEVICE_AND_LICENSES,
-      onDeviceAndLicensesRes,
-    );
-    ipcRenderer.on(
-      GET_DEVICE_INSTANCE_URL,
-      onGetDeviceInstanceLink,
-    );
-    ipcRenderer.on(DEVICE_CONNECTION, onDeviceConnection);
-    ipcRenderer.on(DEVICE_DISCONNECTION, onDeviceRelease);
-    ipcRenderer.on(
-      CHECK_BARCODE_DEVICE_CONNECTION,
-      onCheckDeviceConnection,
-    );
-    // get latest device list and licenses
-    handleRefresh();
+  const startCheckDeviceConnectionInterval = (device) => {
+    setDeviceConnectionInterval((interval) => {
+      clearInterval(interval);
+      const intervalCount = setInterval(() => {
+        if (
+          device.deviceType !== 'I1IO3' &&
+          device.deviceType !== 'I1IO2' &&
+          device.deviceType !== 'CI62_COLORSCOUT' &&
+          device.deviceType !== 'CI64_COLORSCOUT'
+        ) {
+          ipcRenderer.send(CHECK_BARCODE_DEVICE_CONNECTION, device);
+        }
+      }, 3000);
+      return intervalCount;
+    });
+  };
+  const stopCheckDeviceConnectionInterval = () => {
+    setDeviceConnectionInterval((interval) => {
+      if (interval) {
+        clearInterval(interval);
+        return 0;
+      }
+      return 0;
+    });
+  };
 
-    return () => {
-      ipcRenderer.removeListener(
-        VERIFY_DEVICE_CONNECTION,
-        onVerifyDeviceConnection,
-      );
-      ipcRenderer.removeListener(
-        CLOSE_PB_DEVICE,
-        onCloseDevice,
-      );
-      ipcRenderer.removeListener(
-        DEVICE_DISCONNECT_TIMEOUT,
-        onDeviceDisconnectTimeout,
-      );
-      ipcRenderer.removeListener(
-        GET_DEVICE_AND_LICENSES,
-        onDeviceAndLicensesRes,
-      );
-      ipcRenderer.removeListener(
-        GET_DEVICE_INSTANCE_URL,
-        onGetDeviceInstanceLink,
-      );
-      ipcRenderer.removeListener(
-        DEVICE_CONNECTION,
-        onDeviceConnection,
-      );
-      ipcRenderer.removeListener(
-        CHECK_BARCODE_DEVICE_CONNECTION,
-        onCheckDeviceConnection,
-      );
-      ipcRenderer.removeListener(
-        DEVICE_DISCONNECTION,
-        onDeviceRelease,
-      );
-
-      stopCheckDeviceConnectionInterval();
-    };
-  }, []);
+  const handleRefresh = () => {
+    ipcRenderer.send(GET_DEVICE_AND_LICENSES, {
+      instanceURL,
+      username,
+      token,
+    });
+  };
 
   useEffect(() => {
     if (barcodeDeviceList.length && lastConnectedBarcode) {
       const device = barcodeDeviceList.find(
-        (x) => x.deviceId == lastConnectedBarcode,
+        (x) => x.deviceId === lastConnectedBarcode,
       );
       if (device) startCheckDeviceConnectionInterval(device);
     }
@@ -185,24 +154,11 @@ function DeviceBarcode({
   const onDeviceDisconnectTimeout = (args) => {
     if (args && currentBarcodeDevice) {
       stopCheckDeviceConnectionInterval();
-      onDisconnectCurrentPBDevice(currentBarcodeDevice);
     }
   };
 
-  // const onDisconnectCurrentDevice = (deviceId) => {
-  //   const device = balanceDeviceList.find((dev) => dev.deviceId == deviceId);
-
-  //   ipcRenderer.send(CLOSE_DEVICE, {
-  //     forceClose: true,
-  //     deviceType: device?.deviceType,
-  //     deviceId,
-  //     instanceURL
-  //   });
-  //   handleRefresh();
-  // };
-
   const onDisconnectCurrentBarcodeDevice = (deviceId) => {
-    const device = barcodeDeviceList.find((dev) => dev.deviceId == deviceId);
+    const device = barcodeDeviceList.find((dev) => dev.deviceId === deviceId);
     stopCheckDeviceConnectionInterval();
     ipcRenderer.send(CLOSE_PB_DEVICE, {
       forceClose: true,
@@ -213,7 +169,7 @@ function DeviceBarcode({
   };
 
   const onConnectBarcodeDevice = (deviceId) => {
-    const device = barcodeDeviceList.find((dev) => dev.deviceId == deviceId);
+    const device = barcodeDeviceList.find((dev) => dev.deviceId === deviceId);
     setCurrentBarcodeDevice(deviceId);
     setBarcodeDeviceType(device?.deviceType);
     if (device) {
@@ -266,7 +222,7 @@ function DeviceBarcode({
 
   const handleRetry = () => {
     const device = barcodeDeviceList.find(
-      (x) => x.deviceId == currentBarcodeDevice,
+      (x) => x.deviceId === currentBarcodeDevice,
     );
     if (
       device &&
@@ -290,16 +246,7 @@ function DeviceBarcode({
     setDeviceConnectionStatus(false);
   };
 
-  const handleRefresh = () => {
-    ipcRenderer.send(GET_DEVICE_AND_LICENSES, {
-      instanceURL,
-      username,
-      token,
-    });
-  };
-
   const onDeviceAndLicensesRes = useCallback((args) => {
-    console.log('args  896587', args);
     onGetDeviceAndLicenses(args);
   }, []);
 
@@ -310,10 +257,6 @@ function DeviceBarcode({
         handleRefresh();
       }, 3000);
     }
-  };
-
-  const handleSendAPIReq = () => {
-    ipcRenderer.send(COLOR_GATE_API_BUTTON_CLICK, null);
   };
 
   const SpectroDeviceButton = () => {
@@ -341,34 +284,48 @@ function DeviceBarcode({
     setIsBarcodeOnShow(false);
   };
 
-  const startCheckDeviceConnectionInterval = (device) => {
-    setDeviceConnectionInterval((interval) => {
-      clearInterval(interval);
-      const intervalCount = setInterval(() => {
-        if (
-          device.deviceType !== 'I1IO3' &&
-          device.deviceType !== 'I1IO2' &&
-          device.deviceType !== 'CI62_COLORSCOUT' &&
-          device.deviceType !== 'CI64_COLORSCOUT'
-        ) {
-          ipcRenderer.send(
-            CHECK_BARCODE_DEVICE_CONNECTION,
-            device,
-          );
-        }
-      }, 3000);
-      return intervalCount;
-    });
-  };
-  const stopCheckDeviceConnectionInterval = () => {
-    setDeviceConnectionInterval((interval) => {
-      if (interval) {
-        clearInterval(interval);
-        return 0;
-      }
-      return 0;
-    });
-  };
+  useEffect(() => {
+    // register on verify device connection event
+    // after device has been stored on server with username
+    ipcRenderer.on(VERIFY_DEVICE_CONNECTION, onVerifyDeviceConnection);
+    ipcRenderer.on(CLOSE_PB_DEVICE, onCloseDevice);
+    ipcRenderer.on(DEVICE_DISCONNECT_TIMEOUT, onDeviceDisconnectTimeout);
+    ipcRenderer.on(GET_DEVICE_AND_LICENSES, onDeviceAndLicensesRes);
+    ipcRenderer.on(GET_DEVICE_INSTANCE_URL, onGetDeviceInstanceLink);
+    ipcRenderer.on(DEVICE_CONNECTION, onDeviceConnection);
+    ipcRenderer.on(DEVICE_DISCONNECTION, onDeviceRelease);
+    ipcRenderer.on(CHECK_BARCODE_DEVICE_CONNECTION, onCheckDeviceConnection);
+    // get latest device list and licenses
+    handleRefresh();
+
+    return () => {
+      ipcRenderer.removeListener(
+        VERIFY_DEVICE_CONNECTION,
+        onVerifyDeviceConnection,
+      );
+      ipcRenderer.removeListener(CLOSE_PB_DEVICE, onCloseDevice);
+      ipcRenderer.removeListener(
+        DEVICE_DISCONNECT_TIMEOUT,
+        onDeviceDisconnectTimeout,
+      );
+      ipcRenderer.removeListener(
+        GET_DEVICE_AND_LICENSES,
+        onDeviceAndLicensesRes,
+      );
+      ipcRenderer.removeListener(
+        GET_DEVICE_INSTANCE_URL,
+        onGetDeviceInstanceLink,
+      );
+      ipcRenderer.removeListener(DEVICE_CONNECTION, onDeviceConnection);
+      ipcRenderer.removeListener(
+        CHECK_BARCODE_DEVICE_CONNECTION,
+        onCheckDeviceConnection,
+      );
+      ipcRenderer.removeListener(DEVICE_DISCONNECTION, onDeviceRelease);
+
+      stopCheckDeviceConnectionInterval();
+    };
+  }, []);
   return (
     <div id="main" className="cma-connect-page">
       <div className="container-fluid">
@@ -393,6 +350,7 @@ function DeviceBarcode({
               <DeviceLicense licenses={licenses} /> */}
               <div className="d-flex mb-10">
                 <button
+                  type="button" // Add this
                   className="btn-secondary mr-12"
                   onClick={SpectroDeviceButton}
                 >
@@ -400,6 +358,7 @@ function DeviceBarcode({
                 </button>
                 {balanceDeviceList.length > 0 && (
                   <button
+                    type="button" // Add this
                     className="btn-secondary mr-12"
                     onClick={precisionBalanceButton}
                   >
@@ -408,6 +367,7 @@ function DeviceBarcode({
                 )}
                 {barcodeDeviceList.length > 0 && (
                   <button
+                    type="button" // Add this
                     className="btn-secondary mr-12"
                     onClick={barcodeScannerButton}
                   >
@@ -416,6 +376,7 @@ function DeviceBarcode({
                 )}
                 {zebraDeviceList.length > 0 && (
                   <button
+                    type="button" // Add this
                     className="btn-secondary mr-12"
                     onClick={zebraPrinterButton}
                   >
