@@ -26,11 +26,11 @@ import {
 } from 'utility/constants';
 import MeasureDeviceList from 'renderer/components/MeasureDeviceList';
 import PopupModal from 'renderer/components/PopupModal';
-import { downloadCSV } from 'utility/DownloadCSV';
 import Loader from 'renderer/components/Loader';
 import MultiFilesSelector from 'renderer/components/MultiFilesSelector';
 import ThirdPartyAPI from 'renderer/components/ThirdPartyAPI';
 import HomeFooter from 'renderer/components/HomeFooter';
+import downloadCSV from '../../utility/DownloadCSV';
 
 const { ipcRenderer } = window.electron;
 

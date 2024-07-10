@@ -25,11 +25,11 @@ import {
 } from 'utility/constants';
 
 import PopupModal from 'renderer/components/PopupModal';
-import { downloadCSV } from 'utility/DownloadCSV';
 import Loader from 'renderer/components/Loader';
 
 import ThirdPartyAPI from 'renderer/components/ThirdPartyAPI';
 import HomeFooter from 'renderer/components/HomeFooter';
+import downloadCSV from '../../utility/DownloadCSV';
 
 const { ipcRenderer } = window.electron;
 
