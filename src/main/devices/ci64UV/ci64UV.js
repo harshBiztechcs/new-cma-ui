@@ -1,13 +1,16 @@
+/* eslint-disable no-console */
+/* eslint-disable consistent-return */
+const fs = require('fs');
 const koffi = require('koffi');
 const path = require('path');
 const { dialog } = require('electron');
+const { getAssetPath } = require('../../util');
 
 let dllDir = null;
 let ci64UV = null;
 let specularType = null;
 let measureInterval = null;
 let startMeasure = false;
-const { getAssetPath } = require('../../util');
 
 const illuobsType = {
   'A/2': 0,
@@ -28,8 +31,8 @@ const illuobsType = {
   'F12/10': 23,
 };
 
-if (process.platform == 'win32') {
-  dllDir = getAssetPath('SDK', 'Ci64UV', 'x64');
+if (process.platform === 'win32') {
+  dllDir = getAssetPath('SDK', 'Ci64UV', 'x64', 'Ci64UV.dll');
   process.env.PATH = `${process.env.PATH}${path.delimiter}${dllDir}`;
 }
 
@@ -37,141 +40,76 @@ if (process.platform == 'win32') {
 const loadCi64UVLibraryFunctions = () => {
   try {
     // Load the DLL
-    ci64UV = koffi.load(path.join(dllDir, 'Ci64UV.dll'));
+    const ci62UVLibrary = koffi.load(dllDir);
 
-    if (!ci64UV) {
-      throw new Error('Failed to load Ci64UV DLL');
-    }
-
-    // Expose DLL functions to Electron
-    ci64UV.GetInterfaceVersion = ci64UV.stdcall(
-      'GetInterfaceVersion',
-      'string',
-      [],
-    );
-    ci64UV.Connect = ci64UV.stdcall('Connect', 'bool', []);
-    ci64UV.Disconnect = ci64UV.stdcall('Disconnect', 'bool', []);
-    ci64UV.IsConnected = ci64UV.stdcall('IsConnected', 'bool', []);
-    ci64UV.GetCalibrationStandard = ci64UV.stdcall(
-      'GetCalibrationStandard',
-      'string',
-      [],
-    );
-    ci64UV.GetSerialNum = ci64UV.stdcall('GetSerialNum', 'string', []);
-    ci64UV.GetSpectralSetCount = ci64UV.stdcall(
-      'GetSpectralSetCount',
-      'int',
-      [],
-    );
-    ci64UV.GetSpectralSetName = ci64UV.stdcall('GetSpectralSetName', 'string', [
-      'int',
-    ]);
-    ci64UV.GetWavelengthCount = ci64UV.stdcall('GetWavelengthCount', 'int', []);
-    ci64UV.GetWavelengthValue = ci64UV.stdcall('GetWavelengthValue', 'int', [
-      'int',
-    ]);
-    ci64UV.Measure = ci64UV.stdcall('Measure', 'bool', []);
-    ci64UV.IsDataReady = ci64UV.stdcall('IsDataReady', 'bool', []);
-    ci64UV.GetSpectralData = ci64UV.stdcall('GetSpectralData', 'float', [
-      'int',
-      'int',
-    ]);
-    ci64UV.GetCalStatus = ci64UV.stdcall('GetCalStatus', 'int', []);
-    ci64UV.GetCalSteps = ci64UV.stdcall('GetCalSteps', 'string', []);
-    ci64UV.CalibrateStep = ci64UV.stdcall('CalibrateStep', 'bool', ['string']);
-    ci64UV.GetCalMode = ci64UV.stdcall('GetCalMode', 'string', []);
-    ci64UV.GetCalProgress = ci64UV.stdcall('GetCalProgress', 'int', []);
-    ci64UV.AbortCalibration = ci64UV.stdcall('AbortCalibration', 'bool', []);
-    ci64UV.ClearSamples = ci64UV.stdcall('ClearSamples', 'bool', []);
-    ci64UV.GetSampleCount = ci64UV.stdcall('GetSampleCount', 'int', []);
-    ci64UV.GetSampleData = ci64UV.stdcall('GetSampleData', 'float', [
-      'int',
-      'int',
-    ]);
-    ci64UV.SetCurrentSample = ci64UV.stdcall('SetCurrentSample', 'bool', [
-      'int',
-    ]);
-    ci64UV.GetAvailableSettings = ci64UV.stdcall(
-      'GetAvailableSettings',
-      'string',
-      [],
-    );
-    ci64UV.GetSettingOptions = ci64UV.stdcall('GetSettingOptions', 'string', [
-      'string',
-    ]);
-    ci64UV.GetOption = ci64UV.stdcall('GetOption', 'string', ['string']);
-    ci64UV.SetOption = ci64UV.stdcall('SetOption', 'bool', [
-      'string',
-      'string',
-    ]);
-    ci64UV.ScanIsSupported = ci64UV.stdcall('ScanIsSupported', 'bool', []);
-    ci64UV.GetLastErrorCode = ci64UV.stdcall('GetLastErrorCode', 'int', []);
-    ci64UV.GetLastErrorString = ci64UV.stdcall(
-      'GetLastErrorString',
-      'string',
-      [],
-    );
-    ci64UV.Execute = ci64UV.stdcall('Execute', 'string', ['string']);
-
-    return ci64UV;
+    // Define the function signatures
+    ci64UV = {
+      GetInterfaceVersion: ci62UVLibrary.func('GetInterfaceVersion', 'str', []),
+      Connect: ci62UVLibrary.func('Connect', 'bool', []),
+      Disconnect: ci62UVLibrary.func('Disconnect', 'bool', []),
+      IsConnected: ci62UVLibrary.func('IsConnected', 'bool', []),
+      GetCalibrationStandard: ci62UVLibrary.func(
+        'GetCalibrationStandard',
+        'str',
+        [],
+      ),
+      GetSerialNum: ci62UVLibrary.func('GetSerialNum', 'str', []),
+      GetSpectralSetCount: ci62UVLibrary.func('GetSpectralSetCount', 'int', []),
+      GetSpectralSetName: ci62UVLibrary.func('GetSpectralSetName', 'str', [
+        'int',
+      ]),
+      GetWavelengthCount: ci62UVLibrary.func('GetWavelengthCount', 'int', []),
+      GetWavelengthValue: ci62UVLibrary.func('GetWavelengthValue', 'int', [
+        'int',
+      ]),
+      Measure: ci62UVLibrary.func('Measure', 'bool', []),
+      IsDataReady: ci62UVLibrary.func('IsDataReady', 'bool', []),
+      GetSpectralData: ci62UVLibrary.func('GetSpectralData', 'float', [
+        'int',
+        'int',
+      ]),
+      GetCalStatus: ci62UVLibrary.func('GetCalStatus', 'int', []),
+      GetCalSteps: ci62UVLibrary.func('GetCalSteps', 'str', []),
+      CalibrateStep: ci62UVLibrary.func('CalibrateStep', 'bool', ['str']),
+      GetCalMode: ci62UVLibrary.func('GetCalMode', 'str', []),
+      GetCalProgress: ci62UVLibrary.func('GetCalProgress', 'int', []),
+      AbortCalibration: ci62UVLibrary.func('AbortCalibration', 'bool', []),
+      ClearSamples: ci62UVLibrary.func('ClearSamples', 'bool', []),
+      GetSampleCount: ci62UVLibrary.func('GetSampleCount', 'int', []),
+      GetSampleData: ci62UVLibrary.func('GetSampleData', 'float', [
+        'int',
+        'int',
+      ]),
+      SetCurrentSample: ci62UVLibrary.func('SetCurrentSample', 'bool', ['int']),
+      GetAvailableSettings: ci62UVLibrary.func(
+        'GetAvailableSettings',
+        'str',
+        [],
+      ),
+      GetSettingOptions: ci62UVLibrary.func('GetSettingOptions', 'str', [
+        'str',
+      ]),
+      GetOption: ci62UVLibrary.func('GetOption', 'str', ['str']),
+      SetOption: ci62UVLibrary.func('SetOption', 'bool', ['str', 'str']),
+      ScanIsSupported: ci62UVLibrary.func('ScanIsSupported', 'bool', []),
+      GetLastErrorCode: ci62UVLibrary.func('GetLastErrorCode', 'int', []),
+      GetLastErrorString: ci62UVLibrary.func('GetLastErrorString', 'str', []),
+      Execute: ci62UVLibrary.func('Execute', 'str', ['str']),
+    };
   } catch (error) {
+    console.error('Error loading Ci64UV library:', error);
     dialog.showMessageBox(null, {
       title: 'Exposing Ci64UV Library Functions',
-      message: `Error loading Ci64UV library: ${error.message}`,
+      message: `Error loading Ci64UV library :- ${error.message} && DLL file exists =>${fs.existsSync(dllDir) ? 'yes' : 'no'} `,
     });
     return null; // Return null in case of an error
   }
 };
 const connect = () => ci64UV.Connect();
 const disconnect = () => ci64UV.Disconnect();
-const getAvailableSettings = () => ci64UV.GetAvailableSettings();
 const setOption = (option, value) => ci64UV.SetOption(option, value);
 const setParam = (option, value) =>
   ci64UV.Execute(`PARAM SET ${option} ${value}`);
-
-// generalSettings
-const setAllOptions = (options) => {
-  try {
-    for (const key in options) {
-      const isSet = setOption(key, options[key]);
-      if (!isSet) {
-        throw new Error(`Error setting ${key} - ${options[key]}`);
-      }
-    }
-    return { res: true, error: null };
-  } catch (error) {
-    return { res: false, error: error?.message };
-  }
-};
-
-// get general settings
-const getAllOptions = (options) => {
-  try {
-    const allOptions = {};
-    for (const key in options) {
-      const value = ci64UV.GetOption(key, options[key]);
-      allOptions[key] = value;
-    }
-    return { res: true, allOptions, error: null };
-  } catch (error) {
-    return { res: false, error: error?.message };
-  }
-};
-
-// set ci64UV device params
-const setParams = (options) => {
-  try {
-    for (const key in options) {
-      const isSet = setParam(key, options[key]);
-      if (!(isSet == '<00>')) {
-        throw new Error(`Error setting ${key} - ${options[key]}`);
-      }
-    }
-    return { res: true, error: null };
-  } catch (error) {
-    return { res: false, error: error?.message };
-  }
-};
 
 const createCi64UVConfigurationSettings = (options) => {
   const configObj = {};
@@ -183,6 +121,13 @@ const createCi64UVConfigurationSettings = (options) => {
   if (options.MeasurementMode)
     configObj.MeasurementMode = options.MeasurementMode;
   return configObj;
+};
+
+// get last error info
+const getLastError = () => {
+  const errorCode = ci64UV.GetLastErrorCode();
+  const errorString = ci64UV.GetLastErrorString();
+  return { errorCode, errorString };
 };
 
 // set ci64UV device configuration settings
@@ -244,40 +189,6 @@ const getCi64UVWhiteCalibrationResult = () => {
     };
   } catch (error) {
     return { res: false, error: error.message };
-  }
-};
-
-// manually perform calibration
-const performCalibration = () => {
-  try {
-    const allSteps = ci64UV.GetCalSteps().split(';');
-
-    allSteps.forEach((step) => {
-      const res = ci64UV.CalibrateStep(step);
-
-      if (!res) {
-        throw new Error(`Calibration failed for ${step}`);
-      }
-    });
-    return { res: true, error: null };
-  } catch (error) {
-    return { res: false, error: error.message };
-  }
-};
-
-const setDefaultTolarence = (options) => {
-  try {
-    for (const key in options) {
-      const isSet = ci64UV.Execute(`DEFAULTTOL SET ${key} ${options[key]}`);
-
-      if (!isSet) {
-        throw new Error(`Error setting ${key} - ${options[key]}`);
-      }
-      const isStore = ci64UV.Execute(`DEFAULTTOL STORE`);
-    }
-    return { res: true, error: null };
-  } catch (error) {
-    return { res: false, error: error?.message };
   }
 };
 
@@ -405,13 +316,6 @@ const getCi64UVMeasurementData = () => {
     specularType == null;
     return { res: false, error: error?.message };
   }
-};
-
-// get last error info
-const getLastError = () => {
-  const errorCode = ci64UV.GetLastErrorCode();
-  const errorString = ci64UV.GetLastErrorString();
-  return { errorCode, errorString };
 };
 
 // performs connection to ci64UV device

@@ -1,3 +1,4 @@
+/* eslint-disable no-nested-ternary */
 const axios = require('axios');
 
 // helper function
@@ -9,7 +10,7 @@ const getLogInfo = (
   url,
   parameters,
   status,
-  result
+  result,
 ) => ({
   timeStamp,
   date: new Date().toISOString().split('T')[0],
@@ -26,7 +27,6 @@ const getLogInfo = (
   status: status ?? '-',
   result: result ?? '-',
 });
-
 
 const isOnline = async (url) => {
   try {
