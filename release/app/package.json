@@ -1,7 +1,7 @@
 {
   "name": "cma_connect",
   "productName": "CMA Connect",
-  "version": "24.5.1",
+  "version": "24.7.1",
   "description": "CMA Connect",
   "main": "./dist/main/main.js",
   "scripts": {

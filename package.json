@@ -3,7 +3,7 @@
   "productName": "CMA Connect",
   "description": "CMA Connect is a software build to interface a spectrophotometer connected locally through USB port, in order to send encrypted measurements to the CMA ColorPortal Enterprise cloud-based color computing software.",
   "homepage": "https://cmaimaging.com",
-  "version": "24.5.1",
+  "version": "24.7.1",
   "keywords": [
     "End-to-End Color Management",
     "Cloud-Based Color Software",

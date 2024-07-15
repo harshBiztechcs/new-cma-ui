@@ -1,5 +1,9 @@
 CMA-Connect versions
 
+v24.7.1
+- Resolved issue with label printer popup message when opening CMA app.
+- Improved overall stability and performance, with minor bug fixes. 
+
 v24.5.1
 - CMA Refl. Op. Spectro Device integration with Automatic Scanning Table.
 - CMA Refl. Op. Spectro Device Bluetooth connection.

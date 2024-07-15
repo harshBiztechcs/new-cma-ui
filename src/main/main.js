@@ -3883,7 +3883,6 @@ ipcMain.on(GRAB_INITIAL_POSITION, async (event, args) => {
 });
 
 ipcMain.on(CURRENT_TAB_UPDATE, async (event, args) => {
-  console.log('🚀 ~ ipcMain.on ~ args:', args);
   try {
     if (args) {
       currectOpenTab = args;
