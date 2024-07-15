@@ -1565,10 +1565,10 @@ const measureCi62 = async (args) => {
     handleMeasurementComplete(samplesOutput);
   };
 
-  if (args.measurement.measurementType !== 'manually') {
-    handleAutomaticMeasurement();
-  } else {
+  if (args.settings.measurement_type === 'manually') {
     handleManualMeasurement();
+  } else {
+    handleAutomaticMeasurement();
   }
 };
 
@@ -2413,10 +2413,10 @@ const measureCi64 = async (args) => {
     handleMeasurementComplete(samplesOutput);
   };
 
-  if (args.measurement.measurementType !== 'manually') {
-    handleAutomaticMeasurement();
-  } else {
+  if (args.settings.measurement_type === 'manually') {
     handleManualMeasurement();
+  } else {
+    handleAutomaticMeasurement();
   }
 };
 
