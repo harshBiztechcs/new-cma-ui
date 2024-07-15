@@ -479,72 +479,53 @@ const getSampleInfo = (options, index, geometry) => {
   }
 };
 
-const getHeader = () => {
-  return [
-    'Name',
-    'TimeStamp',
-    'Aperture',
-    'NetProfiler Status',
-    'Transform',
-    'Trigger Mode',
-    'Project ID',
-    'Job ID',
-    'Standard',
-    ...Array.from({ length: 31 }, (_, index) => `${index + 400} nm (SPIN)`),
-    ...Array.from({ length: 31 }, (_, index) => `${index + 400} nm (SPEX)`),
-    'L value (SPIN)LAB',
-    'A value (SPIN)LAB',
-    'B value (SPIN)LAB',
-    'L value (SPEX)LAB',
-    'A value (SPEX)LAB',
-    'B value (SPEX)LAB',
-  ];
-};
-
-const basicOptions = [
-  'NAME',
-  'TIMESTAMP',
-  'APERTURE',
-  'NETPROFILERSTATUS',
-  'TRANSFORMID',
-  'TRIGGER',
-  'PROJECTID',
-  'JOBID',
-  'STANDARD',
-];
-
-const getCi62AllSamples = async () => {
-  try {
-    const header = getHeader();
-    const data = await Promise.all(
-      Array.from(
-        { length: ci62.GetSampleCount() },
-        (_, index) => index + 1,
-      ).map(async (sampleIndex) => {
-        const basicInfo = await getSampleInfo(
-          basicOptions,
-          sampleIndex,
-          'SPIN',
+const getCi62AllSamples = () =>
+  new Promise(async (resolve) => {
+    try {
+      let error = null;
+      const data = [];
+      const header =
+        'Name,TimeStamp,Aperture,NetProfiler Status,Transform,Trigger Mode,Project ID,Job ID,Standard,400 nm (SPIN),410 nm (SPIN),420 nm (SPIN),430 nm (SPIN),440 nm (SPIN),450 nm (SPIN),460 nm (SPIN),470 nm (SPIN),480 nm (SPIN),490 nm (SPIN),500 nm (SPIN),510 nm (SPIN),520 nm (SPIN),530 nm (SPIN),540 nm (SPIN),550 nm (SPIN),560 nm (SPIN),570 nm (SPIN),580 nm (SPIN),590 nm (SPIN),600 nm (SPIN),610 nm (SPIN),620 nm (SPIN),630 nm (SPIN),640 nm (SPIN),650 nm (SPIN),660 nm (SPIN),670 nm (SPIN),680 nm (SPIN),690 nm (SPIN),700 nm (SPIN),400 nm (SPEX),410 nm (SPEX),420 nm (SPEX),430 nm (SPEX),440 nm (SPEX),450 nm (SPEX),460 nm (SPEX),470 nm (SPEX),480 nm (SPEX),490 nm (SPEX),500 nm (SPEX),510 nm (SPEX),520 nm (SPEX),530 nm (SPEX),540 nm (SPEX),550 nm (SPEX),560 nm (SPEX),570 nm (SPEX),580 nm (SPEX),590 nm (SPEX),600 nm (SPEX),610 nm (SPEX),620 nm (SPEX),630 nm (SPEX),640 nm (SPEX),650 nm (SPEX),660 nm (SPEX),670 nm (SPEX),680 nm (SPEX),690 nm (SPEX),700 nm (SPEX),L value (SPIN)LAB,A value (SPIN)LAB,B value (SPIN)LAB,L value (SPEX)LAB,A value (SPEX)LAB,B value (SPEX)LAB'.split(
+          ','
         );
-        const element = await getSampleData(sampleIndex);
-        if (element) {
-          await sleep(100);
-          return [
-            ...Object.values(basicInfo),
-            ...element.reflectanceData.refSpinData,
-            ...element.reflectanceData.refSpexData,
-            ...element.LABData.labSpinData,
-            ...element.LABData.labSpexData,
-          ];
+      const basicOptions = [
+        'NAME',
+        'TIMESTAMP',
+        'APERTURE',
+        'NETPROFILERSTATUS',
+        'TRANSFORMID',
+        'TRIGGER',
+        'PROJECTID',
+        'JOBID',
+        'STANDARD',
+      ];
+      const totalSamples = ci62.GetSampleCount();
+      console.log({ totalSamples });
+      if (totalSamples) {
+        for (let index = 1; index <= totalSamples; index++) {
+          const basicInfo = [];
+          const getBasicInfo = getSampleInfo(basicOptions, index, 'SPIN');
+          const element = getSampleData(index);
+          if (element) {
+            data.push([
+              ...Object.values(getBasicInfo),
+              ...element.reflectanceData.refSpinData,
+              ...element.reflectanceData.refSpexData,
+              ...element.LABData.labSpinData,
+              ...element.LABData.labSpexData,
+            ]);
+            await sleep(100);
+          } else {
+            error = 'Error retrieving sample data from the device';
+            resolve({ header, data, error });
+          }
         }
-        throw new Error('Error retrieving sample data from the device');
-      }),
-    );
-    return { header, data, error: null };
-  } catch (error) {
-    return { header: [], data: [], error: error.message };
-  }
-};
+      }
+      resolve({ header, data, error });
+    } catch (error) {
+      resolve({ header: [], data: [], error: error.message });
+    }
+  });
 
 const getCi62SampleCount = () => ci62.GetSampleCount();
 
