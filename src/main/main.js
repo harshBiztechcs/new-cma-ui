@@ -137,6 +137,8 @@ import {
   getCi62AllSamples,
   clearAllCi62Samples,
   getCI62MeasureStatus,
+  getCi62SingleSamples,
+  performMeasurement as performMeasurementCi62,
 } from './devices/ci62/ci62';
 import {
   connectCi64Device,
@@ -152,6 +154,8 @@ import {
   getCi64AllSamples,
   clearAllCi64Samples,
   getCI64MeasureStatus,
+  getCi64SingleSamples,
+  performMeasurement as performMeasurementCi64,
 } from './devices/ci64/ci64';
 import {
   connectCi64UVDevice,
@@ -1478,53 +1482,94 @@ const calibrateCi62 = (args) => {
 };
 
 // function for taking measurement on Ci62 device type
-const measureCi62 = (args) => {
-  updateCurrentAction('waiting for measurement to complete...');
-  clearTimeout(deviceMeasurementTimeout);
-  deviceMeasurementTimeout = setTimeout(
-    () => {
-      deviceMeasurementTimeout = 0;
-      updateDeviceMeasureFlag(args.deviceConnection.deviceType, false);
-      updateCurrentAction('measurement timeout...');
-    },
-    1000 * 60 * 5,
-  );
-  waitForCi62MeasurementComplete((resMsg) => {
-    if (resMsg.res) {
-      clearTimeout(deviceMeasurementTimeout);
-      const result = getCi62MeasurementData();
-      if (result.res) {
-        args.measurement.hasMeasured = true;
-        if (Object.prototype.hasOwnProperty.call(result, 'SPINREFData')) {
-          args.measurement.measurementData = {
-            SPINREFData: result.SPINREFData,
-            SPINLABData: result.SPINLABData,
-            SPEXREFData: result.SPEXREFData,
-            SPEXLABData: result.SPEXLABData,
-          };
-        } else {
-          args.measurement.measurementData = {
-            spectrumData: result.reflectanceData,
-            LABData: result.LABData,
-          };
-        }
-        updateCurrentAction(`measurement complete`);
+const measureCi62 = async (args) => {
+  const MEASUREMENT_TIMEOUT = 1000 * 60 * 5; // 5 minutes
+
+  const handleTimeout = () => {
+    deviceMeasurementTimeout = 0;
+    updateDeviceMeasureFlag(args.deviceConnection.deviceType, false);
+    updateCurrentAction('Measurement timeout...');
+    args = { type: 'requestTimeout' };
+    webSocketWorkerWindow.webContents.send(MEASUREMENT, args);
+  };
+
+  const handleMeasurementComplete = (result) => {
+    clearTimeout(deviceMeasurementTimeout);
+    if (result.res) {
+      args.measurement.hasMeasured = true;
+      if (Object.prototype.hasOwnProperty.call(result, 'SPINREFData')) {
+        args.measurement.measurementData = {
+          SPINREFData: result.SPINREFData,
+          SPINLABData: result.SPINLABData,
+          SPEXREFData: result.SPEXREFData,
+          SPEXLABData: result.SPEXLABData,
+        };
       } else {
-        args.measurement.hasMeasured = false;
-        args.error = { message: result.error };
-        updateCurrentAction(`measurement failed`);
+        args.measurement.measurementData = {
+          spectrumData: result.reflectanceData,
+          LABData: result.LABData,
+        };
       }
-    } else if (deviceMeasurementTimeout === 0) {
-      args = { type: 'requestTimeout' };
-      deviceMeasurementTimeout = null; // reset to initial state
+      updateCurrentAction('Measurement complete');
     } else {
-      clearTimeout(deviceMeasurementTimeout);
       args.measurement.hasMeasured = false;
-      args.error = { message: resMsg.error };
-      updateCurrentAction(`measurement failed`);
+      args.error = { message: result.error };
+      updateCurrentAction('Measurement failed');
     }
     webSocketWorkerWindow.webContents.send(MEASUREMENT, args);
-  });
+  };
+
+  const handleManualMeasurement = () => {
+    updateCurrentAction('Waiting for manual measurement to complete...');
+    clearTimeout(deviceMeasurementTimeout);
+    deviceMeasurementTimeout = setTimeout(handleTimeout, MEASUREMENT_TIMEOUT);
+
+    waitForCi62MeasurementComplete((resMsg) => {
+      if (resMsg.res) {
+        const result = getCi62MeasurementData();
+        handleMeasurementComplete(result);
+      } else {
+        clearTimeout(deviceMeasurementTimeout);
+        args.measurement.hasMeasured = false;
+        args.error = { message: resMsg.error };
+        updateCurrentAction('Measurement failed');
+        webSocketWorkerWindow.webContents.send(MEASUREMENT, args);
+      }
+    });
+  };
+
+  const handleAutomaticMeasurement = async () => {
+    updateCurrentAction('Waiting for automatic measurement to complete...');
+    clearTimeout(deviceMeasurementTimeout);
+    deviceMeasurementTimeout = setTimeout(handleTimeout, MEASUREMENT_TIMEOUT);
+
+    const clearSamplesResult = await clearAllCi62Samples();
+    if (!clearSamplesResult) {
+      args.measurement.hasMeasured = false;
+      args.error = { message: 'Failed to clear samples' };
+      updateCurrentAction('Measurement failed');
+      webSocketWorkerWindow.webContents.send(MEASUREMENT, args);
+      return;
+    }
+
+    const isMeasurementPerformed = await performMeasurementCi62();
+    if (!isMeasurementPerformed) {
+      args.measurement.hasMeasured = false;
+      args.error = { message: 'Failed to perform measurement' };
+      updateCurrentAction('Measurement failed');
+      webSocketWorkerWindow.webContents.send(MEASUREMENT, args);
+      return;
+    }
+
+    const samplesOutput = await getCi62SingleSamples(args.settings.Specular);
+    handleMeasurementComplete(samplesOutput);
+  };
+
+  if (args.measurement.measurementType !== 'manually') {
+    handleAutomaticMeasurement();
+  } else {
+    handleManualMeasurement();
+  }
 };
 
 // function for calibration eXact device type
@@ -2285,53 +2330,94 @@ const calibrateCi64 = (args) => {
 };
 
 // function for taking measurement on Ci64 device type
-const measureCi64 = (args) => {
-  updateCurrentAction('waiting for measurement to complete...');
-  clearTimeout(deviceMeasurementTimeout);
-  deviceMeasurementTimeout = setTimeout(
-    () => {
-      deviceMeasurementTimeout = 0;
-      updateDeviceMeasureFlag(args.deviceConnection.deviceType, false);
-      updateCurrentAction('measurement timeout...');
-    },
-    1000 * 60 * 5,
-  );
-  waitForCi64MeasurementComplete((resMsg) => {
-    if (resMsg.res) {
-      clearTimeout(deviceMeasurementTimeout);
-      const result = getCi64MeasurementData();
-      if (result.res) {
-        args.measurement.hasMeasured = true;
-        if (result.hasOwnProperty('SPINREFData')) {
-          args.measurement.measurementData = {
-            SPINREFData: result.SPINREFData,
-            SPINLABData: result.SPINLABData,
-            SPEXREFData: result.SPEXREFData,
-            SPEXLABData: result.SPEXLABData,
-          };
-        } else {
-          args.measurement.measurementData = {
-            spectrumData: result.reflectanceData,
-            LABData: result.LABData,
-          };
-        }
-        updateCurrentAction(`measurement complete `);
+const measureCi64 = async (args) => {
+  const MEASUREMENT_TIMEOUT = 1000 * 60 * 5; // 5 minutes
+
+  const handleTimeout = () => {
+    deviceMeasurementTimeout = 0;
+    updateDeviceMeasureFlag(args.deviceConnection.deviceType, false);
+    updateCurrentAction('Measurement timeout...');
+    args = { type: 'requestTimeout' };
+    webSocketWorkerWindow.webContents.send(MEASUREMENT, args);
+  };
+
+  const handleMeasurementComplete = (result) => {
+    clearTimeout(deviceMeasurementTimeout);
+    if (result.res) {
+      args.measurement.hasMeasured = true;
+      if (Object.prototype.hasOwnProperty.call(result, 'SPINREFData')) {
+        args.measurement.measurementData = {
+          SPINREFData: result.SPINREFData,
+          SPINLABData: result.SPINLABData,
+          SPEXREFData: result.SPEXREFData,
+          SPEXLABData: result.SPEXLABData,
+        };
       } else {
-        args.measurement.hasMeasured = false;
-        args.error = { message: result.error };
-        updateCurrentAction(`measurement failed `);
+        args.measurement.measurementData = {
+          spectrumData: result.reflectanceData,
+          LABData: result.LABData,
+        };
       }
-    } else if (deviceMeasurementTimeout === 0) {
-      args = { type: 'requestTimeout' };
-      deviceMeasurementTimeout = null; // reset to initial state
+      updateCurrentAction('Measurement complete');
     } else {
-      clearTimeout(deviceMeasurementTimeout);
       args.measurement.hasMeasured = false;
-      args.error = { message: resMsg.error };
-      updateCurrentAction(`measurement failed `);
+      args.error = { message: result.error };
+      updateCurrentAction('Measurement failed');
     }
     webSocketWorkerWindow.webContents.send(MEASUREMENT, args);
-  });
+  };
+
+  const handleManualMeasurement = () => {
+    updateCurrentAction('Waiting for manual measurement to complete...');
+    clearTimeout(deviceMeasurementTimeout);
+    deviceMeasurementTimeout = setTimeout(handleTimeout, MEASUREMENT_TIMEOUT);
+
+    waitForCi64MeasurementComplete((resMsg) => {
+      if (resMsg.res) {
+        const result = getCi64MeasurementData();
+        handleMeasurementComplete(result);
+      } else {
+        clearTimeout(deviceMeasurementTimeout);
+        args.measurement.hasMeasured = false;
+        args.error = { message: resMsg.error };
+        updateCurrentAction('Measurement failed');
+        webSocketWorkerWindow.webContents.send(MEASUREMENT, args);
+      }
+    });
+  };
+
+  const handleAutomaticMeasurement = async () => {
+    updateCurrentAction('Waiting for automatic measurement to complete...');
+    clearTimeout(deviceMeasurementTimeout);
+    deviceMeasurementTimeout = setTimeout(handleTimeout, MEASUREMENT_TIMEOUT);
+
+    const clearSamplesResult = await clearAllCi64Samples();
+    if (!clearSamplesResult) {
+      args.measurement.hasMeasured = false;
+      args.error = { message: 'Failed to clear samples' };
+      updateCurrentAction('Measurement failed');
+      webSocketWorkerWindow.webContents.send(MEASUREMENT, args);
+      return;
+    }
+
+    const isMeasurementPerformed = await performMeasurementCi64();
+    if (!isMeasurementPerformed) {
+      args.measurement.hasMeasured = false;
+      args.error = { message: 'Failed to perform measurement' };
+      updateCurrentAction('Measurement failed');
+      webSocketWorkerWindow.webContents.send(MEASUREMENT, args);
+      return;
+    }
+
+    const samplesOutput = await getCi64SingleSamples(args.settings.Specular);
+    handleMeasurementComplete(samplesOutput);
+  };
+
+  if (args.measurement.measurementType !== 'manually') {
+    handleAutomaticMeasurement();
+  } else {
+    handleManualMeasurement();
+  }
 };
 
 // function for setting Ci64UV device type
@@ -2566,8 +2652,6 @@ const measureROPWithBluetooth = async (measurementArgs) => {
     handleMeasurementError(error, measurementArgs);
   }
 };
-
-
 
 // function for setting on I1Pro device type
 const settingI1Pro2 = (args) => {

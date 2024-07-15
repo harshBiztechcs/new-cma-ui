@@ -151,9 +151,6 @@ const msgLength = Buffer.alloc(4);
 // Write the integer 65000 as a 32-bit little-endian value
 msgLength.writeUInt32LE(65000, 0);
 
-// Verify the buffer contents
-console.log(msgLength);
-
 const getActualMsgFromBuffer = (mBuffer) => {
   const msg = mBuffer.toString('utf-8');
   const index = msg.indexOf('\u0000');

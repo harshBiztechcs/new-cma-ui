@@ -586,6 +586,58 @@ const clearAllCi62Samples = () =>
     }
   });
 
+// Export Measurement Data
+const getCi62SingleSamples = (specularCi62) => {
+  return new Promise((resolve) => {
+    const processSampleData = async () => {
+      try {
+        const totalSamples = ci62.GetSampleCount();
+        console.log({ totalSamples });
+
+        if (totalSamples > 0) {
+          const sampleElement = await getSampleData(0);
+
+          if (sampleElement) {
+            let reflectanceData;
+            let LABData;
+
+            if (specularCi62 === 'SPIN') {
+              reflectanceData = sampleElement.reflectanceData.refSpinData;
+              LABData = sampleElement.LABData.labSpinData;
+            } else if (specularCi62 === 'SPEX') {
+              reflectanceData = sampleElement.reflectanceData.refSpexData;
+              LABData = sampleElement.LABData.labSpexData;
+            } else if (specularCi62 === 'SPIN_SPEX') {
+              resolve({
+                res: true,
+                SPEXLABData: sampleElement.LABData.labSpexData,
+                SPEXREFData: sampleElement.reflectanceData.refSpexData,
+                SPINLABData: sampleElement.LABData.labSpinData,
+                SPINREFData: sampleElement.reflectanceData.refSpinData,
+              });
+              return;
+            }
+
+            resolve({
+              res: true,
+              reflectanceData,
+              LABData,
+            });
+          } else {
+            resolve({ error: 'Error retrieving sample data from the device' });
+          }
+        } else {
+          resolve({ error: 'No samples found on the device' });
+        }
+      } catch (error) {
+        resolve({ error: error.message });
+      }
+    };
+
+    processSampleData();
+  });
+};
+
 module.exports = {
   loadCi62LibraryFunctions,
   connectCi62Device,
@@ -605,4 +657,5 @@ module.exports = {
   getCi62SampleCount,
   execQuery,
   performMeasurement,
+  getCi62SingleSamples,
 };

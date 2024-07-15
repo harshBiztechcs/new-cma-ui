@@ -94,12 +94,6 @@ const loadSpectrometerLibraryFunctions = () => {
         ['string', 'string', 'string', 'string'],
         { stdcall: true },
       ),
-      GetInstrumentInfoBT: spectrometerLibrary.func(
-        'GetInstrumentInfoBT',
-        'string',
-        ['string'],
-        { stdcall: true },
-      ),
     };
   } catch (error) {
     console.error('Error loading ROP64 USB library:', error);
@@ -215,7 +209,7 @@ async function checkCMAROP64EConnection() {
     const output = await listSystemUSBDevices();
 
     // Search for the specific devices in the output
-    const isConnected = output.includes('1782') && output.includes('4D00');
+    const isConnected = output.includes('4D00');
 
     return {
       res: isConnected,
