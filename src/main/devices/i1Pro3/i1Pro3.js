@@ -2,6 +2,8 @@ const fs = require('fs');
 const koffi = require('koffi');
 const path = require('path');
 const { dialog } = require('electron');
+const ref = require('@lwahonen/ref-napi');
+const ArrayType = require('ref-array-di')(ref);
 const { getAssetPath } = require('../../util');
 const { checkCi62Calibration } = require('../ci62/ci62');
 
@@ -58,28 +60,23 @@ const {
   I1PRO3_PATCH_RECOGNITION_RECOGNIZED_PATCHES,
 } = require('./constants');
 
-const ArrayType = require('ref-array-di');
-console.log('ArrayType', ArrayType);
-
 // typedef
-
+let float = ref.types.float;
 // define the "int[]" type
-let FloatArray = Float32Array;
-console.log('FloatArray', FloatArray);
+let FloatArray = ArrayType(float);
 
 let sEC = null;
-// msg buffer for error/result output
-const msgBuffer = new Buffer.alloc(256);
-console.log('msgBuffer', msgBuffer);
-
-// msg buffer length pointer
-const msgLength = new Buffer.alloc(4);
-console.log('msgLength', msgLength);
-
+//msg buffer for error/result output
+let msgBuffer = new Buffer.alloc(256);
+msgBuffer.type = ref.types.char;
+//msg buffer length pointer
+let msgLength = new Buffer.alloc(4);
+msgLength.type = ref.types.uint32;
 msgLength.writeInt32LE(65000, 0);
 
-// number of entries in the array
-const count = new Buffer.alloc(4);
+//number of entries in the array
+let count = new Buffer.alloc(4);
+count.type = ref.types.uint32;
 
 // device state
 let isReadyForCalibration = false;
