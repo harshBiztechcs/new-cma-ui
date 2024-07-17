@@ -47,7 +47,7 @@ const I1PRO3_PATCH_RECOGNITION_RECOGNIZED_PATCHES = "RecognitionRecognizedPatche
 
 //color space
 const COLOR_SPACE_KEY = 'ColorSpaceDescription.Type';
-const COLOR_SPACE_CIE_LAB = 'CIELab';
+const COLOR_SPACE_CIELab = 'CIELab';
 const COLOR_SPACE_RGB = 'RGB';
 
 //illumination key
@@ -132,7 +132,7 @@ module.exports = {
   I1PRO3_EMISSION_SCAN,
   I1PRO3_AMBIENT_LIGHT_SPOT,
   COLOR_SPACE_KEY,
-  COLOR_SPACE_CIE_LAB,
+  COLOR_SPACE_CIELab,
   COLOR_SPACE_RGB,
   ILLUMINATION_KEY,
   ILLUMINATION_A,
