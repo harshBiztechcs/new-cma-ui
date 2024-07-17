@@ -553,12 +553,13 @@ const printSpectra = () => {
         console.log(
           '>>>> getSpectrum for spot measurement which uses zero index ',
         );
-        sEC = i1Pro3.getSpectrum(spectrum, 0);
+        const spectrumBuffer = koffi.buffer(spectrum);
+        sEC = i1Pro3.getSpectrum(spectrumBuffer, 0);
 
         if (sEC != 0) {
           printErrorInfo();
         } else {
-          spectralData[indx] = spectrum.toArray();
+          spectralData[indx] = Array.from(spectrumBuffer);
         }
       } catch (error) {}
     });
@@ -607,10 +608,10 @@ const printTristimuli = () => {
     indexesList.forEach((indx) => {
       try {
         sEC = i1Pro3.setOption(I1PRO3_RESULT_INDEX_KEY, indx);
+        const tristimuluBuffer = koffi.buffer(tristimulus);
+        sEC = i1Pro3.getTriStimulus(tristimuluBuffer, 0);
 
-        sEC = i1Pro3.getTriStimulus(tristimulus, 0);
-
-        tristimulus[indx] = tristimulus.toArray();
+        tristimulus[indx] = Array.from(tristimuluBuffer);
         // return tristimulus.toArray();
       } catch (error) {}
     });
@@ -1290,13 +1291,14 @@ const triggerMeasurement = () => {
 const getSpectrumResult = () => {
   try {
     const spectrum = new FloatArray(36);
-    sEC = i1Pro3.getSpectrum(spectrum, 0);
+    const spectrumBuffer = koffi.buffer(spectrum);
+    sEC = i1Pro3.getSpectrum(spectrumBuffer, 0);
 
     if (sEC != 0) {
       printErrorInfo();
       return null;
     }
-    return spectrum.toArray();
+    return Array.from(spectrumBuffer);
   } catch (error) {
     return null;
   }
@@ -1306,13 +1308,14 @@ const getSpectrumResult = () => {
 const getSpectrumResultByIndex = (index) => {
   try {
     const spectrum = new FloatArray(36);
-    sEC = i1Pro3.getSpectrum(spectrum, index);
+    const spectrumBuffer = koffi.buffer(spectrum);
+    sEC = i1Pro3.getSpectrum(spectrumBuffer, index);
 
     if (sEC != 0) {
       printErrorInfo();
       return null;
     }
-    return spectrum.toArray();
+    return Array.from(spectrumBuffer);
   } catch (error) {
     return null;
   }
@@ -1322,13 +1325,14 @@ const getSpectrumResultByIndex = (index) => {
 const getTriStimulusResult = () => {
   try {
     const tristimulus = new FloatArray(3);
-    sEC = i1Pro3.getTriStimulus(tristimulus, 0);
+    const tristimuluBuffer = koffi.buffer(tristimulus);
+    sEC = i1Pro3.getTriStimulus(tristimuluBuffer, 0);
 
     if (sEC != 0) {
       printErrorInfo();
       return null;
     }
-    return tristimulus.toArray();
+    return Array.from(tristimuluBuffer);
   } catch (error) {
     return null;
   }
@@ -1338,13 +1342,14 @@ const getTriStimulusResult = () => {
 const getTriStimulusResultByIndex = (index) => {
   try {
     const tristimulus = new FloatArray(3);
-    sEC = i1Pro3.getTriStimulus(tristimulus, index);
+    const tristimuluBuffer = koffi.buffer(tristimulus);
+    sEC = i1Pro3.getTriStimulus(tristimuluBuffer, index);
 
     if (sEC != 0) {
       printErrorInfo();
       return null;
     }
-    return tristimulus.toArray();
+    return Array.from(tristimuluBuffer);
   } catch (error) {
     return null;
   }
