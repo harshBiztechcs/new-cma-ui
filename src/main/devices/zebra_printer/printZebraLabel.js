@@ -1,9 +1,11 @@
+/* eslint-disable prefer-promise-reject-errors */
+/* eslint-disable no-console */
 const fs = require('fs');
-var ffi = require('@lwahonen/ffi-napi');
+const ffi = require('@lwahonen/ffi-napi');
 const { exec } = require('child_process');
-const { getAssetPath } = require('../../util');
 const path = require('path');
 const { dialog } = require('electron');
+const { getAssetPath } = require('../../util');
 
 let MyPrinter = null;
 let executablePath = null;
@@ -26,21 +28,19 @@ const loadPrinterFunctions = () => {
     console.log('🚀 ~ loadPrinterFunctions ~ error:', error);
     dialog.showMessageBox(null, {
       title: 'Exposing Label Printer Library Functions',
-      message: `Error loading Label Printer library :- ${error} && DLL file exists =>${fs.existsSync(dllDir) ? 'yes' : 'no'} `,
+      message: `Error loading Label Printer library :- ${error} && DLL file exists =>${fs.existsSync(path.join(executablePath, 'ZplToPrinter.dll')) ? 'yes' : 'no'} `,
     });
   }
 };
 
-//Connection
+// Connection
 function parseDeviceOutput(output) {
   return output
     .trim()
     .split('\n')
     .slice(1)
     .map((line) => {
-      const [deviceId, manufacturer, name, PNPDeviceID] = line
-        .trim()
-        .split(/\s{2,}/);
+      const [deviceId, manufacturer, name] = line.trim().split(/\s{2,}/);
       // Extract VID and PID from DeviceID
       const [, VID, PID] =
         deviceId.match(/VID_([A-F0-9]+)&PID_([A-F0-9]+)/) || [];
@@ -48,8 +48,8 @@ function parseDeviceOutput(output) {
         Name: name,
         DeviceID: deviceId,
         Manufacturer: manufacturer,
-        VID: VID,
-        PID: PID,
+        VID,
+        PID,
       };
     });
 }
@@ -80,12 +80,12 @@ function checkPrinterDeviceConnection() {
         // Check if any device matches the criteria
         const isPrinterFound = filterDevicesByVIDPID(
           devices,
-          'ZDesigner ZD421-203dpi ZPL'
+          'ZDesigner ZD421-203dpi ZPL',
         );
 
         // Resolve with the result
         resolve(isPrinterFound);
-      }
+      },
     );
   });
 }
@@ -110,7 +110,7 @@ async function handlePrintingProcess(data) {
       !data.zebra_data.deviceName
     ) {
       throw new Error(
-        'Both printer port name and ZPL content must be provided.'
+        'Both printer port name and ZPL content must be provided.',
       );
     }
 
@@ -118,7 +118,7 @@ async function handlePrintingProcess(data) {
       try {
         MyPrinter.printZPLToUSBPrinter(
           data.zebra_data.deviceName,
-          data.zebra_data.zpl_data
+          data.zebra_data.zpl_data,
         );
         resolve('Printing ZPL content to USB printer...');
       } catch (err) {
