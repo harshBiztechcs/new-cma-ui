@@ -1,149 +1,102 @@
-/* eslint-disable consistent-return */
-/* eslint-disable no-console */
 const fs = require('fs');
-const koffi = require('koffi');
+var ffi = require('@lwahonen/ffi-napi');
+const ref = require('@lwahonen/ref-napi');
 const path = require('path');
 const { dialog } = require('electron');
-const { spawn } = require('child_process');
 const { getAssetPath } = require('../../util');
-const { listSystemUSBDevices } = require('../../utility');
+const { spawn } = require('child_process');
+const { SerialPort } = require('serialport');
 
-let dllDir = null;
-let gratingSpectrometer = null;
+let dllDirectory = null;
 let cDemoFilePath = null;
+let calibrateFilePath = null;
 let settingFilePath = null;
+let informationFilePath = null;
+let gratingspectrometer = null;
 let manuallyMesurment = null;
 
+const NH_SpectrometerHandle = ref.refType('void');
+const spectrometerHandle = ref.alloc(NH_SpectrometerHandle);
+
 if (process.platform === 'win32') {
-  dllDir = getAssetPath(
-    'SDK',
-    'CMA-ROP64E-UV',
-    'x64',
-    'GratingSpectrometer.dll',
-  );
-  process.env.PATH = `${process.env.PATH}${path.delimiter}${dllDir}`;
+  dllDirectory = getAssetPath('SDK', 'CMA-ROP64E-UV', 'x64');
+  process.env.PATH = `${process.env.PATH}${path.delimiter}${dllDirectory}`;
 
   cDemoFilePath = getAssetPath(
     'SDK',
     'CMA-ROP64E-UV',
     'Automatic_mesurment',
-    'automaticMesurment',
+    'automaticMesurment'
   );
   settingFilePath = getAssetPath(
     'SDK',
     'CMA-ROP64E-UV',
     'Measurement_parameter',
-    'measurementParameterSettings',
+    'measurementParameterSettings'
   );
   manuallyMesurment = getAssetPath(
     'SDK',
     'CMA-ROP64E-UV',
     'Manually_mesurment',
-    'manuallyMesurment',
+    'manuallyMesurment'
+  );
+  informationFilePath = getAssetPath(
+    'SDK',
+    'CMA-ROP64E-UV',
+    'Device_Information',
+    'getDeviceInformation'
   );
 }
 
 // all sdk functions related to ci64UV needs to expose here first
 const loadSpectrometerLibraryFunctions = () => {
   try {
-    // Check if the DLL file exists
-    // Load the DLL
-    const spectrometerLibrary = koffi.load(dllDir);
-
-    // Define the function signatures
-    gratingSpectrometer = {
-      open_connection: spectrometerLibrary.func('open_connection', 'bool', []),
-      close_connection: spectrometerLibrary.func(
-        'close_connection',
-        'void',
-        [],
-      ),
-      GetInstrumentInfo: spectrometerLibrary.func(
-        'GetInstrumentInfo',
-        'string',
-        [],
-        {
-          stdcall: true,
-        },
-      ),
-      scan_ble_devices: spectrometerLibrary.func(
-        'scan_ble_devices',
-        'string',
-        [],
-        {
-          stdcall: true,
-        },
-      ),
-      connectByBle: spectrometerLibrary.func(
-        'connectByBle',
-        'bool',
-        ['string'],
-        {
-          stdcall: true,
-        },
-      ),
-      measureWithUSB: spectrometerLibrary.func(
-        'measureWithUSB',
-        'string',
-        ['string', 'string', 'string', 'string'],
-        { stdcall: true },
-      ),
-      measurementParameterWithUSB: spectrometerLibrary.func(
-        'measurementParameterWithUSB',
-        'string',
-        ['string', 'string', 'string', 'string'],
-        { stdcall: true },
-      ),
-    };
+    gratingspectrometer = ffi.Library(
+      path.join(dllDirectory, 'GratingSpectrometerApi'),
+      {
+        NH_OpenDevice: ['int', [NH_SpectrometerHandle, 'string']],
+        NH_DoWhiteCalibration: ['int', [NH_SpectrometerHandle]],
+        NH_DoBlackCalibration: ['int', [NH_SpectrometerHandle]],
+        NH_CloseDevice: ['void', [NH_SpectrometerHandle]],
+      }
+    );
   } catch (error) {
-    console.error('Error loading ROP64 USB library:', error);
     dialog.showMessageBox(null, {
-      title: 'Exposing ROP64 USB Library Functions',
-      message: `Error loading ROP64 USB library :- ${error.message} && DLL file exists =>${fs.existsSync(dllDir) ? 'yes' : 'no'} `,
+      title: 'Exposing CMA-ROP64E-UV Library Functions',
+      message: `Error loading CMA-ROP64E-UV library :- ${error} && DLL file exists =>${fs.existsSync(path.join(dllDirectory, 'GratingSpectrometerApi')) ? 'yes' : 'no'} `,
     });
-    return null; // Return null in case of an error
   }
 };
 
 function terminateChildProcess(childProcess) {
-  if (!childProcess.killed) {
-    childProcess.kill('SIGINT');
-    childProcess.kill('SIGTERM');
-  }
+  childProcess.kill(); // Terminate the child process
 }
 
 async function runCPlusPlusProgram(executablePath, args = []) {
-  console.log(
-    `Running C++ program at ${executablePath} with args ${args.join(' ')}`,
-  );
-
+  console.log('Run C-Demo Code...', executablePath);
   return new Promise((resolve, reject) => {
     const childProcess = spawn(executablePath, args);
 
     childProcess.stdout.on('data', (data) => {
       terminateChildProcess(childProcess);
-      resolve(data.toString().trim()); // trim to remove trailing newline
+      resolve(data.toString());
     });
 
-    childProcess.stderr.on('data', (errorData) => {
-      reject(new Error(`${errorData.toString().trim()}`));
+    childProcess.stderr.on('data', (data) => {
+      reject('failure.');
     });
 
-    childProcess.on('exit', (code) => {
-      if (code !== 0) {
-        reject(new Error(`${code}`));
-      }
-    });
+    childProcess.on('exit', (code, signal) => {});
 
     childProcess.on('error', (error) => {
-      reject(new Error(`${error.message}`));
+      reject(error);
     });
 
     process.stdin.resume();
 
     const handleTermination = () => {
       terminateChildProcess(childProcess);
-      process.exit(1); // exit with non-zero code to indicate error
+      process.exit();
     };
 
     process.on('SIGINT', handleTermination);
@@ -151,100 +104,88 @@ async function runCPlusPlusProgram(executablePath, args = []) {
   });
 }
 
-function trimObjectValues(obj) {
-  if (typeof obj !== 'object' || obj === null) {
-    return obj;
-  }
+function convertStringToObject(inputString) {
+  const lines = inputString.trim().split('\n');
+  const resultObject = {};
 
-  return Object.entries(obj).reduce(
-    (acc, [key, value]) => {
-      if (typeof value === 'string') {
-        acc[key] = value.trim();
-      } else if (Array.isArray(value)) {
-        acc[key] = value.map((item) =>
-          typeof item === 'string' ? item.trim() : trimObjectValues(item),
-        );
-      } else if (typeof value === 'object') {
-        acc[key] = trimObjectValues(value);
-      } else {
-        acc[key] = value;
-      }
-      return acc;
-    },
-    Array.isArray(obj) ? [] : {},
-  );
+  lines.forEach((line) => {
+    const [key, value] = line.split(':').map((item) => item.trim());
+    resultObject[key] = isNaN(value) ? value : parseFloat(value) || value;
+  });
+
+  return resultObject;
+}
+
+async function trimObjectValues(obj) {
+  for (const key in obj) {
+    if (typeof obj[key] === 'string') {
+      obj[key] = obj[key].trim();
+    } else if (Array.isArray(obj[key])) {
+      obj[key] = obj[key].map((value) => value.trim());
+    } else if (typeof obj[key] === 'object') {
+      await trimObjectValues(obj[key]); // Use await for recursive call
+    }
+  }
 }
 
 async function closeSpectrometerDevice() {
   try {
-    await gratingSpectrometer.close_connection();
+    console.log('Spectrometer closed successfully.');
+    await gratingspectrometer.NH_CloseDevice(spectrometerHandle);
     return { res: true, error: null };
   } catch (error) {
-    return {
-      res: false,
-      error: `Error closing spectrometer: ${error.message}`,
-    };
+    return { res: false, error: error };
   }
 }
 
 async function openSpectrometerDevice() {
   try {
     await closeSpectrometerDevice();
-    const result = await gratingSpectrometer.open_connection();
+    const result = await gratingspectrometer.NH_OpenDevice(
+      spectrometerHandle,
+      null
+    );
 
-    if (result) {
+    if (result === 0) {
+      console.log('Spectrometer opened successfully.');
       return { res: true, error: null };
+    } else {
+      return { res: false, error: 'Failed to open spectrometer' };
     }
-    return { res: false, error: 'Failed to open spectrometer' };
   } catch (error) {
-    return {
-      res: false,
-      error: `Error opening spectrometer: ${error.message}`,
-    };
+    return { res: false, error: error };
   }
 }
-
 async function checkCMAROP64EConnection() {
   try {
-    const output = await listSystemUSBDevices();
-
-    // Search for the specific devices in the output
-    const isConnected = output.includes('4D00');
+    const ports = await SerialPort.list();
+    const connectedPort = ports.find(
+      (port) => port.vendorId === '1782' && port.productId === '4D00'
+    );
 
     return {
-      res: isConnected,
+      res: !!connectedPort,
       errorMessage: null,
     };
   } catch (error) {
     return {
       res: false,
-      errorMessage: `Error connecting to the device: ${error}`,
+      errorMessage: `Error connecting to the CMA-ROP64E-UV: ${error}`,
     };
   }
 }
 
-async function getDeviceInfoFromUSBPort() {
+async function getInformationDevice() {
   try {
     await closeSpectrometerDevice();
-    const serialNumber = await gratingSpectrometer.GetInstrumentInfo();
-
-    if (
-      typeof serialNumber === 'string' &&
-      serialNumber.trim() !== '' &&
-      !serialNumber.includes("Can't parse data")
-    ) {
-      return { res: true, data: serialNumber, error: null };
-    }
-    return {
-      res: false,
-      data: null,
-      error: 'Failed to retrieve device information',
-    };
+    const informationData = await runCPlusPlusProgram(informationFilePath);
+    const parsedData = convertStringToObject(informationData);
+    return { res: true, data: parsedData.SN, error: null };
   } catch (error) {
     return {
       res: false,
       data: null,
-      error: `Error retrieving device information: ${error.message}`,
+      error: `Information retrieval error: ${error}`,
     };
   }
 }
@@ -253,7 +194,7 @@ async function calibrateSpectrometerDevice() {
   return { res: true, error: null };
 }
 
-async function setSpectrometerOptionsViaUSB(options) {
+async function settingSpectrometerOptions(options) {
   try {
     await closeSpectrometerDevice();
 
@@ -264,7 +205,7 @@ async function setSpectrometerOptionsViaUSB(options) {
       options['Colorimetric.Observer'],
       options.UV,
     ];
-    await runCPlusPlusProgram(settingFilePath, args);
+    const data = await runCPlusPlusProgram(settingFilePath, args);
     console.log('Setting Device successfully');
     return { res: true, data: null, error: null };
   } catch (error) {
@@ -308,7 +249,7 @@ async function measureDeviceManually(settingsData) {
   }
 }
 
-async function performAutomaticMeasurement(settingsData) {
+async function measureDeviceAutomatic(settingsData) {
   try {
     await closeSpectrometerDevice();
     const args = [
@@ -341,53 +282,89 @@ async function performAutomaticMeasurement(settingsData) {
   }
 }
 
-function calculateAverages(measurements) {
-  if (!Array.isArray(measurements) || measurements.length === 0) {
-    throw new Error(
-      'Input measurements array is either not an array or empty.',
-    );
+async function calculateAverages(dataArray) {
+  if (!Array.isArray(dataArray) || dataArray.length === 0) {
+    throw new Error('Input data array is either not an array or empty.');
   }
 
-  const wavelengthRange = measurements[0].SCI['Wavelength Range'];
-  const dataLength = measurements[0].SCI.data.length;
+  const wavelengthRange = dataArray[0].SCI['Wavelength Range'];
 
-  const initialSums = {
-    SCI: { L: 0, a: 0, b: 0, data: new Array(dataLength).fill(0) },
-    SCE: { L: 0, a: 0, b: 0, data: new Array(dataLength).fill(0) },
-  };
+  // Initialize variables to store sum of L*, a*, and b* values for SCI and SCE
+  let sum_L_SCI = 0,
+    sum_a_SCI = 0,
+    sum_b_SCI = 0,
+    sum_L_SCE = 0,
+    sum_a_SCE = 0,
+    sum_b_SCE = 0;
 
-  const sums = measurements.reduce((acc, measurement) => {
-    ['SCI', 'SCE'].forEach((mode) => {
-      acc[mode].L += parseFloat(measurement[mode]['L*']);
-      acc[mode].a += parseFloat(measurement[mode]['a*']);
-      acc[mode].b += parseFloat(measurement[mode]['b*']);
+  // Initialize arrays to store sum of data values for SCI and SCE
+  let sumValues_SCI = Array(dataArray[0].SCI.data.length).fill(0);
+  let sumValues_SCE = Array(dataArray[0].SCE.data.length).fill(0);
 
-      measurement[mode].data.forEach((value, index) => {
-        acc[mode].data[index] += parseFloat(value);
-      });
+  // Iterate over dataArray to calculate sums
+  dataArray.forEach((item) => {
+    // SCI
+    sum_L_SCI += parseFloat(item.SCI['L*']);
+    sum_a_SCI += parseFloat(item.SCI['a*']);
+    sum_b_SCI += parseFloat(item.SCI['b*']);
+
+    // SCE
+    sum_L_SCE += parseFloat(item.SCE['L*']);
+    sum_a_SCE += parseFloat(item.SCE['a*']);
+    sum_b_SCE += parseFloat(item.SCE['b*']);
+
+    // SCI data
+    item.SCI.data.forEach((value, index) => {
+      sumValues_SCI[index] += parseFloat(value);
     });
-    return acc;
-  }, initialSums);
 
-  const count = measurements.length;
-  const averages = {};
-
-  ['SCI', 'SCE'].forEach((mode) => {
-    averages[mode] = {
-      'L*': (sums[mode].L / count).toFixed(2),
-      'a*': (sums[mode].a / count).toFixed(2),
-      'b*': (sums[mode].b / count).toFixed(2),
-      'Wavelength Range': wavelengthRange,
-      Interval: '10nm',
-      data: sums[mode].data.map((sum) => (sum / count).toFixed(2)),
-    };
+    // SCE data
+    item.SCE.data.forEach((value, index) => {
+      sumValues_SCE[index] += parseFloat(value);
+    });
   });
 
-  return {
+  // Calculate averages for L*, a*, and b* values
+  const avg_L_SCI = (sum_L_SCI / dataArray.length).toFixed(2);
+  const avg_a_SCI = (sum_a_SCI / dataArray.length).toFixed(2);
+  const avg_b_SCI = (sum_b_SCI / dataArray.length).toFixed(2);
+
+  const avg_L_SCE = (sum_L_SCE / dataArray.length).toFixed(2);
+  const avg_a_SCE = (sum_a_SCE / dataArray.length).toFixed(2);
+  const avg_b_SCE = (sum_b_SCE / dataArray.length).toFixed(2);
+
+  // Calculate averages for data values
+  const avgValues_SCI = sumValues_SCI.map((sum) =>
+    (sum / dataArray.length).toFixed(2)
+  );
+  const avgValues_SCE = sumValues_SCE.map((sum) =>
+    (sum / dataArray.length).toFixed(2)
+  );
+
+  // Output in the specified format
+  const output = {
     res: true,
-    data: averages,
+    data: {
+      SCI: {
+        'L*': avg_L_SCI,
+        'a*': avg_a_SCI,
+        'b*': avg_b_SCI,
+        'Wavelength Range': wavelengthRange,
+        Interval: '10nm',
+        data: avgValues_SCI,
+      },
+      SCE: {
+        'L*': avg_L_SCE,
+        'a*': avg_a_SCE,
+        'b*': avg_b_SCE,
+        'Wavelength Range': wavelengthRange,
+        Interval: '10nm',
+        data: avgValues_SCE,
+      },
+    },
     error: null,
   };
+  return output;
 }
 
 module.exports = {
@@ -396,9 +373,9 @@ module.exports = {
   closeSpectrometerDevice,
   calibrateSpectrometerDevice,
   measureDeviceManually,
-  performAutomaticMeasurement,
-  setSpectrometerOptionsViaUSB,
-  getDeviceInfoFromUSBPort,
+  measureDeviceAutomatic,
+  settingSpectrometerOptions,
+  getInformationDevice,
   checkCMAROP64EConnection,
   calculateAverages,
 };

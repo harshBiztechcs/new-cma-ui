@@ -1,12 +1,9 @@
-/* eslint-disable consistent-return */
-/* eslint-disable no-console */
 const fs = require('fs');
-const koffi = require('koffi');
+var ffi = require('@lwahonen/ffi-napi');
+const ref = require('@lwahonen/ref-napi');
 const path = require('path');
 const { dialog, app } = require('electron');
-const { Buffer } = require('buffer');
 const { getAssetPath } = require('../../util');
-// msg buffer length pointer
 
 let dllDir = null;
 let sEC = null;
@@ -15,7 +12,7 @@ const userDataPath = app.getPath('userData');
 
 // msg buffer for error/result output
 const measBuffer = Buffer.alloc(40000);
-measBuffer.type = 'char';
+measBuffer.type = ref.types.char;
 
 if (process.platform === 'win32') {
   dllDir = getAssetPath('SDK', 'i1iO', 'win', 'x64');
@@ -28,7 +25,7 @@ if (process.platform === 'win32') {
     'mac',
     'i1iOBridge',
     'Output',
-    'i1iOBridge',
+    'i1iOBridge'
   );
 }
 
@@ -39,85 +36,37 @@ let measurementInterval = null;
 
 const loadI1IOLibraryFunctions = () => {
   try {
-    const i1ioLibrary = koffi.load(dllDir);
-
-    i1iO = {
-      registerTableExtensions: i1ioLibrary.func(
-        'registerTableExtensions',
-        'int',
-        [],
-      ),
-      getOption: i1ioLibrary.func('getOption', 'int', [
-        'string',
-        'string',
-        'int*',
-      ]),
-      setOption: i1ioLibrary.func('setOption', 'int', ['string', 'string']),
-      setGlobalOption: i1ioLibrary.func('setGlobalOption', 'int', [
-        'string',
-        'string',
-      ]),
-      getGlobalOption: i1ioLibrary.func('getGlobalOption', 'string', [
-        'string',
-        'char*',
-        'int*',
-      ]),
-      getGlobalOptionD: i1ioLibrary.func('getGlobalOptionD', 'string', [
-        'string',
-      ]),
-      openDevice: i1ioLibrary.func('openDevice', 'bool', []),
-      closeDevice: i1ioLibrary.func('closeDevice', 'int', []),
-      getButtonStatus: i1ioLibrary.func('getButtonStatus', 'int', []),
-      getTopLeftChartPosition: i1ioLibrary.func(
-        'getTopLeftChartPosition',
-        'bool',
-        [],
-      ),
-      getBottomLeftChartPosition: i1ioLibrary.func(
-        'getBottomLeftChartPosition',
-        'bool',
-        [],
-      ),
-      getBottomRightChartPosition: i1ioLibrary.func(
-        'getBottomRightChartPosition',
-        'bool',
-        [],
-      ),
-      scanChart: i1ioLibrary.func('scanChart', 'bool', [
-        'int',
-        'int',
-        'float',
-        'string',
-        'bool',
-        'int',
-      ]),
-      getConnectionStatus: i1ioLibrary.func('getConnectionStatus', 'int', []),
-      calibrateDevice: i1ioLibrary.func('calibrateDevice', 'int', []),
-      grabInitialPosition: i1ioLibrary.func('grabInitialPosition', 'bool', []),
-      setOutputDirPath: i1ioLibrary.func('setOutputDirPath', 'bool', [
-        'string',
-      ]),
-      openOutputFile: i1ioLibrary.func('openOutputFile', 'bool', []),
-      closeOutputFile: i1ioLibrary.func('closeOutputFile', 'bool', []),
-      getMeasurementString: i1ioLibrary.func('getMeasurementString', 'bool', [
-        'char*',
-      ]),
-      resetMeasurementString: i1ioLibrary.func(
-        'resetMeasurementString',
-        'bool',
-        [],
-      ),
-    };
+    i1iO = ffi.Library(dllDir, {
+      registerTableExtensions: ['int', []],
+      getOption: ['int', ['string', 'string', 'int *']],
+      setOption: ['int', ['string', 'string']],
+      setGlobalOption: ['int', ['string', 'string']],
+      getGlobalOption: ['string', ['string', 'char *', 'int *']],
+      getGlobalOptionD: ['string', ['string']],
+      openDevice: ['bool', []],
+      closeDevice: ['int', []],
+      getButtonStatus: ['int', []],
+      getTopLeftChartPosition: ['bool', []],
+      getBottomLeftChartPosition: ['bool', []],
+      getBottomRightChartPosition: ['bool', []],
+      scanChart: ['bool', ['int', 'int', 'float', 'string', 'bool', 'int']],
+      getConnectionStatus: ['int', []],
+      calibrateDevice: ['int', []],
+      grabInitialPosition: ['bool', []],
+      setOutputDirPath: ['bool', ['string']],
+      openOutputFile: ['bool', []],
+      closeOutputFile: ['bool', []],
+      getMeasurementString: ['bool', ['char *']],
+      resetMeasurementString: ['bool', []],
+    });
 
     i1iO.setOutputDirPath(userDataPath);
     i1iO.openOutputFile();
   } catch (error) {
-    console.error('Error loading i1io library:', error);
     dialog.showMessageBox(null, {
       title: 'Exposing i1io Library Functions',
-      message: `Error loading i1io library :- ${error.message} && DLL file exists =>${fs.existsSync(dllDir) ? 'yes' : 'no'} `,
+      message: `Error loading i1io library :- ${error} && DLL file exists =>${fs.existsSync(dllDir) ? 'yes' : 'no'} `,
     });
-    return null; // Return null in case of an error
   }
 };
 
@@ -133,6 +82,8 @@ const I1_LAST_ERROR_NUMBER = 'LastErrorNumber';
 const I1_MEASUREMENT_MODE = 'MeasurementMode';
 const I1_REFLECTANCE_SCAN = 'ReflectanceScan';
 const I1_DUAL_REFLECTANCE_SCAN = 'DualReflectanceScan';
+const I1_PATCH_RECOGNITION_KEY = 'RecognitionKey';
+const I1_PATCH_RECOGNITION_BASIC = 'RecognitionBasic';
 const I1_RESULT_INDEX_KEY = 'ResultIndexKey';
 const I1_RESET = 'Reset';
 const I1_ALL = 'All';
@@ -142,14 +93,13 @@ const buttonType = {
   eButtonNotPressed: 1001,
 };
 
+// msg buffer for error/result output
 const msgBuffer = Buffer.alloc(256);
-msgBuffer.type = 'char';
-
-// Allocate a buffer of 4 bytes
+msgBuffer.type = ref.types.char;
+// msg buffer length pointer
 const msgLength = Buffer.alloc(4);
-
-// Write the integer 65000 as a 32-bit little-endian value
-msgLength.writeUInt32LE(65000, 0);
+msgLength.type = ref.types.uint32;
+msgLength.writeInt32LE(65000, 0);
 
 const getActualMsgFromBuffer = (mBuffer) => {
   const msg = mBuffer.toString('utf-8');
@@ -224,7 +174,7 @@ const openI1IODevice = () => {
       i1iO.setGlobalOption(I1_RESET, I1_ALL);
       return {
         res: false,
-        error: printErrorInfo(),
+        error: printErrorInfo()
       };
     }
 
@@ -234,13 +184,13 @@ const openI1IODevice = () => {
       i1iO.setGlobalOption(I1_RESET, I1_ALL);
       return {
         res: false,
-        error: printErrorInfo(),
+        error: printErrorInfo()
       };
     }
 
     return {
       res: true,
-      error: null,
+      error: null
     };
   } catch (error) {
     i1iO.setGlobalOption(I1_RESET, I1_ALL);
@@ -248,8 +198,8 @@ const openI1IODevice = () => {
       res: false,
       error: {
         errorNo: 0,
-        message: error?.message,
-      },
+        message: error?.message
+      }
     };
   }
 };
@@ -312,7 +262,7 @@ const getMeasDataFromOutputFilesI1IO = () => {
         if (!(x.includes('BEGIN_DATA') || x === '')) {
           const lineData = x.trim().split(' ');
           tempData[lineData[1]] = lineData.filter(
-            (val, index) => !(index === 0 || index === 1),
+            (val, index) => !(index === 0 || index === 1)
           );
         }
       });
@@ -367,7 +317,7 @@ const getOutputFileDataI1IO = () => {
 
 const waitForButtonPressedI1IO = (callback) => waitForButtonPressed(callback);
 
-const calibrateI1IODevice = () => {
+const   calibrateI1IODevice = () => {
   const calRes = i1iO.calibrateDevice();
   if (calRes !== 0) return { res: false, error: printErrorInfo() };
   return { res: true, error: null };
@@ -399,28 +349,25 @@ const convertFloat = (val) => {
 // set I1IO options
 const setI1IOOptions = (options) => {
   try {
-    const setPrior = [];
+      let setPrior = [];
 
-    setPrior[I1_MEASUREMENT_MODE] =
-      options.ResultIndexKey === 'M0'
-        ? I1_REFLECTANCE_SCAN
-        : I1_DUAL_REFLECTANCE_SCAN;
-    //  setPrior[I1_MEASUREMENT_MODE] = I1_DUAL_REFLECTANCE_SCAN;
-    //  setPrior[I1_PATCH_RECOGNITION_KEY] = I1_PATCH_RECOGNITION_BASIC;
+      setPrior[I1_MEASUREMENT_MODE] = options["ResultIndexKey"] == "M0" ? I1_REFLECTANCE_SCAN : I1_DUAL_REFLECTANCE_SCAN;
+      //  setPrior[I1_MEASUREMENT_MODE] = I1_DUAL_REFLECTANCE_SCAN;
+      //  setPrior[I1_PATCH_RECOGNITION_KEY] = I1_PATCH_RECOGNITION_BASIC;
 
-    const finalOptions = { ...setPrior, ...options };
+       const finalOptions = { ...setPrior, ...options } ;
 
-    Object.keys({ ...setPrior, ...options }).forEach((key) => {
-      if (key === 'MeasAverageNum') {
-        return;
-      }
+       Object.keys({ ...setPrior, ...options }).forEach((key) => {
+         if (key === 'MeasAverageNum') {
+           return;
+         }
 
       sEC = i1iO.setOption(key, finalOptions[key]);
 
       if (sEC !== 0) {
         printErrorInfo();
         throw new Error(
-          `Setting ${key} option failed : ${printErrorInfo().message}`,
+          `Setting ${key} option failed : ${printErrorInfo().message}`
         );
       }
     });
@@ -456,7 +403,7 @@ const scanChartAutomaticI1IO = (
   nRows,
   nColumns,
   nGapSize,
-  ignorePatchAtLastRow,
+  ignorePatchAtLastRow
 ) => {
   try {
     startMeasure = true;
@@ -470,7 +417,7 @@ const scanChartAutomaticI1IO = (
       nGapSize,
       'false',
       true,
-      ignorePatchAtLastRow,
+      ignorePatchAtLastRow
     );
     startMeasure = false;
     if (!scanRes) return { res: false, error: printErrorInfo() };

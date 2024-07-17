@@ -1,8 +1,6 @@
-/* eslint-disable consistent-return */
-/* eslint-disable no-console */
 const fs = require('fs');
-const { Buffer } = require('buffer');
-const koffi = require('koffi');
+var ffi = require('@lwahonen/ffi-napi');
+const ref = require('@lwahonen/ref-napi');
 const path = require('path');
 const { dialog, app } = require('electron');
 const { getAssetPath } = require('../../util');
@@ -14,7 +12,7 @@ const userDataPath = app.getPath('userData');
 
 // msg buffer for error/result output
 const measBuffer = Buffer.alloc(40000);
-measBuffer.type = 'char';
+measBuffer.type = ref.types.char;
 
 if (process.platform === 'win32') {
   dllDir = getAssetPath('SDK', 'i1iO3', 'win', 'x64');
@@ -27,7 +25,7 @@ if (process.platform === 'win32') {
     'mac',
     'i1iO3Bridge',
     'Output',
-    'i1iO3Bridge',
+    'i1iO3Bridge'
   );
 }
 
@@ -38,85 +36,37 @@ let measurementInterval = null;
 
 const loadI1io3LibraryFunctions = () => {
   try {
-    const i1io3Library = koffi.load(dllDir);
-
-    i1iO3 = {
-      registerTableExtensions: i1io3Library.func(
-        'registerTableExtensions',
-        'int',
-        [],
-      ),
-      getOption: i1io3Library.func('getOption', 'int', [
-        'string',
-        'string',
-        'int*',
-      ]),
-      setOption: i1io3Library.func('setOption', 'int', ['string', 'string']),
-      setGlobalOption: i1io3Library.func('setGlobalOption', 'int', [
-        'string',
-        'string',
-      ]),
-      getGlobalOption: i1io3Library.func('getGlobalOption', 'string', [
-        'string',
-        'char*',
-        'int*',
-      ]),
-      getGlobalOptionD: i1io3Library.func('getGlobalOptionD', 'string', [
-        'string',
-      ]),
-      openDevice: i1io3Library.func('openDevice', 'bool', []),
-      closeDevice: i1io3Library.func('closeDevice', 'int', []),
-      getButtonStatus: i1io3Library.func('getButtonStatus', 'int', []),
-      getTopLeftChartPosition: i1io3Library.func(
-        'getTopLeftChartPosition',
-        'bool',
-        [],
-      ),
-      getBottomLeftChartPosition: i1io3Library.func(
-        'getBottomLeftChartPosition',
-        'bool',
-        [],
-      ),
-      getBottomRightChartPosition: i1io3Library.func(
-        'getBottomRightChartPosition',
-        'bool',
-        [],
-      ),
-      scanChart: i1io3Library.func('scanChart', 'bool', [
-        'int',
-        'int',
-        'float',
-        'string',
-        'bool',
-        'int',
-      ]),
-      getConnectionStatus: i1io3Library.func('getConnectionStatus', 'int', []),
-      calibrateDevice: i1io3Library.func('calibrateDevice', 'int', []),
-      grabInitialPosition: i1io3Library.func('grabInitialPosition', 'bool', []),
-      setOutputDirPath: i1io3Library.func('setOutputDirPath', 'bool', [
-        'string',
-      ]),
-      openOutputFile: i1io3Library.func('openOutputFile', 'bool', []),
-      closeOutputFile: i1io3Library.func('closeOutputFile', 'bool', []),
-      getMeasurementString: i1io3Library.func('getMeasurementString', 'bool', [
-        'char*',
-      ]),
-      resetMeasurementString: i1io3Library.func(
-        'resetMeasurementString',
-        'bool',
-        [],
-      ),
-    };
+    i1iO3 = ffi.Library(dllDir, {
+      registerTableExtensions: ['int', []],
+      getOption: ['int', ['string', 'string', 'int *']],
+      setOption: ['int', ['string', 'string']],
+      setGlobalOption: ['int', ['string', 'string']],
+      getGlobalOption: ['string', ['string', 'char *', 'int *']],
+      getGlobalOptionD: ['string', ['string']],
+      openDevice: ['bool', []],
+      closeDevice: ['int', []],
+      getButtonStatus: ['int', []],
+      getTopLeftChartPosition: ['bool', []],
+      getBottomLeftChartPosition: ['bool', []],
+      getBottomRightChartPosition: ['bool', []],
+      scanChart: ['bool', ['int', 'int', 'float', 'string', 'bool', 'int']],
+      getConnectionStatus: ['int', []],
+      calibrateDevice: ['int', []],
+      grabInitialPosition: ['bool', []],
+      setOutputDirPath: ['bool', ['string']],
+      openOutputFile: ['bool', []],
+      closeOutputFile: ['bool', []],
+      getMeasurementString: ['bool', ['char *']],
+      resetMeasurementString: ['bool', []],
+    });
 
     i1iO3.setOutputDirPath(userDataPath);
     i1iO3.openOutputFile();
   } catch (error) {
-    console.error('Error loading i1io3 library:', error);
     dialog.showMessageBox(null, {
       title: 'Exposing i1io3 Library Functions',
-      message: `Error loading i1io3 library :- ${error.message} && DLL file exists =>${fs.existsSync(dllDir) ? 'yes' : 'no'} `,
+      message: `Error loading i1io3 library :- ${error} && DLL file exists =>${fs.existsSync(dllDir) ? 'yes' : 'no'} `,
     });
-    return null; // Return null in case of an error
   }
 };
 
@@ -142,14 +92,13 @@ const buttonType = {
   e3ButtonNotPressed: 1001,
 };
 
+// msg buffer for error/result output
 const msgBuffer = Buffer.alloc(256);
-msgBuffer.type = 'char';
-
-// Allocate a buffer of 4 bytes
+msgBuffer.type = ref.types.char;
+// msg buffer length pointer
 const msgLength = Buffer.alloc(4);
-
-// Write the integer 65000 as a 32-bit little-endian value
-msgLength.writeUInt32LE(65000, 0);
+msgLength.type = ref.types.uint32;
+msgLength.writeInt32LE(65000, 0);
 
 const getActualMsgFromBuffer = (mBuffer) => {
   const msg = mBuffer.toString('utf-8');
@@ -224,7 +173,7 @@ const openI1iO3Device = () => {
       i1iO3.setGlobalOption(I1PRO3_RESET, I1PRO3_ALL);
       return {
         res: false,
-        error: printErrorInfo(),
+        error: printErrorInfo()
       };
     }
 
@@ -234,13 +183,13 @@ const openI1iO3Device = () => {
       i1iO3.setGlobalOption(I1PRO3_RESET, I1PRO3_ALL);
       return {
         res: false,
-        error: printErrorInfo(),
+        error: printErrorInfo()
       };
     }
 
     return {
       res: true,
-      error: null,
+      error: null
     };
   } catch (error) {
     i1iO3.setGlobalOption(I1PRO3_RESET, I1PRO3_ALL);
@@ -248,8 +197,8 @@ const openI1iO3Device = () => {
       res: false,
       error: {
         errorNo: 0,
-        message: error?.message,
-      },
+        message: error?.message
+      }
     };
   }
 };
@@ -312,7 +261,7 @@ const getMeasDataFromOutputFilesI1IO3 = () => {
         if (!(x.includes('BEGIN_DATA') || x === '')) {
           const lineData = x.trim().split(' ');
           tempData[lineData[1]] = lineData.filter(
-            (val, index) => !(index === 0 || index === 1),
+            (val, index) => !(index === 0 || index === 1)
           );
         }
       });
@@ -408,7 +357,7 @@ const setI1IO3Options = (options) => {
       if (sEC !== 0) {
         printErrorInfo();
         throw new Error(
-          `Setting ${key} option failed : printErrorInfo().message`,
+          `Setting ${key} option failed : printErrorInfo().message`
         );
       }
     });
@@ -444,7 +393,7 @@ const scanChartAutomaticI1IO3 = (
   nRows,
   nColumns,
   nGapSize,
-  ignorePatchAtLastRow,
+  ignorePatchAtLastRow
 ) => {
   try {
     startMeasure = true;
@@ -458,7 +407,7 @@ const scanChartAutomaticI1IO3 = (
       nGapSize,
       'false',
       true,
-      ignorePatchAtLastRow,
+      ignorePatchAtLastRow
     );
     startMeasure = false;
     if (!scanRes) return { res: false, error: printErrorInfo() };

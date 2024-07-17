@@ -24,7 +24,7 @@ const {
 } = require('../ci64UV/ci64UV');
 const {
   checkCMAROP64EConnection,
-  performAutomaticMeasurement,
+  measureDeviceAutomatic,
 } = require('../CMA-ROP64E-UV/CMA-ROP64E-UV-USB');
 const {
   checkBluetoothConnection,
@@ -142,7 +142,7 @@ const connectColorScoutDevice = async (deviceTypeFromColorPortalSide) => {
       }
 
       const filteredPorts = portsDetail.data.filter(
-        (port) => port.manufacturer === 'FTDI' || port.vendorId === '0403',
+        (port) => port.manufacturer === 'FTDI' || port.vendorId === '0403'
       );
 
       if (filteredPorts.length == 0) {
@@ -335,7 +335,7 @@ const grabInitialPositionColorScout = async (args) => {
       }
 
       const filteredPorts = portsDetail.data.filter(
-        (port) => port.manufacturer === 'FTDI' || port.vendorId === '0403',
+        (port) => port.manufacturer === 'FTDI' || port.vendorId === '0403'
       );
 
       if (filteredPorts.length == 0) {
@@ -517,8 +517,9 @@ async function waitForButtonPressedColorScout(index, typeOfDevice, row) {
               return;
             }
             await sleep(100);
-            let getActuallyPressedKeyRes =
-              await portPromise(actuallyPressedKeyQ);
+            let getActuallyPressedKeyRes = await portPromise(
+              actuallyPressedKeyQ
+            );
             if (getActuallyPressedKeyRes.success) {
               await sleep(100);
               if (status == '') await sleep(500);
@@ -593,7 +594,7 @@ async function waitForButtonPressedColorScout(index, typeOfDevice, row) {
 
       // If manufacturer & vendorId will be changed you have to change this code.
       const filteredPorts = portsDetail.data.filter(
-        (port) => port.manufacturer === 'FTDI' || port.vendorId === '0403',
+        (port) => port.manufacturer === 'FTDI' || port.vendorId === '0403'
       );
 
       if (filteredPorts.length == 0) {
@@ -755,7 +756,7 @@ async function waitForButtonPressedColorScout(index, typeOfDevice, row) {
         await waitForButtonPressed();
 
         let getLastEnterPosRes = await portPromise(
-          lastEnterPositionCoordinationQ,
+          lastEnterPositionCoordinationQ
         );
         if (!getLastEnterPosRes.success) {
           await CloseThePort();
@@ -828,7 +829,7 @@ async function scanChartAutomaticColorScout(
   patchesToIgnoreInLastRow,
   patchWidth,
   patchHeight,
-  settingsData,
+  settingsData
 ) {
   fileCreated = false;
   return await new Promise(async (resolve) => {
@@ -895,7 +896,7 @@ async function scanChartAutomaticColorScout(
       }
 
       const filteredPorts = portsDetail.data.filter(
-        (port) => port.manufacturer === 'FTDI' || port.vendorId === '0403',
+        (port) => port.manufacturer === 'FTDI' || port.vendorId === '0403'
       );
 
       if (filteredPorts.length == 0) {
@@ -1039,7 +1040,7 @@ async function scanChartAutomaticColorScout(
         }
 
         let tenThetaValueForVerticalLine = parseFloat(
-          ((Bpoint[1] - Apoint[1]) / (Bpoint[0] - Apoint[0])).toFixed(9),
+          ((Bpoint[1] - Apoint[1]) / (Bpoint[0] - Apoint[0])).toFixed(9)
         );
         if (isNaN(tenThetaValueForVerticalLine)) {
           tenThetaValueForVerticalLine = 0;
@@ -1059,7 +1060,7 @@ async function scanChartAutomaticColorScout(
           Math.sin((angleOfVerticalLine * Math.PI) / 180).toFixed(9);
 
         let tenThetaValueForHorizontalLine = parseFloat(
-          ((Cpoint[1] - Bpoint[1]) / (Cpoint[0] - Bpoint[0])).toFixed(9),
+          ((Cpoint[1] - Bpoint[1]) / (Cpoint[0] - Bpoint[0])).toFixed(9)
         );
         if (isNaN(tenThetaValueForHorizontalLine)) {
           tenThetaValueForHorizontalLine = 0;
@@ -1112,7 +1113,7 @@ async function scanChartAutomaticColorScout(
             status = '';
 
             let moveTableToXYPos = await portPromise(
-              `; 208 0 0 ${Xcord} ${Ycord}\r\n`,
+              `; 208 0 0 ${Xcord} ${Ycord}\r\n`
             );
             if (!moveTableToXYPos.success) {
               await CloseThePort();
@@ -1164,7 +1165,7 @@ async function scanChartAutomaticColorScout(
             } else if (deviceType == 'CI64UV') {
               measureRes = performMeasurementCi64UV();
             } else if (deviceType == 'CMA-ROP64E-UV') {
-              measureRes = await performAutomaticMeasurement({
+              measureRes = await measureDeviceAutomatic({
                 'Colorimetric.Observer': settingsData['Colorimetric.Observer'],
                 'Colorimetric.Illumination':
                   settingsData['Colorimetric.Illumination'],
@@ -1178,14 +1179,14 @@ async function scanChartAutomaticColorScout(
                   await generateCSVFileFromData(
                     [measureRes.data],
                     csvFilePath,
-                    fileCreated,
+                    fileCreated
                   );
                   fileCreated = true;
                 } else {
                   await generateCSVFileFromData(
                     [measureRes.data],
                     csvFilePath,
-                    fileCreated,
+                    fileCreated
                   );
                 }
               }
@@ -1202,14 +1203,14 @@ async function scanChartAutomaticColorScout(
                   await generateCSVFileFromData(
                     [measureRes.data],
                     csvFilePath,
-                    fileCreated,
+                    fileCreated
                   );
                   fileCreated = true;
                 } else {
                   await generateCSVFileFromData(
                     [measureRes.data],
                     csvFilePath,
-                    fileCreated,
+                    fileCreated
                   );
                 }
               }
@@ -1256,14 +1257,14 @@ async function scanChartAutomaticColorScout(
                     Math.round(
                       Apoint[0] +
                         xForVerticalLine * (i - 1) +
-                        -xForHorizontalLine * (column - j - 1),
+                        -xForHorizontalLine * (column - j - 1)
                     ),
                     Math.round(
                       Apoint[1] +
                         yForVerticalLine * (i - 1) +
-                        -yForHorizontalLine * (column - j - 1),
+                        -yForHorizontalLine * (column - j - 1)
                     ),
-                    firstPatch,
+                    firstPatch
                   );
                 } catch (error) {
                   return resolve({ res: false, error: error.message });
@@ -1275,14 +1276,14 @@ async function scanChartAutomaticColorScout(
                     Math.round(
                       Apoint[0] +
                         xForVerticalLine * (i - 1) +
-                        -xForHorizontalLine * j,
+                        -xForHorizontalLine * j
                     ),
                     Math.round(
                       Apoint[1] +
                         yForVerticalLine * (i - 1) +
-                        -yForHorizontalLine * j,
+                        -yForHorizontalLine * j
                     ),
-                    firstPatch,
+                    firstPatch
                   );
                 } catch (error) {
                   return resolve({ res: false, error: error.message });
@@ -1301,14 +1302,14 @@ async function scanChartAutomaticColorScout(
                     Math.round(
                       Apoint[0] +
                         -xForVerticalLine * (i - 1) +
-                        -xForHorizontalLine * (column - j - 1),
+                        -xForHorizontalLine * (column - j - 1)
                     ),
                     Math.round(
                       Apoint[1] +
                         -yForVerticalLine * (i - 1) +
-                        -yForHorizontalLine * (column - j - 1),
+                        -yForHorizontalLine * (column - j - 1)
                     ),
-                    firstPatch,
+                    firstPatch
                   );
                 } catch (error) {
                   return resolve({ res: false, error: error.message });
@@ -1320,14 +1321,14 @@ async function scanChartAutomaticColorScout(
                     Math.round(
                       Apoint[0] +
                         -xForVerticalLine * (i - 1) +
-                        -xForHorizontalLine * j,
+                        -xForHorizontalLine * j
                     ),
                     Math.round(
                       Apoint[1] +
                         -yForVerticalLine * (i - 1) +
-                        -yForHorizontalLine * j,
+                        -yForHorizontalLine * j
                     ),
-                    firstPatch,
+                    firstPatch
                   );
                 } catch (error) {
                   return resolve({ res: false, error: error.message });
@@ -1345,10 +1346,10 @@ async function scanChartAutomaticColorScout(
                   await MoveXYPositionFunction(
                     Math.round(
                       Apoint[0] -
-                        (column - j - 1) * (patchWidth * 10 + patchGap * 10),
+                        (column - j - 1) * (patchWidth * 10 + patchGap * 10)
                     ),
                     Math.round(Apoint[1] - (i - 1) * patchHeight * 10),
-                    firstPatch,
+                    firstPatch
                   );
                 } catch (error) {
                   return resolve({ res: false, error: error.message });
@@ -1358,10 +1359,10 @@ async function scanChartAutomaticColorScout(
                 try {
                   await MoveXYPositionFunction(
                     Math.round(
-                      Apoint[0] - j * (patchWidth * 10 + patchGap * 10),
+                      Apoint[0] - j * (patchWidth * 10 + patchGap * 10)
                     ),
                     Math.round(Apoint[1] - (i - 1) * patchHeight * 10),
-                    firstPatch,
+                    firstPatch
                   );
                 } catch (error) {
                   return resolve({ res: false, error: error.message });
@@ -1419,7 +1420,7 @@ async function getOutputFileDataColoScout(
   typeOfDevice,
   row,
   column,
-  patchesToIgnoreInLastRow,
+  patchesToIgnoreInLastRow
 ) {
   return await new Promise(async (resolve) => {
     console.log('====== Get Output FileData ColoScout ====');

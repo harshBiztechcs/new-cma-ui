@@ -1,9 +1,8 @@
 const fs = require('fs');
-const koffi = require('koffi');
-
+var ffi = require('@lwahonen/ffi-napi');
 const { dialog } = require('electron');
-const path = require('path');
-
+var path = require('path');
+const ref = require('@lwahonen/ref-napi');
 const {
   I1_LAST_ERROR_TEXT,
   I1_LAST_ERROR_NUMBER,
@@ -16,6 +15,7 @@ const {
   I1_ILLUMINATION_CONDITION_M0,
   I1_ILLUMINATION_CONDITION_M1,
   I1_ILLUMINATION_CONDITION_M2,
+  I1_ILLUMINATION_CONDITION_M3,
   OBSERVER_KEY,
   ILLUMINATION_KEY,
   I1_MEASURE_COUNT,
@@ -28,21 +28,18 @@ const {
 } = require('./constants');
 const { getAssetPath } = require('../../util');
 
+let ArrayType = require('ref-array-di')(ref);
+let float = ref.types.float;
+let FloatArray = ArrayType(float);
+
 let sEC = null;
-const msgBuffer = Buffer.alloc(256);
-
-// Allocate a buffer for the message length (4 bytes for uint32)
-const msgLength = Buffer.alloc(4);
-
-// Define float type
-
-const floatTypeSize = 4; // Assuming float type is 4 bytes
-const arrayLength = 10; // Example: 10 floats
-const FloatArraySize = arrayLength * floatTypeSize;
-
-// Allocate the buffer for the float array
-const FloatArray = Buffer.alloc(FloatArraySize);
-msgLength.writeUInt32LE(65000, 0);
+//msg buffer for error/result output
+let msgBuffer = new Buffer.alloc(256);
+msgBuffer.type = ref.types.char;
+//msg buffer length pointer
+let msgLength = new Buffer.alloc(4);
+msgLength.type = ref.types.uint32;
+msgLength.writeInt32LE(65000, 0);
 
 let dllDir = null;
 let measAvgNum = 1;
@@ -50,88 +47,54 @@ let startMeasure = false;
 let measurementInterval = null;
 let resultIndexKey = null;
 
-// constant
-const M0_M1_M2 = 'M0_M1_M2';
+//constant
+let M0_M1_M2 = 'M0_M1_M2';
 
-if (process.platform === 'win32') {
-  dllDir = getAssetPath('SDK', 'i1Pro', 'win', 'x64', 'i1ProBridge.dll');
+if (process.platform == 'win32') {
+  dllDir = getAssetPath('SDK', 'i1Pro', 'win', 'x64');
   process.env.PATH = `${process.env.PATH}${path.delimiter}${dllDir}`;
-} else if (process.platform === 'darwin') {
-  dllDir = getAssetPath(
-    'SDK',
-    'i1Pro',
-    'mac',
-    'i1ProBridge',
-    'Output',
-    'i1ProBridge.dylib',
-  );
+} else if (process.platform == 'darwin') {
+  dllDir = getAssetPath('SDK', 'i1Pro', 'mac', 'i1ProBridge', 'Output');
 }
 
 let i1Pro = null;
 
 const loadI1ProLibraryFunctions = () => {
   try {
-    const i1Pro3Library = koffi.load(dllDir);
-
-    i1Pro = {
-      getOption: i1Pro3Library.func('getOption', 'int', [
-        'string',
-        'string',
-        'int *',
-      ]),
-      setOption: i1Pro3Library.func('setOption', 'int', ['string', 'string']),
-      setGlobalOption: i1Pro3Library.func('setGlobalOption', 'int', [
-        'string',
-        'string',
-      ]),
-      getGlobalOption: i1Pro3Library.func('getGlobalOption', 'string', [
-        'string',
-        'char *',
-        'int *',
-      ]),
-      openDevice: i1Pro3Library.func('openDevice', 'bool', []),
-      calibrate: i1Pro3Library.func('calibrate', 'int', []),
-      calibrateReflectanceMode: i1Pro3Library.func(
-        'calibrateReflectanceMode',
-        'int',
-        [],
-      ),
-      calibrateReflectanceM3Mode: i1Pro3Library.func(
-        'calibrateReflectanceM3Mode',
-        'int',
-        [],
-      ),
-      triggerMeasurement: i1Pro3Library.func('triggerMeasurement', 'int', []),
-      getSpectrum: i1Pro3Library.func('getSpectrum', 'int', ['float*', 'int']),
-      getTriStimulus: i1Pro3Library.func('getTriStimulus', 'int', [
-        'float*',
-        'int',
-      ]),
-      waitForButtonPressed: i1Pro3Library.func(
-        'waitForButtonPressed',
-        'bool',
-        [],
-      ),
-      getButtonStatus: i1Pro3Library.func('getButtonStatus', 'int', []),
-      getConnectionStatus: i1Pro3Library.func('getConnectionStatus', 'int', []),
-    };
+    i1Pro = ffi.Library(path.join(dllDir, 'i1ProBridge'), {
+      getOption: ['int', ['string', 'string', 'int *']],
+      setOption: ['int', ['string', 'string']],
+      setGlobalOption: ['int', ['string', 'string']],
+      getGlobalOption: ['string', ['string', 'char *', 'int *']],
+      getGlobalOptionD: ['string', ['string']],
+      openDevice: ['bool', []],
+      calibrate: ['int', []],
+      calibrateReflectanceMode: ['int', []],
+      calibrateReflectanceM3Mode: ['int', []],
+      triggerMeasurement: ['int', []],
+      getSpectrum: ['int', [FloatArray, 'int']],
+      getTriStimulus: ['int', [FloatArray, 'int']],
+      waitForButtonPressed: ['bool', []],
+      getButtonStatus: ['int', []],
+      getConnectionStatus: ['int', []],
+    });
   } catch (error) {
     dialog.showMessageBox(null, {
       title: 'Exposing I1Pro2 Library Functions',
-      message: `Error loading I1Pro2 library :- ${error} && DLL file exists =>${fs.existsSync(dllDir) ? 'yes' : 'no'} `,
+      message: `Error loading I1Pro2 library :- ${error} && DLL file exists =>${fs.existsSync(path.join(dllDir, 'i1ProBridge')) ? 'yes' : 'no'} `,
     });
   }
 };
 
-// open selected device
+//open selected device
 const openI1ProDevice = () => {
   try {
-    // check if connection is already open
+    //check if connection is already open
     const connStatus = i1Pro.getConnectionStatus();
-    if (connStatus === connectionStatus.eI1ProOpen)
+    if (connStatus == connectionStatus.eI1ProOpen)
       return { res: true, error: null };
 
-    const isOpen = i1Pro.openDevice();
+    var isOpen = i1Pro.openDevice();
 
     if (isOpen) {
       return { res: true, error: null };
@@ -140,7 +103,7 @@ const openI1ProDevice = () => {
     const error = printErrorInfo();
 
     if (error.errorNo.includes('0x9001003')) {
-      return { res: true, error: null }; // device is already open
+      return { res: true, error: null }; //device is already open
     }
     return { res: false, error: error.message };
   } catch (error) {
@@ -150,8 +113,8 @@ const openI1ProDevice = () => {
 
 // sets all device options from odoo
 const setI1ProDeviceOptions = (options) => {
-  // set measurement mode to dual reflectance spot first to enable m0,m1,m2 settings
-  options.MeasurementMode = I1_DUAL_REFLECTANCE_SPOT;
+  //set measurement mode to dual reflectance spot first to enable m0,m1,m2 settings
+  options['MeasurementMode'] = I1_DUAL_REFLECTANCE_SPOT;
   try {
     for (const key in options) {
       if (key == 'MeasAverageNum') {
@@ -165,7 +128,7 @@ const setI1ProDeviceOptions = (options) => {
       }
       if (key == 'ResultIndexKey') {
         resultIndexKey = options[key];
-        // if all resultIndexKey is given then dont set in device
+        //if all resultIndexKey is given then dont set in device
         if (resultIndexKey == M0_M1_M2) continue;
       }
       sEC = i1Pro.setOption(key, options[key]);
@@ -202,8 +165,9 @@ const triggerI1ProMeasurement = () => {
     if (sEC != 0) {
       const { errorNo, message } = printErrorInfo();
       return { res: false, error: message };
+    } else {
+      return { res: true, error: null };
     }
-    return { res: true, error: null };
   } catch (error) {
     return { res: false, error: error?.message };
   }
@@ -212,13 +176,14 @@ const triggerI1ProMeasurement = () => {
 // get Spectrum data of last measurement
 const getI1ProSpectrumResult = () => {
   try {
-    const spectrum = new FloatArray(36);
+    let spectrum = new FloatArray(36);
     sEC = i1Pro.getSpectrum(spectrum, 0);
     if (sEC != 0) {
       printErrorInfo();
       return null;
+    } else {
+      return spectrum.toArray();
     }
-    return spectrum.toArray();
   } catch (error) {
     return null;
   }
@@ -227,7 +192,7 @@ const getI1ProSpectrumResult = () => {
 // get TriStimulus data of last measurement
 const getI1ProTriStimulusResult = () => {
   try {
-    const triStimulus = new FloatArray(3);
+    let triStimulus = new FloatArray(3);
     sEC = i1Pro.getTriStimulus(triStimulus, 0);
 
     if (sEC != 0) {
@@ -275,9 +240,9 @@ const getI1ProMeasurementInfo = () => {
       I1_MEASURE_COUNT,
     ];
     measurementParams.forEach((name) => {
-      const msgBuffer = new Buffer.alloc(256);
+      let msgBuffer = new Buffer.alloc(256);
       msgBuffer.type = ref.types.char;
-      const msgLength = new Buffer.alloc(4);
+      let msgLength = new Buffer.alloc(4);
       msgLength.type = ref.types.uint32;
       msgLength.writeInt32LE(65000, 0);
       sEC = i1Pro.getOption(name, msgBuffer, msgLength);
@@ -306,7 +271,7 @@ const waitForI1ProButtonPressed = (callback) => {
 
     startMeasure = true;
 
-    let buttonStatus = buttonType.eButtonNotPressed;
+    var buttonStatus = buttonType.eButtonNotPressed;
     clearInterval(measurementInterval);
     measurementInterval = setInterval(() => {
       if (!startMeasure) {
@@ -365,7 +330,7 @@ const getI1ProSerialNumber = () => {
   }
 };
 
-// get basic device info
+//get basic device info
 const getI1ProBasicDeviceInfo = () => {
   const keys = [
     I1_SERIAL_NUMBER,
@@ -386,9 +351,9 @@ const getI1ProBasicDeviceInfo = () => {
   return basicInfo;
 };
 
-// common function to get average of data array
+//common function to get average of data array
 const getAverageData = (data, averageOf) => {
-  const avgData = [];
+  let avgData = [];
   for (let i = 0; i < data[0].length; i++) {
     avgData[i] = 0;
     for (let j = 0; j < averageOf; j++) {
@@ -429,7 +394,7 @@ const getAvgOfAllResultKeyMeasurementOld = () => {
     for (let i = 0; i < measAvgNum; i++) {
       const res = triggerI1ProMeasurement();
       if (res) {
-        // get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
+        //get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
         spectrumDatas[i] = getI1ProSpectrumResult();
 
         LABDatas[i] = getI1ProLABResult();
@@ -465,14 +430,14 @@ const getAvgOfAllResultKeyMeasurementOld = () => {
 
 const getAvgOfSingleResultKeyMeasurementOld = () => {
   try {
-    const spectrumData = [];
-    const LABData = [];
-    const avgSpectrumData = [];
-    const avgLABData = [];
+    let spectrumData = [];
+    let LABData = [];
+    let avgSpectrumData = [];
+    let avgLABData = [];
     for (let i = 0; i < measAvgNum; i++) {
       const res = triggerI1ProMeasurement();
       if (res) {
-        // get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
+        //get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
         spectrumData[i] = getI1ProSpectrumResult();
         LABData[i] = getI1ProLABResult();
       } else {
@@ -513,12 +478,12 @@ const waitForButtonPressPromise = () =>
 
 const getAvgOfAllResultKeyMeasurement = async () => {
   try {
-    const M0SpectrumData = [];
-    const M1SpectrumData = [];
-    const M2SpectrumData = [];
-    const M0LABData = [];
-    const M1LABData = [];
-    const M2LABData = [];
+    let M0SpectrumData = [];
+    let M1SpectrumData = [];
+    let M2SpectrumData = [];
+    let M0LABData = [];
+    let M1LABData = [];
+    let M2LABData = [];
     let avgM0SpectrumData = [];
     let avgM1SpectrumData = [];
     let avgM2SpectrumData = [];
@@ -531,15 +496,15 @@ const getAvgOfAllResultKeyMeasurement = async () => {
         const res = triggerI1ProMeasurement();
         if (res) {
           const M0MeasData = getIndexKeyMeasurementData(
-            I1_ILLUMINATION_CONDITION_M0,
+            I1_ILLUMINATION_CONDITION_M0
           );
           const M1MeasData = getIndexKeyMeasurementData(
-            I1_ILLUMINATION_CONDITION_M1,
+            I1_ILLUMINATION_CONDITION_M1
           );
           const M2MeasData = getIndexKeyMeasurementData(
-            I1_ILLUMINATION_CONDITION_M2,
+            I1_ILLUMINATION_CONDITION_M2
           );
-          // get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
+          //get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
           M0SpectrumData[i] = M0MeasData.measData.spectrumData;
           M1SpectrumData[i] = M1MeasData.measData.spectrumData;
           M2SpectrumData[i] = M2MeasData.measData.spectrumData;
@@ -579,8 +544,8 @@ const getAvgOfAllResultKeyMeasurement = async () => {
 
 const getAvgOfSingleResultKeyMeasurement = async () => {
   try {
-    const spectrumData = [];
-    const LABData = [];
+    let spectrumData = [];
+    let LABData = [];
     let avgSpectrumData = [];
     let avgLABData = [];
     for (let i = 0; i < measAvgNum; i++) {
@@ -588,7 +553,7 @@ const getAvgOfSingleResultKeyMeasurement = async () => {
       if (buttonPressRes.res) {
         const MeasRes = triggerI1ProMeasurement();
         if (MeasRes.res) {
-          // get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
+          //get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
           spectrumData[i] = getI1ProSpectrumResult();
           LABData[i] = getI1ProLABResult();
         } else {
@@ -627,6 +592,61 @@ const getActualMsgFromBuffer = (msgBuffer) => {
   const actualMsg = index == -1 ? msg : msg.substring(0, index);
   return actualMsg;
 };
+
+const testDemo = () => {
+  loadI1ProLibraryFunctions();
+  const openRes = openI1ProDevice();
+  console.log({ openRes });
+  if (!openRes.res) return;
+
+  //setOptions for test
+
+  const setOps = setI1ProDeviceOptions({ MeasurementMode: 'ReflectanceSpot' });
+
+  // value - measurement mode for a spot measurement with Tungsten filament lamp and UV Led. Only available for i1Pro RevE devices
+  // const setOps = setI1ProDeviceOptions({
+  //   MeasurementMode: "DualReflectanceSpot",
+  // }
+  // );
+
+  //value - measurement mode for a scan on a reflective surface (chart)
+  // const setOps = setI1ProDeviceOptions({
+  //   MeasurementMode: "ReflectanceScan",
+  //   RecognitionKey: "RecognitionBasic",
+  // });
+
+  //value - measurement mode for a scan on a reflective surface (chart)
+  //value - algorithm for scans with an i1Pro RevE ruler. Requires a valid I1_NUMBER_OF_PATCHES_PER_LINE value, which must be at least 6.
+  // const setOps = setI1ProDeviceOptions({
+  //   MeasurementMode: "DualReflectanceScan",
+  //   RecognitionKey: "RecognitionPosition",
+  //   PatchesPerLine: "6",
+  //   ScanDirectionKey: "1",
+  //   OnMeasurementSuccessNoLedIndication: "1",
+  // });
+
+  console.log({ setOps });
+  if (!setOps.res) return;
+  console.log('Press button for calibration !!');
+  waitForI1ProButtonPressed(() => {
+    const calRes = calibrateI1ProDevice();
+    console.log({ calRes });
+    if (!calRes.res) return;
+    console.log('Press button for measurement !!');
+    waitForI1ProButtonPressed(() => {
+      const mesRes = triggerI1ProMeasurement();
+      console.log({ mesRes });
+      if (!mesRes.res) return;
+      console.log({
+        spectralData: getI1ProSpectrumResult(),
+        LABData: getI1ProLABResult(),
+        RGBData: getI1ProRGBResult(),
+      });
+    });
+  });
+};
+
+//testDemo();
 
 module.exports = {
   loadI1ProLibraryFunctions,

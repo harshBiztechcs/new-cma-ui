@@ -1,8 +1,12 @@
-/* eslint-disable no-console */
-const { spawn } = require('child_process');
+var ffi = require('@lwahonen/ffi-napi');
+const ref = require('@lwahonen/ref-napi');
+const path = require('path');
+const { dialog } = require('electron');
 const { getAssetPath } = require('../../util');
+const { spawn } = require('child_process');
+const { SerialPort } = require('serialport');
+const ReadlineParser = require('@serialport/parser-readline');
 const { closeSpectrometerDevice } = require('./CMA-ROP64E-UV-USB');
-const { listSystemUSBDevices } = require('../../utility');
 
 let autoMeasurementFilePath = null;
 let measurementParamsFilePath = null;
@@ -16,49 +20,72 @@ if (process.platform === 'win32') {
     'SDK',
     'CMA-ROP64E-UV-BT',
     'Automatic_measurement',
-    'automaticMeasurement',
+    'automaticMeasurement'
   );
   measurementParamsFilePath = getAssetPath(
     'SDK',
     'CMA-ROP64E-UV-BT',
     'Measurement_parameter',
-    'measurementParameterSettings',
+    'measurementParameterSettings'
   );
   manualMeasurementFilePath = getAssetPath(
     'SDK',
     'CMA-ROP64E-UV-BT',
     'Manual_measurement',
-    'manualMeasurement',
+    'manualMeasurement'
   );
   scanDEviceFilePath = getAssetPath(
     'SDK',
     'CMA-ROP64E-UV-BT',
     'Scan_Device',
-    'scanDevice',
+    'scanDevice'
   );
   informationFilePath = getAssetPath(
     'SDK',
     'CMA-ROP64E-UV-BT',
     'Device_Information',
-    'getDeviceInformation',
+    'getDeviceInformation'
   );
+}
+
+async function findConnectedPort() {
+  try {
+    const ports = await SerialPort.list();
+    const connectedPort = ports.find(
+      (port) => port.vendorId === '1A86' && port.productId === '7523'
+    );
+    if (connectedPort) {
+      return {
+        res: true,
+        data: connectedPort,
+        error: null,
+      };
+    } else {
+      return {
+        res: false,
+        data: null,
+        error: 'No connected port found.',
+      };
+    }
+  } catch (error) {
+    return {
+      res: false,
+      data: null,
+      error: `Error finding connected port: ${error}`,
+    };
+  }
 }
 
 async function checkBluetoothConnection() {
   try {
-    const output = await listSystemUSBDevices();
-
-    // Search for the specific devices in the output
-    const isConnected = output.includes('1A86') && output.includes('7523');
-
-    return {
-      res: isConnected,
-      errorMessage: null,
-    };
+    // await closeSpectrometerDevice();
+    const { res, data, error } = await findConnectedPort();
+    return { res, data, error };
   } catch (error) {
     return {
       res: false,
-      errorMessage: `Error connecting to the device: ${error}`,
+      data: null,
+      error: `Error checking connection: ${error}`,
     };
   }
 }
@@ -92,6 +119,18 @@ async function executeCPlusPlusProgram(executablePath, args = []) {
   });
 }
 
+function parseDataStringToObject(inputString) {
+  const lines = inputString.trim().split('\n');
+  const resultObject = {};
+
+  lines.forEach((line) => {
+    const [key, value] = line.split(':').map((item) => item.trim());
+    resultObject[key] = isNaN(value) ? value : parseFloat(value) || value;
+  });
+
+  return resultObject;
+}
+
 async function trimObjectValues(obj) {
   for (const key in obj) {
     if (typeof obj[key] === 'string') {
@@ -118,7 +157,7 @@ async function setSpectrometerOptions(options, macAddress) {
     } catch (error) {
       console.log(
         '🚀 ~ file: CMA-ROP64E-UV-BT.js:148 ~ setSpectrometerOptions ~ error:',
-        error,
+        error
       );
       return {
         res: false,
@@ -180,7 +219,7 @@ async function measureDeviceManuallyWithBT(settingsData, macAddress) {
     ];
     const measurementData = await executeCPlusPlusProgram(
       manualMeasurementFilePath,
-      args,
+      args
     );
 
     if (measurementData) {
@@ -208,7 +247,7 @@ async function measureDeviceManuallyWithBT(settingsData, macAddress) {
 
 async function tryMeasureDeviceAutomaticallyWithBluetooth(
   measurementParams,
-  deviceMAC,
+  deviceMAC
 ) {
   try {
     await closeSpectrometerDevice();
@@ -222,7 +261,7 @@ async function tryMeasureDeviceAutomaticallyWithBluetooth(
 
     const measurementData = await executeCPlusPlusProgram(
       autoMeasurementFilePath,
-      args,
+      args
     );
 
     if (measurementData) {
@@ -316,8 +355,7 @@ async function tryGetScannedDeviceList() {
   await closeSpectrometerDevice();
 
   try {
-    const scannedDeviceListArr =
-      await executeCPlusPlusProgram(scanDEviceFilePath);
+    const scannedDeviceListArr = await executeCPlusPlusProgram(scanDEviceFilePath);
 
     if (scannedDeviceListArr) {
       const scannedDeviceList = convertData(scannedDeviceListArr);
@@ -344,20 +382,12 @@ async function getScannedDeviceList() {
         return deviceListData;
       }
     } catch (error) {
-      return {
-        res: false,
-        data: null,
-        error: 'Failed to scan device. Please unplug the USB and plug it again',
-      };
+      return { res: false, data: null, error: 'Failed to scan device. Please unplug the USB and plug it again' };
     }
     attempt++;
   }
 
-  return {
-    res: false,
-    data: null,
-    error: 'Please unplug the USB and plug it again',
-  };
+  return { res: false, data: null, error: 'Please unplug the USB and plug it again' };
 }
 
 function convertStringToObject(inputString) {
@@ -395,12 +425,13 @@ async function fetchDataFromDevice() {
 async function getInformationDeviceWithBT() {
   if (!deviceSerialNumber) {
     return await fetchDataFromDeviceWithRetry();
+  } else {
+    return {
+      res: true,
+      data: { serialNumber: deviceSerialNumber },
+      error: null,
+    };
   }
-  return {
-    res: true,
-    data: { serialNumber: deviceSerialNumber },
-    error: null,
-  };
 }
 
 async function fetchDataFromDeviceWithRetry() {

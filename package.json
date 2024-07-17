@@ -111,6 +111,7 @@
   "devDependencies": {
     "@electron/notarize": "^2.1.0",
     "@electron/rebuild": "^3.3.0",
+    "@lwahonen/ffi-napi": "^4.0.12",
     "@lwahonen/ref-napi": "^4.0.8",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.11",
     "@svgr/webpack": "^8.1.0",

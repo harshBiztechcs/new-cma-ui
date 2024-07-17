@@ -1,13 +1,13 @@
-const koffi = require('koffi');
+const fs = require('fs');
+var ffi = require('@lwahonen/ffi-napi');
 const { dialog } = require('electron');
-const path = require('path');
+var path = require('path');
 const { getAssetPath } = require('../../util');
-
-let dllDir = null;
-if (process.platform === 'win32') {
+var dllDir = null;
+if (process.platform == 'win32') {
   dllDir = getAssetPath('SDK', 'eXact', 'win', 'x64');
   process.env.PATH = `${process.env.PATH}${path.delimiter}${dllDir}`;
-} else if (process.platform === 'darwin') {
+} else if (process.platform == 'darwin') {
   dllDir = getAssetPath('SDK', 'eXact', 'mac', 'x86_64');
 }
 
@@ -35,91 +35,57 @@ const illuobsType = {
   'F12/10': 23,
 };
 
-// constant
-const M0_M2_M3 = 'M0_M2_M3';
+//constant
+let M0_M2_M3 = 'M0_M2_M3';
 
 const loadExactLibraryFunctions = () => {
   try {
-    exact = koffi.load(path.join(dllDir, 'eXact'));
-
-    if (!exact) {
-      throw new Error('Failed to load eXact DLL');
-    }
-
-    // Expose DLL functions to Electron
-    exact.GetInterfaceVersion = exact.stdcall(
-      'GetInterfaceVersion',
-      'string',
-      [],
-    );
-    exact.Connect = exact.stdcall('Connect', 'bool', []);
-    exact.Disconnect = exact.stdcall('Disconnect', 'bool', []);
-    exact.IsConnected = exact.stdcall('IsConnected', 'bool', []);
-    exact.GetCalibrationStandard = exact.stdcall(
-      'GetCalibrationStandard',
-      'string',
-      [],
-    );
-    exact.GetSerialNum = exact.stdcall('GetSerialNum', 'string', []);
-    exact.GetSpectralSetCount = exact.stdcall('GetSpectralSetCount', 'int', []);
-    exact.GetSpectralSetName = exact.stdcall('GetSpectralSetName', 'string', [
-      'int',
-    ]);
-    exact.GetWavelengthCount = exact.stdcall('GetWavelengthCount', 'int', []);
-    exact.GetWavelengthValue = exact.stdcall('GetWavelengthValue', 'int', [
-      'int',
-    ]);
-    exact.Measure = exact.stdcall('Measure', 'bool', []);
-    exact.IsDataReady = exact.stdcall('IsDataReady', 'bool', []);
-    exact.GetSpectralData = exact.stdcall('GetSpectralData', 'float', [
-      'int',
-      'int',
-    ]);
-    exact.GetCalStatus = exact.stdcall('GetCalStatus', 'int', []);
-    exact.GetCalSteps = exact.stdcall('GetCalSteps', 'string', []);
-    exact.CalibrateStep = exact.stdcall('CalibrateStep', 'bool', ['string']);
-    exact.GetCalMode = exact.stdcall('GetCalMode', 'string', []);
-    exact.GetCalProgress = exact.stdcall('GetCalProgress', 'int', []);
-    exact.AbortCalibration = exact.stdcall('AbortCalibration', 'bool', []);
-    exact.ClearSamples = exact.stdcall('ClearSamples', 'bool', []);
-    exact.GetSampleCount = exact.stdcall('GetSampleCount', 'int', []);
-    exact.GetSampleData = exact.stdcall('GetSampleData', 'float', [
-      'int',
-      'int',
-    ]);
-    exact.SetCurrentSample = exact.stdcall('SetCurrentSample', 'bool', ['int']);
-    exact.GetAvailableSettings = exact.stdcall(
-      'GetAvailableSettings',
-      'string',
-      [],
-    );
-    exact.GetSettingOptions = exact.stdcall('GetSettingOptions', 'string', [
-      'string',
-    ]);
-    exact.GetOption = exact.stdcall('GetOption', 'string', ['string']);
-    exact.SetOption = exact.stdcall('SetOption', 'bool', ['string', 'string']);
-    exact.ScanIsSupported = exact.stdcall('ScanIsSupported', 'bool', []);
-    exact.GetLastErrorCode = exact.stdcall('GetLastErrorCode', 'int', []);
-    exact.GetLastErrorString = exact.stdcall(
-      'GetLastErrorString',
-      'string',
-      [],
-    );
-    exact.Execute = exact.stdcall('Execute', 'string', ['string']);
-
-    return exact;
+    exact = ffi.Library(path.join(dllDir, 'eXact'), {
+      GetInterfaceVersion: ['string', []],
+      Connect: ['bool', []],
+      Disconnect: ['bool', []],
+      IsConnected: ['bool', []],
+      GetCalibrationStandard: ['string', []],
+      GetSerialNum: ['string', []],
+      GetSpectralSetCount: ['int', []],
+      GetSpectralSetName: ['string', ['int']],
+      GetWavelengthCount: ['int', []],
+      GetWavelengthValue: ['int', ['int']],
+      Measure: ['bool', []],
+      IsDataReady: ['bool', []],
+      GetSpectralData: ['float', ['int', 'int']],
+      GetCalStatus: ['int', []],
+      GetCalSteps: ['string', []],
+      CalibrateStep: ['bool', ['string']],
+      GetCalMode: ['string', []],
+      GetCalProgress: ['int', []],
+      AbortCalibration: ['bool', []],
+      ClearSamples: ['bool', []],
+      GetSampleCount: ['int', []],
+      GetSampleData: ['float', ['int', 'int']],
+      SetCurrentSample: ['bool', ['int']],
+      GetAvailableSettings: ['string', []],
+      GetSettingOptions: ['string', ['string']],
+      GetOption: ['string', ['string']],
+      SetOption: ['bool', ['string', 'string']],
+      ScanIsSupported: ['bool', []],
+      GetLastErrorCode: ['int', []],
+      GetLastErrorString: ['string', []],
+      Execute: ['string', ['string']],
+    });
   } catch (error) {
     dialog.showMessageBox(null, {
       title: 'Exposing Exact Library Functions',
-      message: `Error loading Exact library: ${error.message}`,
+      message: `Error loading Exact library :- ${error} && DLL file exists =>${fs.existsSync(path.join(dllDir, 'eXact')) ? 'yes' : 'no'} `,
     });
-    return null; // Return null in case of an error
   }
 };
 
 const connect = () => exact.Connect();
 const disconnect = () => exact.Disconnect();
+const getAvailableSettings = () => exact.GetAvailableSettings();
 const isDataReady = () => exact.IsDataReady();
+const setOption = (option, value) => exact.SetOption(option, value);
 const setParam = (option, value) =>
   exact.Execute(`PARAM SET ${option} ${value}`);
 
@@ -130,14 +96,14 @@ const getLastError = () => {
   return { errorCode, errorString };
 };
 
-// performs connection to exact device
+//performs connection to exact device
 const connectExactDevice = () => {
   try {
     // connection
     if (exact.IsConnected()) return { res: true, error: null };
-    const isConnect = connect();
+    var isConnect = connect();
     if (!isConnect) {
-      const error = getLastError();
+      var error = getLastError();
 
       return { res: false, error: error.errorString };
     }
@@ -195,7 +161,7 @@ const getTimeSinceLastCalibration = () => {
 };
 
 const getCalibrationExpireTime = () => {
-  const calStatus = exact.Execute('CALSTATUS GET');
+  var calStatus = exact.Execute('CALSTATUS GET');
   if (calStatus.includes('OK')) {
     try {
       const expireIn = calStatus.split(' ')[2];
@@ -209,7 +175,7 @@ const getCalibrationExpireTime = () => {
 
 const checkExactCalibration = () => {
   try {
-    const calStatus = exact.Execute('CALSTATUS GET');
+    var calStatus = exact.Execute('CALSTATUS GET');
     if (calStatus.includes('OK')) {
       return true;
     }
@@ -223,9 +189,9 @@ const disconnectExactDevice = () => {
   try {
     // connection
     if (!exact.IsConnected()) return { res: true, error: null };
-    const isDisconnected = disconnect();
+    var isDisconnected = disconnect();
     if (!isDisconnected) {
-      const error = getLastError();
+      var error = getLastError();
 
       return { res: false, error: error.errorString };
     }
@@ -236,15 +202,45 @@ const disconnectExactDevice = () => {
   }
 };
 
+// generalSettings
+const setAllOptions = (options) => {
+  try {
+    for (const key in options) {
+      const isSet = setOption(key, options[key]);
+      if (!isSet) {
+        throw new Error(`Error setting ${key} - ${options[key]}`);
+      }
+    }
+    return { res: true, error: null };
+  } catch (error) {
+    return { res: false, error: error?.message };
+  }
+};
+
+//set exact device params
+const setParams = (options) => {
+  try {
+    for (const key in options) {
+      const isSet = setParam(key, options[key]);
+      if (!(isSet == '<00>')) {
+        throw new Error(`Error setting ${key} - ${options[key]}`);
+      }
+    }
+    return { res: true, error: null };
+  } catch (error) {
+    return { res: false, error: error?.message };
+  }
+};
+
 const createExactConfigurationSettings = (options) => {
   const configObj = {};
   const illumination = options['Colorimetric.Illumination'];
   const obsrever = options['Colorimetric.Observer'] == 'TwoDegree' ? 2 : 10;
-  configObj.ResultIndexKey = options.ResultIndexKey;
-  configObj.MeasAverageNum = options.MeasAverageNum;
-  configObj.IllumObs = illuobsType[`${illumination}/${obsrever}`];
-  if (options.DensityStatus) {
-    configObj.DENSITYSTATUS = options.DensityStatus;
+  configObj['ResultIndexKey'] = options['ResultIndexKey'];
+  configObj['MeasAverageNum'] = options['MeasAverageNum'];
+  configObj['IllumObs'] = illuobsType[`${illumination}/${obsrever}`];
+  if (options['DensityStatus']) {
+    configObj['DENSITYSTATUS'] = options['DensityStatus'];
   }
   return configObj;
 };
@@ -268,13 +264,15 @@ const setExactDeviceConfiguration = (obj) => {
         if (options[key] == 'M1') {
           if (res == '0') {
             throw new Error(
-              `Device isn't configured to support M1 measurement. Please configure device for M1 first and try again`,
+              `Device isn't configured to support M1 measurement. Please configure device for M1 first and try again`
             );
           }
-        } else if (res == '1') {
-          throw new Error(
-            `Device isn't configured to support ${options[key]} measurement. Please configure device for ${options[key]} first and try again`,
-          );
+        } else {
+          if (res == '1') {
+            throw new Error(
+              `Device isn't configured to support ${options[key]} measurement. Please configure device for ${options[key]} first and try again`
+            );
+          }
         }
         filterType = options[key];
         continue;
@@ -291,12 +289,30 @@ const setExactDeviceConfiguration = (obj) => {
   }
 };
 
+// manually perform calibration
+const performCalibration = () => {
+  try {
+    const allSteps = exact.GetCalSteps().split(';');
+
+    allSteps.forEach((step) => {
+      const res = exact.CalibrateStep(step);
+
+      if (!res) {
+        throw new Error(`Calibration failed for ${step}`);
+      }
+    });
+    return { res: true, error: null };
+  } catch (error) {
+    return { res: false, error: error.message };
+  }
+};
+
 // common helper function to wait for calibration to complete,
 // passed callback function will be called after calibration done
 const waitForExactCalibrationComplete = (callback) => {
   // var calProgress = exact.GetCalProgress();
   // or we can use command for this
-  let calProgress = exact.Execute('CALSTATUS GET');
+  var calProgress = exact.Execute('CALSTATUS GET');
 
   var interval = setInterval(() => {
     // calProgress = exact.GetCalProgress();
@@ -328,7 +344,7 @@ const getExactWhiteCalibrationResult = () => {
 const performMeasurement = () => {
   try {
     console.log(
-      `error log before measurement ${exact.Execute('ERRORLOG GET')}`,
+      `error log before measurement ${exact.Execute('ERRORLOG GET')}`
     );
     const res = exact.Measure();
 
@@ -341,7 +357,7 @@ const performMeasurement = () => {
   }
 };
 
-// change status of startMeasure
+//change status of startMeasure
 const updateExactStartMeasure = (value) => {
   startMeasure = value;
 };
@@ -358,10 +374,10 @@ const waitForExactMeasurementComplete = (callback) => {
 
     startMeasure = true;
 
-    let isReady = isDataReady();
+    var isReady = isDataReady();
     clearInterval(measureInterval);
     measureInterval = setInterval(() => {
-      // check if startMeasure is still true or clear interval
+      //check if startMeasure is still true or clear interval
       if (!startMeasure) {
         clearInterval(measureInterval);
         const resMsg = {
@@ -400,9 +416,9 @@ const convertFloatValues = (data) => {
   return data.map((x) => parseFloat(x));
 };
 
-// common function to get average of data array
+//common function to get average of data array
 const getAverageData = (data, averageOf) => {
-  const avgData = [];
+  let avgData = [];
   for (let i = 0; i < data[0].length; i++) {
     avgData[i] = 0;
     for (let j = 0; j < averageOf; j++) {
@@ -453,25 +469,25 @@ const getExactMeasurementData = () => {
 
 const getAvgM0M2M3MeasurementData = () => {
   try {
-    const M0SpectrumData = [];
-    const M2SpectrumData = [];
-    const M3SpectrumData = [];
-    const M0LABData = [];
-    const M2LABData = [];
-    const M3LABData = [];
+    let M0SpectrumData = [];
+    let M2SpectrumData = [];
+    let M3SpectrumData = [];
+    let M0LABData = [];
+    let M2LABData = [];
+    let M3LABData = [];
     let avgM0SpectrumData = [];
     let avgM2SpectrumData = [];
     let avgM3SpectrumData = [];
     let avgM0LABData = [];
     let avgM2LABData = [];
     let avgM3LABData = [];
-    const spectrumData = [];
-    const LABData = [];
-    const avgSpectrumData = [];
-    const avgLABData = [];
-    const M0FirstMeasData = getFilterExactMeasurementData('M0');
-    const M2FirstMeasData = getFilterExactMeasurementData('M2');
-    const M3FirstMeasData = getFilterExactMeasurementData('M3');
+    let spectrumData = [];
+    let LABData = [];
+    let avgSpectrumData = [];
+    let avgLABData = [];
+    let M0FirstMeasData = getFilterExactMeasurementData('M0');
+    let M2FirstMeasData = getFilterExactMeasurementData('M2');
+    let M3FirstMeasData = getFilterExactMeasurementData('M3');
     M0SpectrumData[0] = M0FirstMeasData.reflectanceData;
     M2SpectrumData[0] = M2FirstMeasData.reflectanceData;
     M3SpectrumData[0] = M3FirstMeasData.reflectanceData;
@@ -481,7 +497,7 @@ const getAvgM0M2M3MeasurementData = () => {
     for (let i = 1; i < measAvgNum; i++) {
       const measRes = performMeasurement();
       if (measRes.res) {
-        // get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
+        //get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
         const M0MeasData = getFilterExactMeasurementData('M0');
         const M2MeasData = getFilterExactMeasurementData('M2');
         const M3MeasData = getFilterExactMeasurementData('M3');
@@ -492,7 +508,7 @@ const getAvgM0M2M3MeasurementData = () => {
         M2LABData[i] = M2MeasData.LABData;
         M3LABData[i] = M3MeasData.LABData;
       } else {
-        const error = getLastError();
+        var error = getLastError();
 
         return {
           res: false,
@@ -537,22 +553,22 @@ const getAvgM0M2M3MeasurementData = () => {
 
 const getAvgResultIndexKeyMeasurementData = () => {
   try {
-    const spectrumData = [];
-    const LABData = [];
+    let spectrumData = [];
+    let LABData = [];
     let avgSpectrumData = [];
     let avgLABData = [];
-    const firstMeasurement = getFilterExactMeasurementData(filterType);
+    let firstMeasurement = getFilterExactMeasurementData(filterType);
     spectrumData[0] = firstMeasurement.reflectanceData;
     LABData[0] = firstMeasurement.LABData;
     for (let i = 1; i < measAvgNum; i++) {
       const measRes = performMeasurement();
       if (measRes.res) {
-        // get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
+        //get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
         const measData = getFilterExactMeasurementData(filterType);
         spectrumData[i] = measData.reflectanceData;
         LABData[i] = measData.LABData;
       } else {
-        const error = getLastError();
+        var error = getLastError();
 
         return {
           res: false,
@@ -594,6 +610,100 @@ const getExactAvgMeasurementData = () => {
   return getAvgResultIndexKeyMeasurementData();
 };
 
+const demo = () => {
+  try {
+    loadExactLibraryFunctions();
+    var interfaceVersion = exact.GetInterfaceVersion();
+    console.log({ interfaceVersion });
+    var allAvailableSettings = getAvailableSettings();
+    console.log({ allAvailableSettings: allAvailableSettings });
+    allAvailableSettings.split(';').forEach((setting) => {
+      console.log(setting + ' ' + exact.GetSettingOptions(setting));
+      console.log('default value ' + ' - ' + exact.GetOption(setting));
+    });
+
+    console.log({ calibrationSteps: exact.GetCalSteps() });
+
+    //test usb
+    console.log(exact.GetOption('Connection_Method'));
+    const setUSB = exact.SetOption('Connection_Method', 'USB');
+    console.log({ setUSB });
+    console.log(exact.GetOption('Connection_Method'));
+    console.log({ calStatus: exact.Execute('CALSTATUS GET') });
+
+    //test bluetooth
+    // console.log({ config : exact.Execute("BLUETOOTH CONFIG ALWAYSON") });
+    // console.log({ add : exact.Execute("BLUETOOTH GET ADDR")});
+    // const setBluetooh = exact.SetOption("Connection_Method", "eXact_014387");
+    // console.log({ config : exact.Execute("BLUETOOTH CONFIG ALWAYSON") });
+    // console.log({ add : exact.Execute("BLUETOOTH GET ADDR")});
+    // console.log({ setBluetooh });
+    // console.log(exact.GetOption("Connection_Method"));
+    console.log({ calStatus: exact.Execute('CALSTATUS GET') });
+    console.log({ isConnected: exact.IsConnected() });
+    const connRes = connectExactDevice();
+    console.log({ connRes });
+    //console.log({ disconnect : exact.Disconnect() })
+    console.log({ isConnected: exact.IsConnected() });
+    if (!connRes.res) return;
+    //info
+    console.log({ calibrationStandard: exact.GetCalibrationStandard() });
+    console.log({ serialNumber: exact.GetSerialNum() });
+    console.log({ calstatus: exact.GetCalStatus() });
+    console.log({ spectralCount: exact.GetSpectralSetCount() });
+    for (let index = 0; index < exact.GetSpectralSetCount(); index++) {
+      console.log('spectralSetCount ' + exact.GetSpectralSetName(index));
+    }
+    console.log({ calStatus: exact.Execute('CALSTATUS GET') });
+    console.log({ aperture: exact.Execute('INSTRUMENT GET APERTURE') });
+    console.log({ isM0M1Compliant: exact.Execute('IsM0M1Compliant') });
+    console.log({ lastMeasurement: exact.Execute('SAMPLE GET LAB 0 M1') });
+    console.log({ lastMeasurement: exact.Execute('SAMPLE GET REFL 0 M1') });
+    console.log({ model: exact.Execute('SERIALNUM GET MODEL') });
+    console.log({ IsDataReady: isDataReady() });
+
+    // console.log(" illuobs get " + exact.Execute("PARAM GET ILLUMOBS"));
+    // console.log(" illuobs set " + exact.Execute("PARAM SET ILLUMOBS 5")); //working ?
+    //  console.log(" colorspace get " + exact.Execute("PARAM GET COLORSPACE"));
+    //  console.log(" colorspace set " + exact.Execute("PARAM SET COLORSPACE 2")); //working ?
+    //console.log({ default : exact.Execute("PARAM DEFAULT all")});
+    console.log(' illuobs get ' + exact.Execute('PARAM GET ILLUMOBS'));
+    if (exact.GetCalStatus() == 1) {
+      console.log({ calibrationSteps: exact.GetCalSteps() });
+      const calres = performCalibration();
+      if (!calres.res) return;
+    }
+    console.log({ calstatus: exact.GetCalStatus() });
+    waitForExactCalibrationComplete(() => {
+      console.log('calibration completer');
+      const calResult = getExactWhiteCalibrationResult();
+      console.log({ calResult });
+      // console.log(" illuobs set " + exact.Execute("PARAM SET ILLUMOBS 4")); //“D50/2” //4
+      //console.log(" illuobs get " + exact.Execute("PARAM GET ILLUMOBS"));
+      const meanRes = performMeasurement();
+      console.log({ meanRes });
+      if (!meanRes.res) return;
+      const meanData = getExactMeasurementData();
+      console.log({ meanData });
+      console.log('updating measurement settings.....');
+      //  console.log(" illuobs set " + exact.Execute("PARAM SET ILLUMOBS 7")); //“D65/10” //7
+      //  console.log(" illuobs get " + exact.Execute("PARAM GET ILLUMOBS"));
+      console.log(' colorspace get ' + exact.Execute('PARAM GET COLORSPACE'));
+      console.log(' colorspace set ' + exact.Execute('PARAM SET COLORSPACE 2')); //working ?
+      const meanResD65 = performMeasurement();
+      console.log({ meanResD65 });
+      const meanDataD65 = getExactMeasurementData();
+      console.log({ meanDataD65 });
+      // waitForExactMeasurementComplete(() => {
+      //   const meanData = getExactMeasurementData();
+      //   console.log({ meanData });
+      // });
+    });
+  } catch (error) {
+    console.log({ error });
+  }
+};
+//demo();
 module.exports = {
   loadExactLibraryFunctions,
   connectExactDevice,

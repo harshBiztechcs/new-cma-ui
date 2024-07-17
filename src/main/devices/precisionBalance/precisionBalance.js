@@ -4,9 +4,7 @@ const ReadlineParser = require('@serialport/parser-readline');
 async function listAvailableSerialPorts() {
   try {
     const ports = await SerialPort.list();
-    const com6Port = ports.find(
-      (port) => port.vendorId === '0483' && port.manufacturer === 'Microsoft',
-    );
+    const com6Port = ports.find((port) => port.vendorId === '0483' && port.manufacturer === 'Microsoft');
 
     if (!com6Port) {
       throw new Error('Port not found. Please check your device connection.');
@@ -107,9 +105,7 @@ async function readFromSerialPortArr(port, command) {
           reject(err);
         } else {
           console.log('Serial port closed.');
-          const trimmedResults = results
-            .filter((result) => result !== null)
-            .map((result) => result.trim());
+          const trimmedResults = results.filter(result => result !== null).map(result => result.trim());
 
           if (trimmedResults.length > 0) {
             resolve(trimmedResults[0]);
@@ -141,20 +137,21 @@ async function readFromSerialPort(port, command) {
         const line = lines[i];
         const result = getStringAfterSearchWord(line, command);
 
-        port.close((err) => {
-          if (err) {
-            console.error('Error closing serial port:', err);
-            reject(err);
-          } else {
-            console.log('Serial port closed.');
-            if (result) {
-              resolve(result.trim());
+          port.close((err) => {
+            if (err) {
+              console.error('Error closing serial port:', err);
+              reject(err);
             } else {
-              reject('no data found');
+              console.log('Serial port closed.');
+              if(result){
+                resolve(result.trim());
+              }
+              else{
+              reject("no data found");
+              }
             }
-          }
-        });
-        return;
+          });
+          return;
       }
 
       dataBuffer = '';
@@ -191,14 +188,13 @@ async function connectPrecisionBalance() {
 async function checkPrecisionConnection() {
   try {
     const ports = await SerialPort.list();
-    const connectedPort = ports.find(
-      (port) => port.vendorId === '0483' && port.manufacturer === 'Microsoft',
-    );
+    const connectedPort = ports.find((port) => port.vendorId === '0483' && port.manufacturer === 'Microsoft');
 
     return {
       res: !!connectedPort,
       errorMessage: null,
     };
+
   } catch (error) {
     return {
       res: false,
@@ -224,11 +220,11 @@ async function setZero() {
     await delay(1000);
   }
 
-  return null;
+ return null;
 }
 
 async function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function makeResetDevice() {
@@ -262,6 +258,8 @@ async function makeResetDevice() {
   }
 }
 
+
+
 async function getPBSerialNumber() {
   try {
     const port = await listAvailableSerialPorts();
@@ -284,6 +282,7 @@ async function getPBSerialNumber() {
   }
 }
 
+
 async function setTareValue(number) {
   const maxAttempts = 5; // Set your maximum number of attempts
   let attempt = 0;
@@ -292,19 +291,19 @@ async function setTareValue(number) {
       const response = await setTareValueInDevice(number);
       if (response.res) {
         // Success, break out of the loop
-        console.log('Working mode set successfully.');
+        console.log("Working mode set successfully.");
         return response;
         break;
       }
       // Add a delay before the next attempt
       await delay(1000);
     } catch (error) {
-      console.error('Error in setWorkingMode:', error.message);
+      console.error("Error in setWorkingMode:", error.message);
     }
     attempt++;
   }
   if (attempt === maxAttempts) {
-    console.error('Failed to set working mode after maximum attempts.');
+    console.error("Failed to set working mode after maximum attempts.");
     // Handle the failure case here if needed
   }
 }
@@ -317,7 +316,7 @@ function setTareValueInDevice(number) {
       const commandBuffer = hexStringToBuffer(`${commandHex}-0D-0A`);
 
       await writeToSerialPort(port, commandBuffer);
-      let result = await readFromSerialPortArr(port, 'UT');
+      let result = await readFromSerialPortArr(port, "UT");
       if (result) {
         resolve({
           res: true,
@@ -342,13 +341,14 @@ function setTareValueInDevice(number) {
 
 async function getStableResultCurrentUnit() {
   await weightDataWithPromise();
-  await new Promise((resolve) => setTimeout(resolve, 600));
+  await new Promise(resolve => setTimeout(resolve, 600));
   await weightDataWithPromise();
-  await new Promise((resolve) => setTimeout(resolve, 600));
-  let weightDataValue = await weightDataWithPromise();
+  await new Promise(resolve => setTimeout(resolve, 600));
+  let weightDataValue =  await weightDataWithPromise();
 
-  return weightDataValue;
+ return  weightDataValue ;
 }
+
 
 function weightDataWithPromise() {
   return new Promise(async (resolve, reject) => {
@@ -357,12 +357,10 @@ function weightDataWithPromise() {
       const commandHex = '53-55-49-0D-0A';
       const commandBuffer = hexStringToBuffer(commandHex);
 
-      await new Promise((resolve) => setTimeout(resolve, 900));
+      await new Promise(resolve => setTimeout(resolve, 900));
       await writeToSerialPort(port, commandBuffer);
-      const mesResult = await readFromSerialPortArr(port, 'SUI');
-      const results = (mesResult || '')
-        .split(' ')
-        .filter((item) => item !== '');
+      const mesResult = await readFromSerialPortArr(port, "SUI");
+      const results = (mesResult || '').split(' ').filter(item => item !== '');
 
       resolve({
         res: true,
@@ -443,7 +441,7 @@ async function setWorkingMode() {
       const response = await setWorkingModeInDevice();
       if (response.res) {
         // Success, break out of the loop
-        console.log('Working mode set successfully.');
+        console.log("Working mode set successfully.");
         return response;
         break;
       }
@@ -451,14 +449,14 @@ async function setWorkingMode() {
       // Add a delay before the next attempt
       await delay(1000);
     } catch (error) {
-      console.error('Error in setWorkingMode:', error.message);
+      console.error("Error in setWorkingMode:", error.message);
     }
 
     attempt++;
   }
 
   if (attempt === maxAttempts) {
-    console.error('Failed to set working mode after maximum attempts.');
+    console.error("Failed to set working mode after maximum attempts.");
     // Handle the failure case here if needed
   }
 }
@@ -471,19 +469,19 @@ async function setUpperThreshold(threshold) {
       const response = await setUpperThresholdValue(threshold);
       if (response.res) {
         // Success, break out of the loop
-        console.log('Working mode set successfully.');
+        console.log("Working mode set successfully.");
         return response;
         break;
       }
       // Add a delay before the next attempt
       await delay(1000);
     } catch (error) {
-      console.error('Error in setWorkingMode:', error.message);
+      console.error("Error in setWorkingMode:", error.message);
     }
     attempt++;
   }
   if (attempt === maxAttempts) {
-    console.error('Failed to set working mode after maximum attempts.');
+    console.error("Failed to set working mode after maximum attempts.");
     // Handle the failure case here if needed
   }
 }
@@ -495,7 +493,7 @@ function setUpperThresholdValue(thresholdValue) {
       const commandHex = textToHex(`UH ${parseFloat(thresholdValue)}`);
       const commandBuffer = hexStringToBuffer(`${commandHex}-0D-0A`);
       await writeToSerialPort(port, commandBuffer);
-      let result = await readFromSerialPortArr(port, 'UH');
+      let result = await readFromSerialPortArr(port, "UH");
       if (result) {
         resolve({
           res: true,
@@ -518,6 +516,7 @@ function setUpperThresholdValue(thresholdValue) {
   });
 }
 
+
 async function setLowerThreshold(threshold) {
   const maxAttempts = 5; // Set your maximum number of attempts
   let attempt = 0;
@@ -527,7 +526,7 @@ async function setLowerThreshold(threshold) {
       const response = await setLowerThresholdValue(threshold);
       if (response.res) {
         // Success, break out of the loop
-        console.log('Working mode set successfully.');
+        console.log("Working mode set successfully.");
         return response;
         break;
       }
@@ -535,14 +534,14 @@ async function setLowerThreshold(threshold) {
       // Add a delay before the next attempt
       await delay(1000);
     } catch (error) {
-      console.error('Error in setWorkingMode:', error.message);
+      console.error("Error in setWorkingMode:", error.message);
     }
 
     attempt++;
   }
 
   if (attempt === maxAttempts) {
-    console.error('Failed to set working mode after maximum attempts.');
+    console.error("Failed to set working mode after maximum attempts.");
     // Handle the failure case here if needed
   }
 }
@@ -554,7 +553,7 @@ function setLowerThresholdValue(thresholdValue) {
       const commandHex = textToHex(`DH ${parseFloat(thresholdValue)}`);
       const commandBuffer = hexStringToBuffer(`${commandHex}-0D-0A`);
       await writeToSerialPort(port, commandBuffer);
-      let result = await readFromSerialPortArr(port, 'DH');
+      let result = await readFromSerialPortArr(port, "DH");
       if (result) {
         resolve({
           res: true,
@@ -589,5 +588,5 @@ module.exports = {
   findCurrentWorkingMode,
   setLowerThreshold,
   extractNumbersFromArray,
-  extractFirstNumberFromArray,
+  extractFirstNumberFromArray
 };

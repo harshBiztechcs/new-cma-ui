@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 const { exec } = require('child_process');
 
 // Function to parse the output and extract device information
@@ -68,6 +69,7 @@ async function checkBarcodeScannerConnection() {
     const isHIDKeyboardFound = await checkScannerDeviceConnection();
     return { res: isHIDKeyboardFound, error: null };
   } catch (error) {
+    console.error(error);
     return { res: false, error: 'Error checking device connection' };
   }
 }
