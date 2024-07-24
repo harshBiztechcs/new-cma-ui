@@ -1,5 +1,10 @@
-import React, { useState } from 'react';
-import { GET_DEVICE_INSTANCE_URL, deviceStatusType } from 'utility/constants';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  GET_DEVICE_INSTANCE_URL,
+  SEND_OPEN_URL_TO_INPUT,
+  URL_OPENED_BROWSER,
+  deviceStatusType,
+} from 'utility/constants';
 import i1pro3Icon from '../assets/image/i1pro3.jpeg';
 import i1pro2Icon from '../assets/image/i1pro2.jpeg';
 import ci64Icon from '../assets/image/ci64.jpeg';
@@ -9,45 +14,46 @@ import i1ioIcon from '../assets/image/i1io.jpeg';
 import precisionBalanceIcon from '../assets/image/Precision-balance.png';
 import barcodeReaderIcon from '../assets/image/scanner.jpg';
 import onlineIndicatorImg from '../assets/image/online-indicator.svg';
-
-const { ipcRenderer } = window.electron;
+const { ipcRenderer, shell } = window.require('electron');
 
 const getDeviceImg = (deviceType) => {
   switch (deviceType) {
     case 'I1PRO3':
       return i1pro3Icon;
+      break;
     case 'I1PRO2':
       return i1pro2Icon;
-
+      break;
     case 'CI64':
       return ci64Icon;
-
+      break;
     case 'CI64UV':
       return ci64Icon;
-
+      break;
     case 'CI62':
       return ci64Icon;
-
+      break;
     case 'EXACT':
       return exactIcon;
-
+      break;
     case 'EXACT2':
       return exact2Icon;
-
+      break;
     case 'I1IO3':
       return i1ioIcon;
-
+      break;
     case 'I1IO2':
       return i1ioIcon;
-
+      break;
     case 'PRECISION_BALANCE':
       return precisionBalanceIcon;
-
+      break;
     case 'barcode_reader':
       return barcodeReaderIcon;
-
+      break;
     default:
       return i1pro3Icon;
+      break;
   }
 };
 
@@ -56,6 +62,7 @@ function BarcodeDeviceList({
   onConnectBarcodeDevice,
   onDisconnectCurrentBarcodeDevice,
   lastConnectedBarcode,
+  onGoBackToMeasure,
   instanceURL,
 }) {
   const [device, setDevice] = useState(lastConnectedBarcode);
@@ -103,7 +110,7 @@ function BarcodeDeviceList({
                 key={dev.deviceId}
                 style={getListStyle(
                   dev.status,
-                  dev.deviceId == lastConnectedBarcode,
+                  dev.deviceId == lastConnectedBarcode
                 )}
               >
                 <td>
@@ -122,20 +129,20 @@ function BarcodeDeviceList({
                           setDevice(dev.deviceId);
                         }}
                       />
-                      <span className="checkmark" />
+                      <span className="checkmark"></span>
                     </label>
                     <div className="product-thumbnail">
                       <img
                         className="product-img"
                         src={getDeviceImg(dev.deviceType)}
                         alt="Product"
-                      />
+                      ></img>
                       {dev.status == 'connected' && (
                         <img
                           className="connected_indicator"
                           src={onlineIndicatorImg}
                           alt="Online Indicator"
-                        />
+                        ></img>
                       )}
                     </div>
                     <div className="product-detail">

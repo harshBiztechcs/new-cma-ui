@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Papa from 'papaparse';
 import DevicePageTitle from 'renderer/components/DeviceHeader';
 import DeviceLicense from 'renderer/components/DeviceLicense';
@@ -26,13 +26,12 @@ import {
 } from 'utility/constants';
 import MeasureDeviceList from 'renderer/components/MeasureDeviceList';
 import PopupModal from 'renderer/components/PopupModal';
+import { downloadCSV } from 'utility/DownloadCSV';
 import Loader from 'renderer/components/Loader';
 import MultiFilesSelector from 'renderer/components/MultiFilesSelector';
 import ThirdPartyAPI from 'renderer/components/ThirdPartyAPI';
 import HomeFooter from 'renderer/components/HomeFooter';
-import downloadCSV from '../../utility/DownloadCSV';
-
-const { ipcRenderer } = window.electron;
+const { ipcRenderer } = window.require('electron');
 
 function DeviceMeasurement({
   username,
@@ -203,7 +202,7 @@ function DeviceMeasurement({
       return 0;
     });
   };
-  const onShowDialog = (args) => {
+  const onShowDialog = (_, args) => {
     if (args.message == 'Requested CMA client not found') {
       // setError('Requested action not completed!!');
       // setErrorBtnText('Retry On Instance');
@@ -218,13 +217,13 @@ function DeviceMeasurement({
     }
   };
 
-  const onDeviceDisconnectTimeout = (args) => {
+  const onDeviceDisconnectTimeout = (_, args) => {
     if (args.hasTimeout) {
       onDisconnectDeviceAfterTimeout(args.deviceType);
     }
   };
 
-  const onClearSamplesRes = (args) => {
+  const onClearSamplesRes = (_, args) => {
     if (!args.res) {
       setError(args.message);
       setErrorBtnText('OK');
@@ -236,11 +235,11 @@ function DeviceMeasurement({
     setIsSampleInProgress(false);
   };
 
-  const onCurrentAction = ( args) => {
+  const onCurrentAction = (event, args) => {
     setCurrentAction(args);
   };
 
-  const onSamplesData = (args) => {
+  const onSamplesData = (_, args) => {
     const { header, data, error } = args;
     if (error) {
       setError(error);
@@ -268,7 +267,7 @@ function DeviceMeasurement({
     ipcRenderer.send(CLEAR_SAMPLES, device?.deviceType);
   };
 
-  const onCheckDeviceConnection = ( args) => {
+  const onCheckDeviceConnection = (event, args) => {
     if (args) {
       setDeviceConnectionStatus(true);
     } else {
@@ -283,7 +282,7 @@ function DeviceMeasurement({
     }
   };
 
-  const onCloseDevice = ( args) => {
+  const onCloseDevice = (event, args) => {
     if (args.res) {
       //TODO : release device licenses here by calling main
       onDeviceDisConnect(currentDevice);
@@ -297,7 +296,7 @@ function DeviceMeasurement({
     ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
   };
 
-  const onGetDeviceInstanceLink = (args) => {
+  const onGetDeviceInstanceLink = (_, args) => {
     if (args.res) {
       window.open(args.url);
     } else {
@@ -329,18 +328,17 @@ function DeviceMeasurement({
     ipcRenderer.send(GET_DEVICE_AND_LICENSES, { instanceURL, username, token });
   };
 
-  const onRefreshDevicesLicenses = (args) => {
+  const onRefreshDevicesLicenses = (_, args) => {
     setTimeout(() => {
       handleRefresh();
     }, 3000);
   };
 
-  const onDeviceAndLicensesRes = useCallback((args) => {
-    console.log(' 85236 args', args)
+  const onDeviceAndLicensesRes = (_, args) => {
     onGetDeviceAndLicenses(args);
-  }, []);
+  };
 
-  const onDeviceConnection = (args) => {
+  const onDeviceConnection = (_, args) => {
     //if device connected successfully from equipment app then refresh device list and licenses
     if (args) {
       const device = deviceList.find((x) => x.deviceId == currentDevice);
@@ -368,7 +366,7 @@ function DeviceMeasurement({
     }
   };
 
-  const onDeviceRelease = (args) => {
+  const onDeviceRelease = (_, args) => {
     // if device disconnected from equipment app then refresh device list and licenses
     if (args) {
       setTimeout(() => {
@@ -377,7 +375,7 @@ function DeviceMeasurement({
     }
   };
 
-  const onMeasureInProgress = (args) => {
+  const onMeasureInProgress = (_, args) => {
     setForceDisconnectError(
       'Measurement is in progress, are you sure you want to disconnect ?'
     );

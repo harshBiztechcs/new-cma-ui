@@ -1,8 +1,6 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable react/prop-types */
-/* eslint-disable react-hooks/exhaustive-deps */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import DevicePageTitle from 'renderer/components/DeviceHeader';
+import DeviceLicense from 'renderer/components/DeviceLicense';
 import Pagination from 'renderer/components/Pagination';
 import Timeline from 'renderer/components/Timeline';
 import ConnectModal from 'renderer/components/ConnectModal';
@@ -14,19 +12,21 @@ import {
   GET_DEVICE_INSTANCE_URL,
   DEVICE_DISCONNECTION,
   VERIFY_DEVICE_CONNECTION,
+  COLOR_GATE_API_REQ,
+  COLOR_GATE_API_BUTTON_CLICK,
   DISCONNECT_DEVICE,
   DEVICE_DISCONNECT_API_CALL,
   DEVICE_CONNECTION,
   CHECK_ZEBRA_DEVICE_CONNECTION,
   CURRENT_TAB_UPDATE,
 } from 'utility/constants';
-
+import DeviceList from 'renderer/components/DeviceList';
 import PopupModal from 'renderer/components/PopupModal';
 import ThirdPartyAPI from 'renderer/components/ThirdPartyAPI';
 import HomeFooter from 'renderer/components/HomeFooter';
 import ZebraDeviceList from 'renderer/components/ZebraDeviceList';
 
-const { ipcRenderer } = window.electron;
+const { ipcRenderer } = window.require('electron');
 
 function DeviceZebraPrinter({
   username,
@@ -82,47 +82,59 @@ function DeviceZebraPrinter({
   const [deviceConnectionInterval, setDeviceConnectionInterval] = useState(0);
   const [deviceConnectionStatus, setDeviceConnectionStatus] = useState(false);
 
-  const handleRefresh = () => {
-    ipcRenderer.send(GET_DEVICE_AND_LICENSES, { instanceURL, username, token });
-  };
+  useEffect(() => {
+    //register on verify device connection event
+    //after device has been stored on server with username
+    ipcRenderer.on(VERIFY_DEVICE_CONNECTION, onVerifyDeviceConnection);
+    ipcRenderer.on(CLOSE_PB_DEVICE, onCloseDevice);
+    ipcRenderer.on(DEVICE_DISCONNECT_TIMEOUT, onDeviceDisconnectTimeout);
+    ipcRenderer.on(GET_DEVICE_AND_LICENSES, onDeviceAndLicensesRes);
+    ipcRenderer.on(GET_DEVICE_INSTANCE_URL, onGetDeviceInstanceLink);
+    ipcRenderer.on(DEVICE_CONNECTION, onDeviceConnection);
+    ipcRenderer.on(DEVICE_DISCONNECTION, onDeviceRelease);
+    ipcRenderer.on(CHECK_ZEBRA_DEVICE_CONNECTION, onCheckDeviceConnection);
+    //get latest device list and licenses
+    handleRefresh();
 
-  const startCheckDeviceConnectionInterval = (device) => {
-    setDeviceConnectionInterval((interval) => {
-      clearInterval(interval);
-      const intervalCount = setInterval(() => {
-        if (
-          device.deviceType !== 'I1IO3' &&
-          device.deviceType !== 'I1IO2' &&
-          device.deviceType !== 'CI62_COLORSCOUT' &&
-          device.deviceType !== 'CI64_COLORSCOUT'
-        ) {
-          ipcRenderer.send(CHECK_ZEBRA_DEVICE_CONNECTION, device);
-        }
-      }, 3000);
-      return intervalCount;
-    });
-  };
+    return () => {
+      ipcRenderer.removeListener(
+        VERIFY_DEVICE_CONNECTION,
+        onVerifyDeviceConnection
+      );
+      ipcRenderer.removeListener(CLOSE_PB_DEVICE, onCloseDevice);
+      ipcRenderer.removeListener(
+        DEVICE_DISCONNECT_TIMEOUT,
+        onDeviceDisconnectTimeout
+      );
+      ipcRenderer.removeListener(
+        GET_DEVICE_AND_LICENSES,
+        onDeviceAndLicensesRes
+      );
+      ipcRenderer.removeListener(
+        GET_DEVICE_INSTANCE_URL,
+        onGetDeviceInstanceLink
+      );
+      ipcRenderer.removeListener(DEVICE_CONNECTION, onDeviceConnection);
+      ipcRenderer.removeListener(
+        CHECK_ZEBRA_DEVICE_CONNECTION,
+        onCheckDeviceConnection
+      );
+      ipcRenderer.removeListener(DEVICE_DISCONNECTION, onDeviceRelease);
 
-  const stopCheckDeviceConnectionInterval = () => {
-    setDeviceConnectionInterval((interval) => {
-      if (interval) {
-        clearInterval(interval);
-        return 0;
-      }
-      return 0;
-    });
-  };
+      stopCheckDeviceConnectionInterval();
+    };
+  }, []);
 
   useEffect(() => {
     if (zebraDeviceList.length && lastConnectedZebra) {
       const device = zebraDeviceList.find(
-        (x) => x.deviceId === lastConnectedZebra,
+        (x) => x.deviceId == lastConnectedZebra
       );
       if (device) startCheckDeviceConnectionInterval(device);
     }
   }, [zebraDeviceList, lastConnectedZebra]);
 
-  const onDeviceRelease = (args) => {
+  const onDeviceRelease = (_, args) => {
     // if device disconnected from equipment app then refresh device list and licenses
     if (args) {
       setTimeout(() => {
@@ -131,7 +143,7 @@ function DeviceZebraPrinter({
     }
   };
 
-  const onVerifyDeviceConnection = (args) => {
+  const onVerifyDeviceConnection = (event, args) => {
     if (args) {
       setConnectModal(true);
       setCurrentPage(3);
@@ -140,34 +152,47 @@ function DeviceZebraPrinter({
       setCurrentPage(3);
     }
   };
-  const onCloseDevice = (args) => {
+  const onCloseDevice = (event, args) => {
     if (args.res) {
-      // TODO : send release license call to main after device close
+      //TODO : send release license call to main after device close
       onDeviceDisConnect(args.deviceId);
     } else {
       setError(args.error ?? 'Device Disconnected!!');
     }
   };
 
-  const onDeviceDisconnectTimeout = (args) => {
+  const onDeviceDisconnectTimeout = (_, args) => {
     if (args && currentZebraeDevice) {
       stopCheckDeviceConnectionInterval();
+      onDisconnectCurrentPBDevice(currentZebraeDevice);
     }
   };
 
+  // const onDisconnectCurrentDevice = (deviceId) => {
+  //   const device = balanceDeviceList.find((dev) => dev.deviceId == deviceId);
+
+  //   ipcRenderer.send(CLOSE_DEVICE, {
+  //     forceClose: true,
+  //     deviceType: device?.deviceType,
+  //     deviceId,
+  //     instanceURL
+  //   });
+  //   handleRefresh();
+  // };
+
   const onDisconnectcurrentZebraeDevice = (deviceId) => {
-    const device = zebraDeviceList.find((dev) => dev.deviceId === deviceId);
+    const device = zebraDeviceList.find((dev) => dev.deviceId == deviceId);
     stopCheckDeviceConnectionInterval();
     ipcRenderer.send(CLOSE_PB_DEVICE, {
       forceClose: true,
       deviceType: device?.deviceType,
-      deviceId,
+      deviceId: deviceId,
     });
     handleRefresh();
   };
 
   const onConnectZebraDevice = (deviceId) => {
-    const device = zebraDeviceList.find((dev) => dev.deviceId === deviceId);
+    const device = zebraDeviceList.find((dev) => dev.deviceId == deviceId);
     setCurrentZebraeDevice(deviceId);
     setZebraDeviceType(device?.deviceType);
     if (device) {
@@ -179,7 +204,7 @@ function DeviceZebraPrinter({
     ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
   };
 
-  const onGetDeviceInstanceLink = (args) => {
+  const onGetDeviceInstanceLink = (_, args) => {
     if (args.res) {
       window.open(args.url);
     } else {
@@ -189,14 +214,14 @@ function DeviceZebraPrinter({
 
   const handleGotoInstance = async (checked) => {
     await openLinkInBrowser();
-    // device disconnection timeout checked
+    //device disconnection timeout checked
     onHasDeviceDisconnectTimeout(checked);
     setConnectModal(false);
     onDeviceConnected(currentZebraeDevice);
   };
 
   const handleNext = (checked) => {
-    // device disconnection timeout checked
+    //device disconnection timeout checked
     onHasDeviceDisconnectTimeout(checked);
     setConnectModal(false);
     if (currentDevice) {
@@ -206,7 +231,7 @@ function DeviceZebraPrinter({
     }
   };
 
-  const onCheckDeviceConnection = (args) => {
+  const onCheckDeviceConnection = (event, args) => {
     if (args.status) {
       setDeviceConnectionStatus(false);
     } else {
@@ -220,7 +245,7 @@ function DeviceZebraPrinter({
 
   const handleRetry = () => {
     const device = zebraDeviceList.find(
-      (x) => x.deviceId === currentZebraeDevice,
+      (x) => x.deviceId == currentZebraeDevice
     );
     if (
       device &&
@@ -244,17 +269,25 @@ function DeviceZebraPrinter({
     setDeviceConnectionStatus(false);
   };
 
-  const onDeviceAndLicensesRes = useCallback((args) => {
-    onGetDeviceAndLicenses(args);
-  }, []);
+  const handleRefresh = () => {
+    ipcRenderer.send(GET_DEVICE_AND_LICENSES, { instanceURL, username, token });
+  };
 
-  const onDeviceConnection = (args) => {
-    // if device connected successfully from equipment app then refresh device list and licenses
+  const onDeviceAndLicensesRes = (_, args) => {
+    onGetDeviceAndLicenses(args);
+  };
+
+  const onDeviceConnection = (_, args) => {
+    //if device connected successfully from equipment app then refresh device list and licenses
     if (args) {
       setTimeout(() => {
         handleRefresh();
       }, 3000);
     }
+  };
+
+  const handleSendAPIReq = () => {
+    ipcRenderer.send(COLOR_GATE_API_BUTTON_CLICK, null);
   };
 
   const SpectroDeviceButton = () => {
@@ -282,46 +315,31 @@ function DeviceZebraPrinter({
     setIsBarcodeOnShow(false);
   };
 
-  useEffect(() => {
-    ipcRenderer.on(VERIFY_DEVICE_CONNECTION, onVerifyDeviceConnection);
-    ipcRenderer.on(CLOSE_PB_DEVICE, onCloseDevice);
-    ipcRenderer.on(DEVICE_DISCONNECT_TIMEOUT, onDeviceDisconnectTimeout);
-    ipcRenderer.on(GET_DEVICE_AND_LICENSES, onDeviceAndLicensesRes);
-    ipcRenderer.on(GET_DEVICE_INSTANCE_URL, onGetDeviceInstanceLink);
-    ipcRenderer.on(DEVICE_CONNECTION, onDeviceConnection);
-    ipcRenderer.on(DEVICE_DISCONNECTION, onDeviceRelease);
-    ipcRenderer.on(CHECK_ZEBRA_DEVICE_CONNECTION, onCheckDeviceConnection);
-    handleRefresh();
-
-    return () => {
-      ipcRenderer.removeListener(
-        VERIFY_DEVICE_CONNECTION,
-        onVerifyDeviceConnection,
-      );
-      ipcRenderer.removeListener(CLOSE_PB_DEVICE, onCloseDevice);
-      ipcRenderer.removeListener(
-        DEVICE_DISCONNECT_TIMEOUT,
-        onDeviceDisconnectTimeout,
-      );
-      ipcRenderer.removeListener(
-        GET_DEVICE_AND_LICENSES,
-        onDeviceAndLicensesRes,
-      );
-      ipcRenderer.removeListener(
-        GET_DEVICE_INSTANCE_URL,
-        onGetDeviceInstanceLink,
-      );
-      ipcRenderer.removeListener(DEVICE_CONNECTION, onDeviceConnection);
-      ipcRenderer.removeListener(
-        CHECK_ZEBRA_DEVICE_CONNECTION,
-        onCheckDeviceConnection,
-      );
-      ipcRenderer.removeListener(DEVICE_DISCONNECTION, onDeviceRelease);
-
-      stopCheckDeviceConnectionInterval();
-    };
-  }, []);
-
+  const startCheckDeviceConnectionInterval = (device) => {
+    setDeviceConnectionInterval((interval) => {
+      clearInterval(interval);
+      const intervalCount = setInterval(() => {
+        if (
+          device.deviceType !== 'I1IO3' &&
+          device.deviceType !== 'I1IO2' &&
+          device.deviceType !== 'CI62_COLORSCOUT' &&
+          device.deviceType !== 'CI64_COLORSCOUT'
+        ) {
+          ipcRenderer.send(CHECK_ZEBRA_DEVICE_CONNECTION, device);
+        }
+      }, 3000);
+      return intervalCount;
+    });
+  };
+  const stopCheckDeviceConnectionInterval = () => {
+    setDeviceConnectionInterval((interval) => {
+      if (interval) {
+        clearInterval(interval);
+        return 0;
+      }
+      return 0;
+    });
+  };
   return (
     <div id="main" className="cma-connect-page">
       <div className="container-fluid">
@@ -344,10 +362,8 @@ function DeviceZebraPrinter({
               />
               {/* <h3 className="page-title">Device & licence overview</h3>
               <DeviceLicense licenses={licenses} /> */}
-
               <div className="d-flex mb-10">
                 <button
-                  type="button" // Add this
                   className="btn-secondary mr-12"
                   onClick={SpectroDeviceButton}
                 >
@@ -355,7 +371,6 @@ function DeviceZebraPrinter({
                 </button>
                 {balanceDeviceList.length > 0 && (
                   <button
-                    type="button" // Add this
                     className="btn-secondary mr-12"
                     onClick={precisionBalanceButton}
                   >
@@ -364,7 +379,6 @@ function DeviceZebraPrinter({
                 )}
                 {barcodeDeviceList.length > 0 && (
                   <button
-                    type="button" // Add this
                     className="btn-secondary mr-12"
                     onClick={barcodeScannerButton}
                   >
@@ -373,7 +387,6 @@ function DeviceZebraPrinter({
                 )}
                 {zebraDeviceList.length > 0 && (
                   <button
-                    type="button" // Add this
                     className="btn-secondary mr-12"
                     onClick={zebraPrinterButton}
                   >

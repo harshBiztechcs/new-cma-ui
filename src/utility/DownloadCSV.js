@@ -1,16 +1,18 @@
-export default function downloadCSV(header, data) {
+export const downloadCSV = (header, data) => {
   try {
-    const csv = [header.join(',')]
-      .concat(data.map((row) => row.join(',')))
-      .join('\n');
+    var csv = header.join(',') + '\n';
 
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'measurement_samples.csv';
-    link.click();
+    data.forEach((row) => {
+      csv += row.join(',') + '\n';
+    });
+
+    var hiddenElement = document.createElement('a');
+    hiddenElement.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv);
+    hiddenElement.target = '_blank';
+    hiddenElement.download = 'measurement_samples.csv';
+    hiddenElement.click();
     return true;
   } catch (error) {
     return false;
   }
-}
+};

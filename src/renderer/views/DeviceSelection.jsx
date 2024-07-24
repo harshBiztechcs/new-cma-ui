@@ -1,5 +1,4 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import DevicePageTitle from 'renderer/components/DeviceHeader';
 import DeviceLicense from 'renderer/components/DeviceLicense';
 import Pagination from 'renderer/components/Pagination';
@@ -30,7 +29,7 @@ import ThirdPartyAPI from 'renderer/components/ThirdPartyAPI';
 import HomeFooter from 'renderer/components/HomeFooter';
 import DeviceScanModal from 'renderer/components/DeviceScanModal';
 
-const { ipcRenderer } = window.electron;
+const { ipcRenderer } = window.require('electron');
 
 function DeviceSelection({
   username,
@@ -88,65 +87,44 @@ function DeviceSelection({
   const [isConnectedWithBT, setIsConnectedWithBT] = useState(false);
 
   useEffect(() => {
-    // register on verify device connection event
-    // after device has been stored on server with username
-    ipcRenderer.on(
-      VERIFY_DEVICE_CONNECTION,
-      onVerifyDeviceConnection,
-    );
-    ipcRenderer.on(
-      CHECK_ROP_DEVICE_CONNECTION,
-      onCheckDeviceConnection,
-    );
+    //register on verify device connection event
+    //after device has been stored on server with username
+    ipcRenderer.on(VERIFY_DEVICE_CONNECTION, onVerifyDeviceConnection);
+    ipcRenderer.on(CHECK_ROP_DEVICE_CONNECTION, onCheckDeviceConnection);
     ipcRenderer.on(CLOSE_DEVICE, onCloseDevice);
-    ipcRenderer.on(
-      DEVICE_DISCONNECT_TIMEOUT,
-      onDeviceDisconnectTimeout,
-    );
-    ipcRenderer.on(
-      GET_DEVICE_AND_LICENSES,
-      onDeviceAndLicensesRes,
-    );
-    ipcRenderer.on(
-      GET_DEVICE_INSTANCE_URL,
-      onGetDeviceInstanceLink,
-    );
+    ipcRenderer.on(DEVICE_DISCONNECT_TIMEOUT, onDeviceDisconnectTimeout);
+    ipcRenderer.on(GET_DEVICE_AND_LICENSES, onDeviceAndLicensesRes);
+    ipcRenderer.on(GET_DEVICE_INSTANCE_URL, onGetDeviceInstanceLink);
     ipcRenderer.on(DEVICE_CONNECTION, onDeviceConnection);
     ipcRenderer.on(DEVICE_DISCONNECTION, onDeviceRelease);
-    // get latest device list and licenses
+    //get latest device list and licenses
     handleRefresh();
 
     return () => {
       ipcRenderer.removeListener(
         VERIFY_DEVICE_CONNECTION,
-        onVerifyDeviceConnection,
+        onVerifyDeviceConnection
       );
       ipcRenderer.removeListener(
         CHECK_ROP_DEVICE_CONNECTION,
-        onCheckDeviceConnection,
+        onCheckDeviceConnection
       );
 
       ipcRenderer.removeListener(CLOSE_DEVICE, onCloseDevice);
       ipcRenderer.removeListener(
         DEVICE_DISCONNECT_TIMEOUT,
-        onDeviceDisconnectTimeout,
+        onDeviceDisconnectTimeout
       );
       ipcRenderer.removeListener(
         GET_DEVICE_AND_LICENSES,
-        onDeviceAndLicensesRes,
+        onDeviceAndLicensesRes
       );
       ipcRenderer.removeListener(
         GET_DEVICE_INSTANCE_URL,
-        onGetDeviceInstanceLink,
+        onGetDeviceInstanceLink
       );
-      ipcRenderer.removeListener(
-        DEVICE_CONNECTION,
-        onDeviceConnection,
-      );
-      ipcRenderer.removeListener(
-        DEVICE_DISCONNECTION,
-        onDeviceRelease,
-      );
+      ipcRenderer.removeListener(DEVICE_CONNECTION, onDeviceConnection);
+      ipcRenderer.removeListener(DEVICE_DISCONNECTION, onDeviceRelease);
     };
   }, []);
 
@@ -154,7 +132,7 @@ function DeviceSelection({
     ipcRenderer.send(GET_MAC_ADDRESS, deviceAddress);
   }, [deviceAddress]);
 
-  const onDeviceRelease = (args) => {
+  const onDeviceRelease = (_, args) => {
     // if device disconnected from equipment app then refresh device list and licenses
     if (args) {
       setTimeout(() => {
@@ -163,9 +141,9 @@ function DeviceSelection({
     }
   };
 
-  const onVerifyDeviceConnection = ( args) => {
+  const onVerifyDeviceConnection = (event, args) => {
     if (args) {
-      // TODO : send device acquire license call here to main and if response yes then go to next page
+      //TODO : send device acquire license call here to main and if response yes then go to next page
       setConnectModal(true);
       setCurrentPage(3);
     } else {
@@ -174,7 +152,7 @@ function DeviceSelection({
     }
   };
 
-  const onCheckDeviceConnection = ( args) => {
+  const onCheckDeviceConnection = (event, args) => {
     if (args) {
       setScanDeviceListModal(true);
       setCurrentPage(3);
@@ -184,26 +162,23 @@ function DeviceSelection({
     }
   };
 
-  const onCloseDevice = ( args) => {
+  const onCloseDevice = (event, args) => {
     if (args.res) {
-      // TODO : send release license call to main after device close
+      //TODO : send release license call to main after device close
       onDeviceDisConnect(connectedDevice);
     } else {
       setError(args.error ?? 'Device Disconnection Failed !!');
     }
   };
 
-  const onDeviceDisconnectTimeout = (args) => {
+  const onDeviceDisconnectTimeout = (_, args) => {
     if (args && connectedDevice) {
       onDisconnectCurrentDevice(connectedDevice);
     }
   };
 
   const connectionMode = async (args) => {
-    ipcRenderer.send(SWITCH_TO_YS3060_CONNECTION_MODE, {
-      args,
-      instanceURL,
-    });
+    ipcRenderer.send(SWITCH_TO_YS3060_CONNECTION_MODE, { args, instanceURL });
   };
 
   const onDisconnectCurrentDevice = (deviceId) => {
@@ -234,7 +209,7 @@ function DeviceSelection({
     ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
   };
 
-  const onGetDeviceInstanceLink = (args) => {
+  const onGetDeviceInstanceLink = (_, args) => {
     if (args.res) {
       window.open(args.url);
     } else {
@@ -244,14 +219,14 @@ function DeviceSelection({
 
   const handleGotoInstance = async (checked) => {
     await openLinkInBrowser();
-    // device disconnection timeout checked
+    //device disconnection timeout checked
     onHasDeviceDisconnectTimeout(checked);
     setConnectModal(false);
     onDeviceConnected(currentDevice);
   };
 
   const handleNext = (checked) => {
-    // device disconnection timeout checked
+    //device disconnection timeout checked
     onHasDeviceDisconnectTimeout(checked);
     setConnectModal(false);
     onDeviceConnected(currentDevice);
@@ -291,19 +266,15 @@ function DeviceSelection({
   };
 
   const handleRefresh = () => {
-    ipcRenderer.send(GET_DEVICE_AND_LICENSES, {
-      instanceURL,
-      username,
-      token,
-    });
+    ipcRenderer.send(GET_DEVICE_AND_LICENSES, { instanceURL, username, token });
   };
 
-  const onDeviceAndLicensesRes = useCallback((args) => {
+  const onDeviceAndLicensesRes = (_, args) => {
     onGetDeviceAndLicenses(args);
-  }, []);
+  };
 
-  const onDeviceConnection = (args) => {
-    // if device connected successfully from equipment app then refresh device list and licenses
+  const onDeviceConnection = (_, args) => {
+    //if device connected successfully from equipment app then refresh device list and licenses
     if (args) {
       setTimeout(() => {
         handleRefresh();
@@ -318,10 +289,7 @@ function DeviceSelection({
     setIsConnectedWithBT(true);
     connectionMode(true);
     if (device) {
-      ipcRenderer.send(
-        CHECK_ROP_DEVICE_CONNECTION,
-        'CMA-ROP64E-UV-BT',
-      );
+      ipcRenderer.send(CHECK_ROP_DEVICE_CONNECTION, 'CMA-ROP64E-UV-BT');
     }
   }
   const SpectroDeviceButton = () => {

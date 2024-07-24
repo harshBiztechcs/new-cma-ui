@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import DevicePageTitle from 'renderer/components/DeviceHeader';
 import DeviceLicense from 'renderer/components/DeviceLicense';
 import Pagination from 'renderer/components/Pagination';
@@ -26,8 +26,7 @@ import PopupModal from 'renderer/components/PopupModal';
 import ThirdPartyAPI from 'renderer/components/ThirdPartyAPI';
 import HomeFooter from 'renderer/components/HomeFooter';
 import PBDeviceList from 'renderer/components/PBDeviceList';
-
-const { ipcRenderer } = window.electron;
+const { ipcRenderer } = window.require('electron');
 
 function DevicePrecision({
   username,
@@ -135,7 +134,7 @@ function DevicePrecision({
     }
   }, [balanceDeviceList, connectedPBDevice]);
 
-  const onDeviceRelease = (args) => {
+  const onDeviceRelease = (_, args) => {
     // if device disconnected from equipment app then refresh device list and licenses
     if (args) {
       setTimeout(() => {
@@ -144,7 +143,7 @@ function DevicePrecision({
     }
   };
 
-  const onVerifyDeviceConnection = (args) => {
+  const onVerifyDeviceConnection = (event, args) => {
     if (args) {
       //TODO : send device acquire license call here to main and if response yes then go to next page
       setConnectModal(true);
@@ -154,7 +153,7 @@ function DevicePrecision({
       setCurrentPage(3);
     }
   };
-  const onCloseDevice = ( args) => {
+  const onCloseDevice = (event, args) => {
     if (args.res) {
       //TODO : send release license call to main after device close
       onDeviceDisConnect(args.deviceId);
@@ -163,7 +162,7 @@ function DevicePrecision({
     }
   };
 
-  const onDeviceDisconnectTimeout = (args) => {
+  const onDeviceDisconnectTimeout = (_, args) => {
     if (args && currentPBDevice) {
       stopCheckDeviceConnectionInterval();
       onDisconnectCurrentPBDevice(currentPBDevice);
@@ -206,7 +205,7 @@ function DevicePrecision({
     ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
   };
 
-  const onGetDeviceInstanceLink = (args) => {
+  const onGetDeviceInstanceLink = (_, args) => {
     if (args.res) {
       window.open(args.url);
     } else {
@@ -233,7 +232,7 @@ function DevicePrecision({
     }
   };
 
-  const onCheckDeviceConnection = ( args) => {
+  const onCheckDeviceConnection = (event, args) => {
     if (args.status) {
       setDeviceConnectionStatus(false);
     } else {
@@ -273,12 +272,11 @@ function DevicePrecision({
     ipcRenderer.send(GET_DEVICE_AND_LICENSES, { instanceURL, username, token });
   };
 
-  const onDeviceAndLicensesRes = useCallback((args) => {
-    console.log('args 85412', args)
+  const onDeviceAndLicensesRes = (_, args) => {
     onGetDeviceAndLicenses(args);
-  }, []);
+  };
 
-  const onDeviceConnection = (args) => {
+  const onDeviceConnection = (_, args) => {
     //if device connected successfully from equipment app then refresh device list and licenses
     if (args) {
       setTimeout(() => {

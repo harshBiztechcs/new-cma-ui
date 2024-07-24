@@ -11,6 +11,8 @@ export const getCurrentDateTime = () => {
 };
 
 export const getLocalIp = () => {
+  const os = require('os');
+
   for (let addresses of Object.values(os.networkInterfaces())) {
     for (let add of addresses) {
       if (add.address.startsWith('192.168.')) {
@@ -46,4 +48,4 @@ export const listSystemUSBDevices = () => {
       resolve(stdout);
     });
   });
-};
+}

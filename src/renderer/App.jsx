@@ -1,8 +1,12 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useEffect, useState } from 'react';
 import './App.css';
 import './assets/scss/main.css';
+import Login from './views/Login';
+import NewConnection from './views/NewConnection';
+import ServerConnection from './views/serverConnection';
+import DeviceSelection from './views/DeviceSelection';
+import DeviceMeasurement from './views/DeviceMeasurement';
+import AppUpdate from './views/AppUpdate';
 import {
   DISCONNECT_SOCKET,
   DISCONNECT_DEVICE,
@@ -38,23 +42,19 @@ import {
   VERIFY_DEVICE_CONNECTION,
   APP_CLOSE_CONFIRMED,
   APP_REQUEST_CLOSE,
+  SWITCH_TO_YS3060_CONNECTION_MODE,
   CURRENT_TAB_UPDATE,
+  DISCONNECT_SOCKET_INSTANCE_1,
+  DISCONNECT_SOCKET_INSTANCE_2,
 } from 'utility/constants';
-import Login from './views/Login';
-import NewConnection from './views/NewConnection';
-import ServerConnection from './views/serverConnection';
-import DeviceSelection from './views/DeviceSelection';
-import DeviceMeasurement from './views/DeviceMeasurement';
-import AppUpdate from './views/AppUpdate';
 import InternetConnectionLost from './views/InternetConnectionLost';
 import PopupModal from './components/PopupModal';
 import ColorMatch from './views/ColorMatch';
 import DevicePrecision from './views/DevicePrecision';
 import DeviceBarcode from './views/DeviceBarcode';
 import DeviceZebraPrinter from './views/DeviceZebraPrinter';
-
-const { ipcRenderer } = window.electron;
-
+import { InstanceConnectionProvider } from './context/InstanceConnectionProvider';
+const { ipcRenderer } = window.require('electron');
 let colorGateConnectionInterval = null;
 let colorGateReConnectionTimeout = null;
 
@@ -76,6 +76,7 @@ export default function App() {
   const [connectedDeviceList, setConnectedDeviceList] = useState([]);
   const [deviceList, setDeviceList] = useState([]);
   const [lastDevice, setLastDevice] = useState(null);
+  const [rememberUser, setRememberUser] = useState(false);
   const [deviceChangeFrom, setDeviceChangeFrom] = useState(null);
   const [hasInternet, setHasInternet] = useState(true);
   const [networkConnection, setNetworkConnection] = useState(true);
@@ -89,7 +90,7 @@ export default function App() {
   const [serverError, setServerError] = useState('');
   const [showCheckUpdatePage, setShowCheckUpdatePage] = useState(false);
 
-  // auto-update
+  //auto-update
   const [isNewUpdateAvailable, setIsNewUpdateAvailable] = useState(false);
   const [updateInfo, setUpdateInfo] = useState(null);
   const [updateDownloaded, setUpdateDownloaded] = useState(false);
@@ -99,7 +100,7 @@ export default function App() {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadStarted, setDownloadStarted] = useState(false);
 
-  // third-party api
+  //third-party api
   const [showThirdPartyAPIPage, setShowThirdPartyAPIPage] = useState(false);
   const [thirdPartyAPIUser, setThirdPartyAPIUser] = useState(false);
 
@@ -133,7 +134,7 @@ export default function App() {
   const [lastConnectedPBDevice, setLastConnectedPBDevice] = useState(null);
   const [connectedPBDeviceList, setConnectedPBDeviceList] = useState([]);
 
-  // Barcode Device
+  //Barcode Device
 
   const [isBarcodeOnShow, setIsBarcodeOnShow] = useState(false);
   const [barcodeDeviceList, setBarcodeDeviceList] = useState([]);
@@ -157,31 +158,31 @@ export default function App() {
     ipcRenderer.on(DEVICE_DISCONNECT_API_CALL, afterDeviceDisconnectionCall);
     ipcRenderer.on(VERIFY_DEVICE_CONNECTION, onVerifyDeviceConnection);
 
-    // auto-update
+    //auto-update
     ipcRenderer.on(CHECK_FOR_UPDATE, onCheckForUpdate);
     ipcRenderer.on(DOWNLOAD_UPDATE, onDownloadUpdate);
     ipcRenderer.on(UPDATE_ERROR, onUpdateError);
     ipcRenderer.on(DOWNLOAD_PROGRESS, onDownloadProgress);
 
-    // colorGate log
+    //colorGate log
     ipcRenderer.on(COLOR_GATE_API_LOG, onColorGateAPILog);
     ipcRenderer.on(
       COLOR_GATE_CONNECTION_CHECK_REQ,
-      onColorGateConnectionCheckReq,
+      onColorGateConnectionCheckReq
     );
 
-    // alwan log
+    //alwan log
     ipcRenderer.on(ALWAN_API_LOG, onAlwanAPILog);
     ipcRenderer.on(ALWAN_CONNECTION_CHECK_REQ, onAlwanConnectionCheckReq);
 
-    // colorGate Connection
+    //colorGate Connection
     ipcRenderer.on(
       CHECK_COLOR_GATE_API_CONNECTION,
-      onColorGateAPIConnectionResponse,
+      onColorGateAPIConnectionResponse
     );
     ipcRenderer.on(
       COLOR_GATE_SERVER_CONNECTION_RES,
-      onColorGateServerConnectionRes,
+      onColorGateServerConnectionRes
     );
 
     // alwan connection
@@ -191,7 +192,7 @@ export default function App() {
     // I1IO3 scanning
     ipcRenderer.on(CURRENT_ACTION, onCurrentAction);
 
-    // check if any update
+    //check if any update
     handleCheckUpdate();
 
     // ipcRenderer.on(SOCKET_DISCONNECT_CLEANLY, onSocketDisconnect);
@@ -215,7 +216,7 @@ export default function App() {
       setSocketConnectionInProgress(false);
       setColorGateConnection(false);
 
-      // alwan
+      //alwan
       clearInterval(alwanConnectionInterval);
       alwanConnectionInterval = null;
       clearTimeout(alwanReConnectionTimeout);
@@ -229,50 +230,50 @@ export default function App() {
       ipcRenderer.removeListener(NETWORK_CONNECTION, checkOnlineStatus);
       ipcRenderer.removeListener(
         CLIENT_SOCKET_ALREADY_EXIST,
-        onClientSocketAlreadyExist,
+        onClientSocketAlreadyExist
       );
       ipcRenderer.removeListener(
         DEVICE_DISCONNECT_API_CALL,
-        afterDeviceDisconnectionCall,
+        afterDeviceDisconnectionCall
       );
 
-      // auto-update
+      //auto-update
       ipcRenderer.removeListener(CHECK_FOR_UPDATE, onCheckForUpdate);
       ipcRenderer.removeListener(DOWNLOAD_UPDATE, onDownloadUpdate);
       ipcRenderer.removeListener(UPDATE_ERROR, onUpdateError);
       ipcRenderer.removeListener(DOWNLOAD_PROGRESS, onDownloadProgress);
       ipcRenderer.removeListener(
         VERIFY_DEVICE_CONNECTION,
-        onVerifyDeviceConnection,
+        onVerifyDeviceConnection
       );
-      // colorGate
+      //colorGate
       ipcRenderer.removeListener(COLOR_GATE_API_LOG, onColorGateAPILog);
       ipcRenderer.removeListener(
         COLOR_GATE_CONNECTION_CHECK_REQ,
-        onColorGateConnectionCheckReq,
+        onColorGateConnectionCheckReq
       );
       ipcRenderer.removeListener(
         CHECK_COLOR_GATE_API_CONNECTION,
-        onColorGateAPIConnectionResponse,
+        onColorGateAPIConnectionResponse
       );
       ipcRenderer.removeListener(
         COLOR_GATE_SERVER_CONNECTION_RES,
-        onColorGateServerConnectionRes,
+        onColorGateServerConnectionRes
       );
 
       // alwan
       ipcRenderer.removeListener(ALWAN_API_LOG, onAlwanAPILog);
       ipcRenderer.removeListener(
         ALWAN_CONNECTION_CHECK_REQ,
-        onAlwanConnectionCheckReq,
+        onAlwanConnectionCheckReq
       );
       ipcRenderer.removeListener(
         CHECK_ALWAN_API_CONNECTION,
-        onAlwanAPIConnectionResponse,
+        onAlwanAPIConnectionResponse
       );
       ipcRenderer.removeListener(
         ALWAN_SERVER_CONNECTION_RES,
-        onAlwanServerConnectionRes,
+        onAlwanServerConnectionRes
       );
 
       // I1IO3 scanning
@@ -304,7 +305,7 @@ export default function App() {
       }, 1000 * 5);
       localStorage.setItem(
         'socketConnectionInterval',
-        socketConnectionInterval,
+        socketConnectionInterval
       );
     } else {
       console.log(localStorage.getItem('socketConnectionInterval'));
@@ -328,7 +329,7 @@ export default function App() {
     if (hasInternet && !socketConnection && isLoggedIn) {
       if (lastConnectedDevice) {
         const device = deviceList.find(
-          (x) => x.deviceId == lastConnectedDevice,
+          (x) => x.deviceId == lastConnectedDevice
         );
         if (device) {
           ipcRenderer.send(DEVICE_STATUS_UPDATE_CALL, {
@@ -342,6 +343,10 @@ export default function App() {
     }
     if (!hasInternet && socketConnection) {
       ipcRenderer.send(DISCONNECT_SOCKET);
+      ipcRenderer.send(DISCONNECT_SOCKET_INSTANCE_1);
+      ipcRenderer.send(DISCONNECT_SOCKET_INSTANCE_2);
+      localStorage.setItem('thirdPartyAPIConfigInstance1', JSON.stringify(null));
+      localStorage.setItem('thirdPartyAPIConfigInstance2', JSON.stringify(null));
     }
   }, [hasInternet, socketConnection]);
 
@@ -363,6 +368,10 @@ export default function App() {
 
     if (!socketConnection) {
       ipcRenderer.send(DISCONNECT_SOCKET);
+      localStorage.setItem('thirdPartyAPIConfigInstance1', JSON.stringify(null));
+      localStorage.setItem('thirdPartyAPIConfigInstance2', JSON.stringify(null));
+      ipcRenderer.send(DISCONNECT_SOCKET_INSTANCE_1);
+      ipcRenderer.send(DISCONNECT_SOCKET_INSTANCE_2);
     }
   }, [isLoggedIn, socketConnection]);
 
@@ -371,7 +380,7 @@ export default function App() {
   }, [hasDeviceDisconnectTimeout]);
 
   useEffect(() => {
-    // get info from local storage
+    //get info from local storage
     let userInfo = localStorage.getItem('userInfo');
     if (userInfo) {
       userInfo = JSON.parse(userInfo);
@@ -382,7 +391,7 @@ export default function App() {
       setTokenExpiry(userInfo.tokenExpiry ?? null);
       setThirdPartyAPIUser(userInfo.thirdPartyAPIUser ?? false);
       setHasDeviceDisconnectTimeout(
-        userInfo.hasDeviceDisconnectTimeout ?? false,
+        userInfo.hasDeviceDisconnectTimeout ?? false
       );
       setIsNewConnection(userInfo.isNewConnection ?? true);
       if (
@@ -402,7 +411,7 @@ export default function App() {
       const updatedConnectedDeviceList = deviceList.filter(
         (x) =>
           x.deviceId == lastConnectedDevice &&
-          (x.status == 'connected' ? x.login == username : true),
+          (x.status == 'connected' ? x.login == username : true)
       );
       if (updatedConnectedDeviceList.length == 0) {
         setLastConnectedDevice(null);
@@ -414,19 +423,15 @@ export default function App() {
       const updatedConnectedPBDeviceList = balanceDeviceList.filter(
         (x) =>
           x.deviceId == lastConnectedPBDevice &&
-          (x.status == 'connected' ? x.login == username : true),
+          (x.status == 'connected' ? x.login == username : true)
       );
       if (updatedConnectedPBDeviceList.length == 0) {
         setLastConnectedPBDevice(null);
       }
       setConnectedPBDeviceList(updatedConnectedPBDeviceList);
     }
-  }, [
-    deviceList,
-    lastConnectedDevice,
-    balanceDeviceList,
-    lastConnectedPBDevice,
-  ]);
+  }, [deviceList, lastConnectedDevice, balanceDeviceList, lastConnectedPBDevice]);
+
 
   useEffect(() => {
     if (!socketConnection) {
@@ -456,7 +461,7 @@ export default function App() {
       }
       if (colorGateConnectionInterval) return;
       colorGateConnectionInterval = setInterval(() => {
-        const thirdPartyAPIConfig = localStorage.getItem('thirdPartyAPIConfig');
+        let thirdPartyAPIConfig = localStorage.getItem('thirdPartyAPIConfig');
         console.log({ thirdPartyAPIConfig });
         if (thirdPartyAPIConfig) {
           const { auth, apiBaseURL, port } = JSON.parse(thirdPartyAPIConfig);
@@ -480,7 +485,7 @@ export default function App() {
         }
       }, 7000);
     } else {
-      // if connection is failed and then start interval to check connection for 20minutes
+      //if connection is failed and then start interval to check connection for 20minutes
       let thirdPartyAPIConfig = localStorage.getItem('thirdPartyAPIConfig');
       if (thirdPartyAPIConfig) {
         thirdPartyAPIConfig = JSON.parse(thirdPartyAPIConfig);
@@ -503,17 +508,14 @@ export default function App() {
             return url;
           });
           // set timeout to display colorGate Error
-          colorGateReConnectionTimeout = setTimeout(
-            () => {
-              setColorGatePopupTitle('API Server disconnected');
-              setColorGatePopupError(
-                'Please restart the connection from the third party software. After return in CMA Connect, click on the API Connector and Check Connection & Save on its respective software tab.',
-              );
-              clearInterval(colorGateConnectionInterval);
-              colorGateConnectionInterval = null;
-            },
-            1000 * 60 * 20,
-          );
+          colorGateReConnectionTimeout = setTimeout(() => {
+            setColorGatePopupTitle('API Server disconnected');
+            setColorGatePopupError(
+              'Please restart the connection from the third party software. After return in CMA Connect, click on the API Connector and Check Connection & Save on its respective software tab.'
+            );
+            clearInterval(colorGateConnectionInterval);
+            colorGateConnectionInterval = null;
+          }, 1000 * 60 * 20);
         } else {
           clearInterval(colorGateConnectionInterval);
           colorGateConnectionInterval = null;
@@ -541,7 +543,7 @@ export default function App() {
       }
       if (alwanConnectionInterval) return;
       alwanConnectionInterval = setInterval(() => {
-        const alwanAPIConfig = localStorage.getItem('alwanAPIConfig');
+        let alwanAPIConfig = localStorage.getItem('alwanAPIConfig');
         console.log({ alwanAPIConfig });
         if (alwanAPIConfig) {
           const { auth, apiBaseURL, port } = JSON.parse(alwanAPIConfig);
@@ -565,7 +567,7 @@ export default function App() {
         }
       }, 7000);
     } else {
-      // if connection is failed and then start interval to check connection for 20minutes
+      //if connection is failed and then start interval to check connection for 20minutes
       let alwanAPIConfig = localStorage.getItem('alwanAPIConfig');
       if (alwanAPIConfig) {
         alwanAPIConfig = JSON.parse(alwanAPIConfig);
@@ -581,17 +583,14 @@ export default function App() {
             return url;
           });
           // set timeout to display alwan Error
-          alwanReConnectionTimeout = setTimeout(
-            () => {
-              setAlwanPopupTitle('API Server disconnected');
-              setAlwanPopupError(
-                'Please restart the connection from the third party software. After return in CMA Connect, click on the API Connector and Check Connection & Save on its respective software tab.',
-              );
-              clearInterval(alwanConnectionInterval);
-              alwanConnectionInterval = null;
-            },
-            1000 * 60 * 20,
-          );
+          alwanReConnectionTimeout = setTimeout(() => {
+            setAlwanPopupTitle('API Server disconnected');
+            setAlwanPopupError(
+              'Please restart the connection from the third party software. After return in CMA Connect, click on the API Connector and Check Connection & Save on its respective software tab.'
+            );
+            clearInterval(alwanConnectionInterval);
+            alwanConnectionInterval = null;
+          }, 1000 * 60 * 20);
         } else {
           clearInterval(alwanConnectionInterval);
           alwanConnectionInterval = null;
@@ -610,7 +609,7 @@ export default function App() {
       const { colorGateLicense } = thirdPartyAPIConfig;
       if (colorGateLicense) {
         if (colorGateConnection && colorGateSocketConnection) {
-          // call connect colorGate api
+          //call connect colorGate api
           console.log(' === calling connect colorGate api === ');
           ipcRenderer.send(CMA_API_FOR_COLOR_GATE_STATUS_UPDATE, {
             instanceURL,
@@ -642,7 +641,7 @@ export default function App() {
       const { alwanLicense } = alwanAPIConfig;
       if (alwanLicense) {
         if (alwanConnection && alwanSocketConnection) {
-          // call connect alwan api
+          //call connect alwan api
           console.log(' === calling connect alwan api === ');
           ipcRenderer.send(CMA_API_FOR_ALWAN_STATUS_UPDATE, {
             instanceURL,
@@ -668,14 +667,10 @@ export default function App() {
 
   useEffect(() => {
     const handleAppCloseRequest = async () => {
-      const shouldDisconnectDevice =
-        isLoggedIn &&
-        (lastDevice || lastPBDevice || lastBarcodeDevice || lastZebraDevice);
+      const shouldDisconnectDevice = isLoggedIn && (lastDevice || lastPBDevice || lastBarcodeDevice || lastZebraDevice);
 
       if (shouldDisconnectDevice) {
-        const confirmDisconnect = window.confirm(
-          'Are you sure you want to disconnect the device before closing the application?',
-        );
+        const confirmDisconnect = window.confirm('Are you sure you want to disconnect the device before closing the application?');
 
         if (confirmDisconnect) {
           const disconnectDevices = async () => {
@@ -691,24 +686,10 @@ export default function App() {
               }
             };
 
-            await disconnectDevice(
-              deviceList.find((device) => device.deviceId === lastDevice),
-            );
-            await disconnectDevice(
-              balanceDeviceList.find(
-                (device) => device.deviceId === lastPBDevice,
-              ),
-            );
-            await disconnectDevice(
-              barcodeDeviceList.find(
-                (device) => device.deviceId === lastBarcodeDevice,
-              ),
-            );
-            await disconnectDevice(
-              zebraDeviceList.find(
-                (device) => device.deviceId === lastZebraDevice,
-              ),
-            );
+            await disconnectDevice(deviceList.find((device) => device.deviceId === lastDevice));
+            await disconnectDevice(balanceDeviceList.find((device) => device.deviceId === lastPBDevice));
+            await disconnectDevice(barcodeDeviceList.find((device) => device.deviceId === lastBarcodeDevice));
+            await disconnectDevice(zebraDeviceList.find((device) => device.deviceId === lastZebraDevice));
           };
 
           await disconnectDevices();
@@ -724,23 +705,17 @@ export default function App() {
     return () => {
       ipcRenderer.removeListener(APP_REQUEST_CLOSE, handleAppCloseRequest);
     };
-  }, [
-    isLoggedIn,
-    lastDevice,
-    lastPBDevice,
-    lastBarcodeDevice,
-    lastZebraDevice,
-  ]);
+  }, [isLoggedIn, lastDevice, lastPBDevice, lastBarcodeDevice, lastZebraDevice]);
 
   // I1IO3 function
-  const onCurrentAction = (args) => {
+  const onCurrentAction = (event, args) => {
     console.log({ action: args });
     setCurrentI1IO3Action(args);
   };
 
-  // colorGate functions
+  //colorGate functions
 
-  const onColorGateServerConnectionRes = (args) => {
+  const onColorGateServerConnectionRes = (_, args) => {
     console.log('onColorGateServerConnectionRes APP jsx');
     setSocketConnectionInProgress(false);
     const isConnected = args?.colorGateServerConnection?.isConnected;
@@ -768,7 +743,7 @@ export default function App() {
   };
 
   // alwan
-  const onAlwanServerConnectionRes = (args) => {
+  const onAlwanServerConnectionRes = (_, args) => {
     console.log('onAlwanServerConnectionRes APP jsx');
     setAlwanSocketConnectionInProgress(false);
     const isConnected = args?.alwanServerConnection?.isConnected;
@@ -795,7 +770,7 @@ export default function App() {
     });
   };
 
-  const onColorGateAPIConnectionResponse = (args) => {
+  const onColorGateAPIConnectionResponse = (_, args) => {
     if (
       args.colorGateAPI?.response?.data &&
       args.colorGateAPI?.response?.data?.status?.code == 200
@@ -807,7 +782,7 @@ export default function App() {
   };
 
   // alwan
-  const onAlwanAPIConnectionResponse = (args) => {
+  const onAlwanAPIConnectionResponse = (_, args) => {
     if (args?.status && args.status == 200) {
       setAlwanConnection(true);
     } else {
@@ -836,7 +811,7 @@ export default function App() {
     localStorage.setItem('alwanAPIConfig', JSON.stringify(newConfig));
   };
 
-  const onColorGateAPILog = (args) => {
+  const onColorGateAPILog = (_, args) => {
     setColorGateAPILog((currentLogs) => {
       console.log({ currentLogs });
       if (args.log) {
@@ -853,7 +828,7 @@ export default function App() {
   };
 
   // alwan
-  const onAlwanAPILog = (args) => {
+  const onAlwanAPILog = (_, args) => {
     setAlwanAPILog((currentLogs) => {
       console.log({ currentLogs });
       if (args.log) {
@@ -869,7 +844,7 @@ export default function App() {
     });
   };
 
-  const onColorGateConnectionCheckReq = (args) => {
+  const onColorGateConnectionCheckReq = (_, args) => {
     let colorGateUsername = null;
     let connection = null;
     let licence = null;
@@ -888,7 +863,7 @@ export default function App() {
         }
       }
     }
-    const content = {
+    let content = {
       ...args,
       colorGateConnectionCheck: {
         username: colorGateUsername,
@@ -900,7 +875,7 @@ export default function App() {
   };
 
   // alwan
-  const onAlwanConnectionCheckReq = (args) => {
+  const onAlwanConnectionCheckReq = (_, args) => {
     let alwanUsername = null;
     let connection = null;
     let licence = null;
@@ -918,7 +893,7 @@ export default function App() {
         }
       }
     }
-    const content = {
+    let content = {
       ...args,
       alwanConnectionCheck: {
         username: alwanUsername,
@@ -929,8 +904,8 @@ export default function App() {
     ipcRenderer.send(ALWAN_CONNECTION_CHECK_RES, content);
   };
 
-  // auto-update functions
-  const onCheckForUpdate = (args) => {
+  //auto-update functions
+  const onCheckForUpdate = (_, args) => {
     setCheckUpdate(false);
     if (args.updateAvailable) {
       if (args.updateInfo?.version) {
@@ -952,7 +927,7 @@ export default function App() {
     }
   };
 
-  const onDownloadUpdate = (args) => {
+  const onDownloadUpdate = (_, args) => {
     setDownloadStarted(false);
     setUpdateDownloaded(true);
     if (updateInfo && updateInfo.version) {
@@ -962,24 +937,24 @@ export default function App() {
     }
   };
 
-  const onUpdateError = (args) => {
+  const onUpdateError = (_, args) => {
     setDownloadStarted(false);
     setUpdateError(args.message ?? 'Unknown Error');
     setCheckUpdate(false);
   };
 
-  const handleCheckUpdate = (args) => {
+  const handleCheckUpdate = (_, args) => {
     setCheckUpdate(true);
     setUpdateStatus('Checking for new version...');
     setUpdateInfo(null);
     ipcRenderer.send(CHECK_FOR_UPDATE, null);
   };
 
-  const handleDownloadUpdate = (args) => {
+  const handleDownloadUpdate = (_, args) => {
     setDownloadStarted(true);
     if (updateInfo.version) {
       setUpdateStatus(
-        `Downloading new version v${updateInfo.version}, please wait...`,
+        `Downloading new version v${updateInfo.version}, please wait...`
       );
     } else {
       setUpdateStatus('Downloading new version, please wait...');
@@ -987,12 +962,12 @@ export default function App() {
     ipcRenderer.send(DOWNLOAD_UPDATE, null);
   };
 
-  const handleQuitAndInstall = (args) => {
+  const handleQuitAndInstall = (_, args) => {
     setUpdateStatus('Preparing to quite...');
     ipcRenderer.send(QUIT_AND_INSTALL, null);
   };
 
-  const onDownloadProgress = (args) => {
+  const onDownloadProgress = (_, args) => {
     setDownloadProgress(args);
   };
 
@@ -1026,11 +1001,11 @@ export default function App() {
     localStorage.setItem('userInfo', JSON.stringify(userInfo));
   };
 
-  const afterDeviceDisconnectionCall = (args) => {
+  const afterDeviceDisconnectionCall = (_, args) => {
     ipcRenderer.send(DISCONNECT_DEVICE_FROM_SERVER, args);
   };
 
-  const onSocketConnection = (args) => {
+  const onSocketConnection = (_, args) => {
     if (args) {
       setSocketConnection(true);
     } else {
@@ -1040,7 +1015,7 @@ export default function App() {
     }
   };
 
-  const checkOnlineStatus = (args) => {
+  const checkOnlineStatus = (_, args) => {
     if (args.status) {
       setNetworkConnection(true);
     } else {
@@ -1049,29 +1024,29 @@ export default function App() {
     }
   };
 
-  const onVerifyDeviceConnection = (args) => {
+  const onVerifyDeviceConnection = (_, args) => {
     handleServerConnection();
   };
 
-  const onClientSocketAlreadyExist = (args) => {
+  const onClientSocketAlreadyExist = (_, args) => {
     // handleLogout();
     setServerError(
       args
         ? 'CMA Connect User ID is currently open in another session. Please try again after logging out from the other session.'
-        : '',
+        : ''
     );
     setSocketConnection(false);
     setColorGateSocketConnection(false);
     setAlwanSocketConnection(false);
   };
 
-  const onShowDialog = (args) => {
+  const onShowDialog = (_, args) => {
     if (args.message == 'Requested CMA-connect client is already available') {
       setServerError(
-        'CMA Connect User ID is currently open in another session. Please try again after logging out from the other session.',
+        'CMA Connect User ID is currently open in another session. Please try again after logging out from the other session.'
       );
     } else if (args.message == 'Requested CMA client not found') {
-      // do nothing
+      //do nothing
     }
   };
 
@@ -1114,7 +1089,7 @@ export default function App() {
     const userInfo = {
       username: obj.username,
       socketURL: obj.socketURL,
-      instanceURL,
+      instanceURL: instanceURL,
       isNewConnection: false,
       rememberUser: obj.remember,
       rememberUserTill: rememberTill,
@@ -1149,7 +1124,7 @@ export default function App() {
       lastConnectedDevice: device?.deviceId,
     };
     localStorage.setItem('userInfo', JSON.stringify(newUserInfo));
-    // set device disconnect timeout if flag is true
+    //set device disconnect timeout if flag is true
     setHasDeviceDisconnectTimeout((flag) => {
       ipcRenderer.send(DEVICE_DISCONNECT_TIMEOUT, {
         hasTimeout: flag,
@@ -1170,7 +1145,7 @@ export default function App() {
       lastConnectedPBDevice: device?.deviceId,
     };
     localStorage.setItem('userInfo', JSON.stringify(newUserInfo));
-    // set device disconnect timeout if flag is true
+    //set device disconnect timeout if flag is true
     setHasDeviceDisconnectTimeout((flag) => {
       ipcRenderer.send(DEVICE_DISCONNECT_TIMEOUT, {
         hasTimeout: flag,
@@ -1178,7 +1153,7 @@ export default function App() {
       });
       return flag;
     });
-  };
+  }
 
   const handleBarcodeDeviceConnection = (deviceId) => {
     const device = barcodeDeviceList.find((x) => x.deviceId == deviceId);
@@ -1191,7 +1166,7 @@ export default function App() {
       lastConnectedBarcode: device?.deviceId,
     };
     localStorage.setItem('userInfo', JSON.stringify(newUserInfo));
-    // set device disconnect timeout if flag is true
+    //set device disconnect timeout if flag is true
     setHasDeviceDisconnectTimeout((flag) => {
       ipcRenderer.send(DEVICE_DISCONNECT_TIMEOUT, {
         hasTimeout: flag,
@@ -1199,7 +1174,7 @@ export default function App() {
       });
       return flag;
     });
-  };
+  }
   const handleZebraDeviceConnection = (deviceId) => {
     const device = zebraDeviceList.find((x) => x.deviceId == deviceId);
     const deviceName = device?.deviceType;
@@ -1211,7 +1186,7 @@ export default function App() {
       lastConnectedZebra: device?.deviceId,
     };
     localStorage.setItem('userInfo', JSON.stringify(newUserInfo));
-    // set device disconnect timeout if flag is true
+    //set device disconnect timeout if flag is true
     setHasDeviceDisconnectTimeout((flag) => {
       ipcRenderer.send(DEVICE_DISCONNECT_TIMEOUT, {
         hasTimeout: flag,
@@ -1219,7 +1194,7 @@ export default function App() {
       });
       return flag;
     });
-  };
+  }
 
   const handleDeviceDisconnect = (deviceId) => {
     if (!deviceId) return;
@@ -1230,10 +1205,10 @@ export default function App() {
     ipcRenderer.send(DEVICE_DISCONNECT_API_CALL, {
       instanceURL,
       deviceName: device?.deviceType,
-      deviceId,
+      deviceId: deviceId,
     });
 
-    // set deviceChangeFrom to null
+    //set deviceChangeFrom to null
     setDeviceChangeFrom(null);
 
     // send call to remove device available device list on server
@@ -1253,16 +1228,16 @@ export default function App() {
   const handlePBDeviceDisconnect = (deviceId) => {
     if (!deviceId) return;
     const device = balanceDeviceList.find((x) => x.deviceId == deviceId);
-    if (!device) {
+    if(!device){
       return;
     }
     // call disconnect device
     ipcRenderer.send(DEVICE_DISCONNECT_API_CALL, {
       instanceURL,
       deviceName: device?.deviceType,
-      deviceId,
+      deviceId: deviceId,
     });
-    // set deviceChangeFrom to null
+    //set deviceChangeFrom to null
     setDeviceChangeFrom(null);
     // send call to remove device available device list on server
     ipcRenderer.send(DISCONNECT_DEVICE, device);
@@ -1280,16 +1255,16 @@ export default function App() {
   const handleBarcodeDeviceDisconnect = (deviceId) => {
     if (!deviceId) return;
     const device = barcodeDeviceList.find((x) => x.deviceId == deviceId);
-    if (!device) {
+    if(!device){
       return;
     }
     // call disconnect device
     ipcRenderer.send(DEVICE_DISCONNECT_API_CALL, {
       instanceURL,
       deviceName: device?.deviceType,
-      deviceId,
+      deviceId: deviceId,
     });
-    // set deviceChangeFrom to null
+    //set deviceChangeFrom to null
     setDeviceChangeFrom(null);
     // send call to remove device available device list on server
     ipcRenderer.send(DISCONNECT_DEVICE, device);
@@ -1307,16 +1282,16 @@ export default function App() {
   const handleZebraDeviceDisconnect = (deviceId) => {
     if (!deviceId) return;
     const device = zebraDeviceList.find((x) => x.deviceId == deviceId);
-    if (!device) {
+    if(!device){
       return;
     }
     // call disconnect device
     ipcRenderer.send(DEVICE_DISCONNECT_API_CALL, {
       instanceURL,
       deviceName: device?.deviceType,
-      deviceId,
+      deviceId: deviceId,
     });
-    // set deviceChangeFrom to null
+    //set deviceChangeFrom to null
     setDeviceChangeFrom(null);
     // send call to remove device available device list on server
     ipcRenderer.send(DISCONNECT_DEVICE, device);
@@ -1368,7 +1343,7 @@ export default function App() {
   };
 
   const handleSelectOtherDevice = (deviceId) => {
-    // clear device disconnection timeout
+    //clear device disconnection timeout
     ipcRenderer.send(DEVICE_DISCONNECT_TIMEOUT, {
       hasTimeout: false,
       deviceType: null,
@@ -1376,7 +1351,7 @@ export default function App() {
 
     if (!deviceId) return;
 
-    // set deviceChangeFrom to null
+    //set deviceChangeFrom to null
     setDeviceChangeFrom(null);
     setConnectedDeviceList([]);
     setLastConnectedDevice(null);
@@ -1399,7 +1374,7 @@ export default function App() {
   const goBackToMeasureScreen = () => {
     if (deviceList.length) {
       const updatedConnectedDeviceList = deviceList.filter(
-        (x) => x.deviceId == deviceChangeFrom,
+        (x) => x.deviceId == deviceChangeFrom
       );
       setConnectedDeviceList(updatedConnectedDeviceList);
       setLastConnectedDevice(deviceChangeFrom);
@@ -1437,40 +1412,44 @@ export default function App() {
 
   const updateDeviceList = (devices) => {
     if (devices) {
-      const newDeviceList = [];
-      const newBalanceDeviceList = [];
-      const newBarcodeDeviceList = [];
-      const newZebraDeviceList = [];
+      let newDeviceList = [];
+      let newBalanceDeviceList = [];
+      let newBarcodeDeviceList = [];
+      let newZebraDeviceList = [];
 
       for (const dev in devices) {
-        if (devices[dev].is_precision_balance) {
+
+        if(devices[dev].is_precision_balance){
           newBalanceDeviceList.push({ ...devices[dev], deviceId: dev });
-        } else if (devices[dev].deviceType === 'barcode_reader') {
+        }
+        else if(devices[dev].deviceType === 'barcode_reader'){
           newBarcodeDeviceList.push({ ...devices[dev], deviceId: dev });
-        } else if (devices[dev].deviceType === 'label_printer') {
+        }
+        else if(devices[dev].deviceType === 'label_printer'){
           newZebraDeviceList.push({ ...devices[dev], deviceId: dev });
-        } else {
+        }
+        else{
           newDeviceList.push({ ...devices[dev], deviceId: dev });
         }
       }
 
-      // check if system is mac, then should not include ci6x devices
-      // newDeviceList = newDeviceList.filter(
-      //   (dev) =>
-      //     !(
-      //       process.platform == 'darwin' &&
-      //       ['CI62', 'CI64', 'CI64UV'].includes(dev.deviceType)
-      //     ),
-      // );
-      setBalanceDeviceList(newBalanceDeviceList);
-      setBarcodeDeviceList(newBarcodeDeviceList);
-      setZebraDeviceList(newZebraDeviceList);
+      //check if system is mac, then should not include ci6x devices
+      newDeviceList = newDeviceList.filter(
+        (dev) =>
+          !(
+            process.platform == "darwin" &&
+            ["CI62", "CI64", "CI64UV"].includes(dev.deviceType)
+          )
+      );
+      setBalanceDeviceList(newBalanceDeviceList)
+      setBarcodeDeviceList(newBarcodeDeviceList)
+      setZebraDeviceList(newZebraDeviceList)
       setDeviceList(newDeviceList);
       if (deviceChangeFrom) {
         const updatedConnectedDeviceList = newDeviceList.filter((x) => {
           return (
             x.deviceId === deviceChangeFrom &&
-            (x.status === 'connected' ? x.login === username : true)
+            (x.status === "connected" ? x.login === username : true)
           );
         });
 
@@ -1512,7 +1491,7 @@ export default function App() {
     if (lastDevice) {
       // setLastDevice(lastConnectedDevice);
       const deviceToDisconnect = deviceList.find(
-        (device) => device.deviceId == lastDevice,
+        (device) => device.deviceId == lastDevice
       );
       if (deviceToDisconnect) {
         ipcRenderer.send(DEVICE_DISCONNECT_API_CALL, {
@@ -1528,9 +1507,9 @@ export default function App() {
         setLastDevice(null);
       }
     }
-    if (lastPBDevice) {
+    if(lastPBDevice){
       const pbDeviceToDisconnect = balanceDeviceList.find(
-        (device) => device.deviceId == lastPBDevice,
+        (device) => device.deviceId == lastPBDevice
       );
       if (pbDeviceToDisconnect) {
         ipcRenderer.send(DEVICE_DISCONNECT_API_CALL, {
@@ -1547,9 +1526,9 @@ export default function App() {
       }
     }
 
-    if (lastBarcodeDevice) {
+    if(lastBarcodeDevice){
       const barcodeDeviceToDisconnect = barcodeDeviceList.find(
-        (device) => device.deviceId == lastBarcodeDevice,
+        (device) => device.deviceId == lastBarcodeDevice
       );
       if (barcodeDeviceToDisconnect) {
         ipcRenderer.send(DEVICE_DISCONNECT_API_CALL, {
@@ -1566,9 +1545,9 @@ export default function App() {
       }
     }
 
-    if (lastZebraDevice) {
+    if(lastZebraDevice){
       const zebraDeviceToDisconnect = zebraDeviceList.find(
-        (device) => device.deviceId == lastZebraDevice,
+        (device) => device.deviceId == lastZebraDevice
       );
       if (zebraDeviceToDisconnect) {
         ipcRenderer.send(DEVICE_DISCONNECT_API_CALL, {
@@ -1588,6 +1567,10 @@ export default function App() {
     setDeviceChangeFrom(null);
     setShowThirdPartyAPIPage(false);
     ipcRenderer.send(DISCONNECT_SOCKET);
+    localStorage.setItem('thirdPartyAPIConfigInstance1', JSON.stringify(null));
+    localStorage.setItem('thirdPartyAPIConfigInstance2', JSON.stringify(null));
+    ipcRenderer.send(DISCONNECT_SOCKET_INSTANCE_1);
+    ipcRenderer.send(DISCONNECT_SOCKET_INSTANCE_2);
     const userInfo = localStorage.getItem('userInfo');
     const newUserInfo = {
       ...JSON.parse(userInfo),
@@ -1609,8 +1592,8 @@ export default function App() {
   };
 
   const handleNetworkRetry = () => {
-    // if network connection is on and 50 sec wait for socket close is over
-    // then setHasInternet to true to re-establish socket connection
+    //if network connection is on and 50 sec wait for socket close is over
+    //then setHasInternet to true to re-establish socket connection
     if (networkConnection && !waitForReconnection) {
       setHasInternet(true);
       setIsServerWaiting(true);
@@ -1631,8 +1614,7 @@ export default function App() {
           onConfirm={() => setShowDialog(false)}
         />
       );
-    }
-    if (!hasInternet && isLoggedIn) {
+    } else if (!hasInternet && isLoggedIn) {
       return (
         <InternetConnectionLost
           onRetry={handleNetworkRetry}
@@ -1640,18 +1622,16 @@ export default function App() {
           networkConnection={networkConnection}
         />
       );
-    }
-    if (isNewConnection) {
-      // first time connection
+    } else if (isNewConnection) {
+      //first time connection
       return (
         <NewConnection
           preUsername={username}
           afterNewConnection={handleNewConnection}
         />
       );
-    }
-    if (!isNewConnection && !isLoggedIn) {
-      // when first time connection is done and use is not logged in
+    } else if (!isNewConnection && !isLoggedIn) {
+      //when first time connection is done and use is not logged in
       return (
         <Login
           preUsername={username}
@@ -1661,8 +1641,7 @@ export default function App() {
           onCreateNewConnection={handleCreateNewConnection}
         />
       );
-    }
-    if (showCheckUpdatePage) {
+    } else if (showCheckUpdatePage) {
       return (
         <AppUpdate
           isNewUpdateAvailable={isNewUpdateAvailable}
@@ -1680,9 +1659,8 @@ export default function App() {
           handleGoBack={hideCheckUpdatePage}
         />
       );
-    }
-    if (isServerWaiting) {
-      // when waiting for socket connection
+    } else if (isServerWaiting) {
+      //when waiting for socket connection
       return (
         <ServerConnection
           lastDevice={lastDevice}
@@ -1711,167 +1689,167 @@ export default function App() {
           onPBDeviceDisconnect={handleLastPBDeviceDisconnection}
           onBarcodeDeviceDisconnect={handleLastBarcodeDeviceDisconnection}
           onZebraDeviceDisconnect={handleLastZebraDeviceDisconnection}
+
+
         />
       );
-    }
-    if (isPrecisionShow) {
+    } else if (isPrecisionShow) {
       return (
         <DevicePrecision
-          username={username}
-          deviceList={deviceList}
-          licenses={licenses}
-          instanceURL={instanceURL}
-          token={token}
-          onDeviceConnected={handlePBDeviceConnection}
-          onDeviceDisConnect={handlePBDeviceDisconnect}
-          onGoBackToMeasure={goBackToMeasureScreen}
-          onLogout={handleLogout}
-          onHasDeviceDisconnectTimeout={(res) =>
-            setHasDeviceDisconnectTimeout(res)
-          }
-          connectedPBDevice={lastConnectedPBDevice}
-          onGetDeviceAndLicenses={handleGetDeviceAndLicenses}
-          handleCheckUpdate={handleCheckUpdatePage}
-          isNewUpdateAvailable={isNewUpdateAvailable}
-          onThirdPartyAPI={handleThirdPartyAPI}
-          showThirdPartyAPIPage={showThirdPartyAPIPage}
-          colorGateAPILog={colorGateAPILog}
-          socketConnection={socketConnection}
-          thirdPartyAPIUser={thirdPartyAPIUser}
-          colorGateConnection={colorGateConnection}
-          setColorGateConnection={setColorGateConnection}
-          colorGateSocketConnection={colorGateSocketConnection}
-          colorGatePopupError={colorGatePopupError}
-          colorGatePopupTitle={colorGatePopupTitle}
-          setColorGatePopupError={setColorGatePopupError}
-          socketConnectionInProgress={socketConnectionInProgress}
-          setSocketConnectionInProgress={setSocketConnectionInProgress}
-          alwanAPILog={alwanAPILog}
-          alwanConnection={alwanConnection}
-          setAlwanConnection={setAlwanConnection}
-          alwanSocketConnection={alwanSocketConnection}
-          alwanPopupError={alwanPopupError}
-          alwanPopupTitle={alwanPopupTitle}
-          setAlwanPopupError={setAlwanPopupError}
-          alwanSocketConnectionInProgress={alwanSocketConnectionInProgress}
-          setAlwanSocketConnectionInProgress={
-            setAlwanSocketConnectionInProgress
-          }
-          balanceDeviceList={balanceDeviceList}
-          setisPrecisionShow={setisPrecisionShow}
-          barcodeDeviceList={barcodeDeviceList}
-          setIsBarcodeOnShow={setIsBarcodeOnShow}
-          zebraDeviceList={zebraDeviceList}
-          setIsZebraOnShow={setIsZebraOnShow}
+        username={username}
+        deviceList={deviceList}
+        licenses={licenses}
+        instanceURL={instanceURL}
+        token={token}
+        onDeviceConnected={handlePBDeviceConnection}
+        onDeviceDisConnect={handlePBDeviceDisconnect}
+        onGoBackToMeasure={goBackToMeasureScreen}
+        onLogout={handleLogout}
+        onHasDeviceDisconnectTimeout={(res) =>
+          setHasDeviceDisconnectTimeout(res)
+        }
+        connectedPBDevice={lastConnectedPBDevice}
+        onGetDeviceAndLicenses={handleGetDeviceAndLicenses}
+        handleCheckUpdate={handleCheckUpdatePage}
+        isNewUpdateAvailable={isNewUpdateAvailable}
+        onThirdPartyAPI={handleThirdPartyAPI}
+        showThirdPartyAPIPage={showThirdPartyAPIPage}
+        colorGateAPILog={colorGateAPILog}
+        socketConnection={socketConnection}
+        thirdPartyAPIUser={thirdPartyAPIUser}
+        colorGateConnection={colorGateConnection}
+        setColorGateConnection={setColorGateConnection}
+        colorGateSocketConnection={colorGateSocketConnection}
+        colorGatePopupError={colorGatePopupError}
+        colorGatePopupTitle={colorGatePopupTitle}
+        setColorGatePopupError={setColorGatePopupError}
+        socketConnectionInProgress={socketConnectionInProgress}
+        setSocketConnectionInProgress={setSocketConnectionInProgress}
+        alwanAPILog={alwanAPILog}
+        alwanConnection={alwanConnection}
+        setAlwanConnection={setAlwanConnection}
+        alwanSocketConnection={alwanSocketConnection}
+        alwanPopupError={alwanPopupError}
+        alwanPopupTitle={alwanPopupTitle}
+        setAlwanPopupError={setAlwanPopupError}
+        alwanSocketConnectionInProgress={alwanSocketConnectionInProgress}
+        setAlwanSocketConnectionInProgress={
+          setAlwanSocketConnectionInProgress
+        }
+        balanceDeviceList={balanceDeviceList}
+        setisPrecisionShow={setisPrecisionShow}
+        barcodeDeviceList={barcodeDeviceList}
+        setIsBarcodeOnShow={setIsBarcodeOnShow}
+        zebraDeviceList={zebraDeviceList}
+        setIsZebraOnShow={setIsZebraOnShow}
         />
       );
-    }
-    if (isBarcodeOnShow) {
+    } else if(isBarcodeOnShow){
       return (
         <DeviceBarcode
-          username={username}
-          deviceList={deviceList}
-          licenses={licenses}
-          instanceURL={instanceURL}
-          token={token}
-          onDeviceConnected={handleBarcodeDeviceConnection}
-          onDeviceDisConnect={handleBarcodeDeviceDisconnect}
-          onGoBackToMeasure={goBackToMeasureScreen}
-          onLogout={handleLogout}
-          onHasDeviceDisconnectTimeout={(res) =>
-            setHasDeviceDisconnectTimeout(res)
-          }
-          lastConnectedBarcode={lastConnectedBarcode}
-          onGetDeviceAndLicenses={handleGetDeviceAndLicenses}
-          handleCheckUpdate={handleCheckUpdatePage}
-          isNewUpdateAvailable={isNewUpdateAvailable}
-          onThirdPartyAPI={handleThirdPartyAPI}
-          showThirdPartyAPIPage={showThirdPartyAPIPage}
-          colorGateAPILog={colorGateAPILog}
-          socketConnection={socketConnection}
-          thirdPartyAPIUser={thirdPartyAPIUser}
-          colorGateConnection={colorGateConnection}
-          setColorGateConnection={setColorGateConnection}
-          colorGateSocketConnection={colorGateSocketConnection}
-          colorGatePopupError={colorGatePopupError}
-          colorGatePopupTitle={colorGatePopupTitle}
-          setColorGatePopupError={setColorGatePopupError}
-          socketConnectionInProgress={socketConnectionInProgress}
-          setSocketConnectionInProgress={setSocketConnectionInProgress}
-          alwanAPILog={alwanAPILog}
-          alwanConnection={alwanConnection}
-          setAlwanConnection={setAlwanConnection}
-          alwanSocketConnection={alwanSocketConnection}
-          alwanPopupError={alwanPopupError}
-          alwanPopupTitle={alwanPopupTitle}
-          setAlwanPopupError={setAlwanPopupError}
-          alwanSocketConnectionInProgress={alwanSocketConnectionInProgress}
-          setAlwanSocketConnectionInProgress={
-            setAlwanSocketConnectionInProgress
-          }
-          balanceDeviceList={balanceDeviceList}
-          barcodeDeviceList={barcodeDeviceList}
-          zebraDeviceList={zebraDeviceList}
-          setisPrecisionShow={setisPrecisionShow}
-          setIsBarcodeOnShow={setIsBarcodeOnShow}
-          setIsZebraOnShow={setIsZebraOnShow}
+        username={username}
+        deviceList={deviceList}
+        licenses={licenses}
+        instanceURL={instanceURL}
+        token={token}
+        onDeviceConnected={handleBarcodeDeviceConnection}
+        onDeviceDisConnect={handleBarcodeDeviceDisconnect}
+        onGoBackToMeasure={goBackToMeasureScreen}
+        onLogout={handleLogout}
+        onHasDeviceDisconnectTimeout={(res) =>
+         setHasDeviceDisconnectTimeout(res)
+        }
+        lastConnectedBarcode={lastConnectedBarcode}
+        onGetDeviceAndLicenses={handleGetDeviceAndLicenses}
+        handleCheckUpdate={handleCheckUpdatePage}
+        isNewUpdateAvailable={isNewUpdateAvailable}
+        onThirdPartyAPI={handleThirdPartyAPI}
+        showThirdPartyAPIPage={showThirdPartyAPIPage}
+        colorGateAPILog={colorGateAPILog}
+        socketConnection={socketConnection}
+        thirdPartyAPIUser={thirdPartyAPIUser}
+        colorGateConnection={colorGateConnection}
+        setColorGateConnection={setColorGateConnection}
+        colorGateSocketConnection={colorGateSocketConnection}
+        colorGatePopupError={colorGatePopupError}
+        colorGatePopupTitle={colorGatePopupTitle}
+        setColorGatePopupError={setColorGatePopupError}
+        socketConnectionInProgress={socketConnectionInProgress}
+        setSocketConnectionInProgress={setSocketConnectionInProgress}
+        alwanAPILog={alwanAPILog}
+        alwanConnection={alwanConnection}
+        setAlwanConnection={setAlwanConnection}
+        alwanSocketConnection={alwanSocketConnection}
+        alwanPopupError={alwanPopupError}
+        alwanPopupTitle={alwanPopupTitle}
+        setAlwanPopupError={setAlwanPopupError}
+        alwanSocketConnectionInProgress={alwanSocketConnectionInProgress}
+        setAlwanSocketConnectionInProgress={
+          setAlwanSocketConnectionInProgress
+        }
+        balanceDeviceList={balanceDeviceList}
+        barcodeDeviceList={barcodeDeviceList}
+        zebraDeviceList={zebraDeviceList}
+        setisPrecisionShow={setisPrecisionShow}
+        setIsBarcodeOnShow={setIsBarcodeOnShow}
+        setIsZebraOnShow={setIsZebraOnShow}
         />
-      );
-    }
-    if (isZebraOnShow) {
-      return (
-        <DeviceZebraPrinter
-          username={username}
-          deviceList={deviceList}
-          licenses={licenses}
-          instanceURL={instanceURL}
-          token={token}
-          onDeviceConnected={handleZebraDeviceConnection}
-          onDeviceDisConnect={handleZebraDeviceDisconnect}
-          onGoBackToMeasure={goBackToMeasureScreen}
-          onLogout={handleLogout}
-          onHasDeviceDisconnectTimeout={(res) =>
-            setHasDeviceDisconnectTimeout(res)
-          }
-          lastConnectedZebra={lastConnectedZebra}
-          onGetDeviceAndLicenses={handleGetDeviceAndLicenses}
-          handleCheckUpdate={handleCheckUpdatePage}
-          isNewUpdateAvailable={isNewUpdateAvailable}
-          onThirdPartyAPI={handleThirdPartyAPI}
-          showThirdPartyAPIPage={showThirdPartyAPIPage}
-          colorGateAPILog={colorGateAPILog}
-          socketConnection={socketConnection}
-          thirdPartyAPIUser={thirdPartyAPIUser}
-          colorGateConnection={colorGateConnection}
-          setColorGateConnection={setColorGateConnection}
-          colorGateSocketConnection={colorGateSocketConnection}
-          colorGatePopupError={colorGatePopupError}
-          colorGatePopupTitle={colorGatePopupTitle}
-          setColorGatePopupError={setColorGatePopupError}
-          socketConnectionInProgress={socketConnectionInProgress}
-          setSocketConnectionInProgress={setSocketConnectionInProgress}
-          alwanAPILog={alwanAPILog}
-          alwanConnection={alwanConnection}
-          setAlwanConnection={setAlwanConnection}
-          alwanSocketConnection={alwanSocketConnection}
-          alwanPopupError={alwanPopupError}
-          alwanPopupTitle={alwanPopupTitle}
-          setAlwanPopupError={setAlwanPopupError}
-          alwanSocketConnectionInProgress={alwanSocketConnectionInProgress}
-          setAlwanSocketConnectionInProgress={
-            setAlwanSocketConnectionInProgress
-          }
-          balanceDeviceList={balanceDeviceList}
-          setisPrecisionShow={setisPrecisionShow}
-          barcodeDeviceList={barcodeDeviceList}
-          setIsBarcodeOnShow={setIsBarcodeOnShow}
-          zebraDeviceList={zebraDeviceList}
-          setIsZebraOnShow={setIsZebraOnShow}
-        />
-      );
-    }
-    if (!lastConnectedDevice) {
-      // when no last connected Device found, select device to connect
+      )
+  }
+  else if(isZebraOnShow){
+    return (
+      <DeviceZebraPrinter
+      username={username}
+      deviceList={deviceList}
+      licenses={licenses}
+      instanceURL={instanceURL}
+      token={token}
+      onDeviceConnected={handleZebraDeviceConnection}
+      onDeviceDisConnect={handleZebraDeviceDisconnect}
+      onGoBackToMeasure={goBackToMeasureScreen}
+      onLogout={handleLogout}
+      onHasDeviceDisconnectTimeout={(res) =>
+       setHasDeviceDisconnectTimeout(res)
+      }
+      lastConnectedZebra={lastConnectedZebra}
+      onGetDeviceAndLicenses={handleGetDeviceAndLicenses}
+      handleCheckUpdate={handleCheckUpdatePage}
+      isNewUpdateAvailable={isNewUpdateAvailable}
+      onThirdPartyAPI={handleThirdPartyAPI}
+      showThirdPartyAPIPage={showThirdPartyAPIPage}
+      colorGateAPILog={colorGateAPILog}
+      socketConnection={socketConnection}
+      thirdPartyAPIUser={thirdPartyAPIUser}
+      colorGateConnection={colorGateConnection}
+      setColorGateConnection={setColorGateConnection}
+      colorGateSocketConnection={colorGateSocketConnection}
+      colorGatePopupError={colorGatePopupError}
+      colorGatePopupTitle={colorGatePopupTitle}
+      setColorGatePopupError={setColorGatePopupError}
+      socketConnectionInProgress={socketConnectionInProgress}
+      setSocketConnectionInProgress={setSocketConnectionInProgress}
+      alwanAPILog={alwanAPILog}
+      alwanConnection={alwanConnection}
+      setAlwanConnection={setAlwanConnection}
+      alwanSocketConnection={alwanSocketConnection}
+      alwanPopupError={alwanPopupError}
+      alwanPopupTitle={alwanPopupTitle}
+      setAlwanPopupError={setAlwanPopupError}
+      alwanSocketConnectionInProgress={alwanSocketConnectionInProgress}
+      setAlwanSocketConnectionInProgress={
+        setAlwanSocketConnectionInProgress
+      }
+      balanceDeviceList={balanceDeviceList}
+      setisPrecisionShow={setisPrecisionShow}
+      barcodeDeviceList={barcodeDeviceList}
+      setIsBarcodeOnShow={setIsBarcodeOnShow}
+      zebraDeviceList={zebraDeviceList}
+      setIsZebraOnShow={setIsZebraOnShow}
+      />
+    )
+}
+    else if (!lastConnectedDevice) {
+      //when no last connected Device found, select device to connect
       return (
         <DeviceSelection
           username={username}
@@ -1922,8 +1900,7 @@ export default function App() {
           setIsZebraOnShow={setIsZebraOnShow}
         />
       );
-    }
-    if (lastConnectedDevice) {
+    } else if (lastConnectedDevice) {
       // when lastConnectedDevice info available
       if (
         connectedDeviceList &&
@@ -1976,57 +1953,64 @@ export default function App() {
             setCurrentAction={setCurrentI1IO3Action}
           />
         );
+      } else {
+        return (
+          <DeviceMeasurement
+            username={username}
+            instanceURL={instanceURL}
+            connectedDevice={lastConnectedDevice}
+            deviceList={connectedDeviceList}
+            licenses={licenses}
+            token={token}
+            onLogout={handleLogout}
+            onChangeDevice={handleChangeDevice}
+            onDeviceDisConnect={handleDeviceDisconnect}
+            onSelectOtherDevice={handleSelectOtherDevice}
+            onGetDeviceAndLicenses={handleGetDeviceAndLicenses}
+            handleCheckUpdate={handleCheckUpdatePage}
+            isNewUpdateAvailable={isNewUpdateAvailable}
+            onThirdPartyAPI={handleThirdPartyAPI}
+            showThirdPartyAPIPage={showThirdPartyAPIPage}
+            colorGateAPILog={colorGateAPILog}
+            socketConnection={socketConnection}
+            thirdPartyAPIUser={thirdPartyAPIUser}
+            colorGateConnection={colorGateConnection}
+            setColorGateConnection={setColorGateConnection}
+            colorGateSocketConnection={colorGateSocketConnection}
+            colorGatePopupError={colorGatePopupError}
+            colorGatePopupTitle={colorGatePopupTitle}
+            setColorGatePopupError={setColorGatePopupError}
+            socketConnectionInProgress={socketConnectionInProgress}
+            setSocketConnectionInProgress={setSocketConnectionInProgress}
+            alwanAPILog={alwanAPILog}
+            alwanConnection={alwanConnection}
+            setAlwanConnection={setAlwanConnection}
+            alwanSocketConnection={alwanSocketConnection}
+            alwanPopupError={alwanPopupError}
+            alwanPopupTitle={alwanPopupTitle}
+            setAlwanPopupError={setAlwanPopupError}
+            alwanSocketConnectionInProgress={alwanSocketConnectionInProgress}
+            setAlwanSocketConnectionInProgress={
+              setAlwanSocketConnectionInProgress
+            }
+            balanceDeviceList={balanceDeviceList}
+            setisPrecisionShow={setisPrecisionShow}
+            barcodeDeviceList={barcodeDeviceList}
+            setIsBarcodeOnShow={setIsBarcodeOnShow}
+            zebraDeviceList={zebraDeviceList}
+            setIsZebraOnShow={setIsZebraOnShow}
+          />
+        );
       }
-      return (
-        <DeviceMeasurement
-          username={username}
-          instanceURL={instanceURL}
-          connectedDevice={lastConnectedDevice}
-          deviceList={connectedDeviceList}
-          licenses={licenses}
-          token={token}
-          onLogout={handleLogout}
-          onChangeDevice={handleChangeDevice}
-          onDeviceDisConnect={handleDeviceDisconnect}
-          onSelectOtherDevice={handleSelectOtherDevice}
-          onGetDeviceAndLicenses={handleGetDeviceAndLicenses}
-          handleCheckUpdate={handleCheckUpdatePage}
-          isNewUpdateAvailable={isNewUpdateAvailable}
-          onThirdPartyAPI={handleThirdPartyAPI}
-          showThirdPartyAPIPage={showThirdPartyAPIPage}
-          colorGateAPILog={colorGateAPILog}
-          socketConnection={socketConnection}
-          thirdPartyAPIUser={thirdPartyAPIUser}
-          colorGateConnection={colorGateConnection}
-          setColorGateConnection={setColorGateConnection}
-          colorGateSocketConnection={colorGateSocketConnection}
-          colorGatePopupError={colorGatePopupError}
-          colorGatePopupTitle={colorGatePopupTitle}
-          setColorGatePopupError={setColorGatePopupError}
-          socketConnectionInProgress={socketConnectionInProgress}
-          setSocketConnectionInProgress={setSocketConnectionInProgress}
-          alwanAPILog={alwanAPILog}
-          alwanConnection={alwanConnection}
-          setAlwanConnection={setAlwanConnection}
-          alwanSocketConnection={alwanSocketConnection}
-          alwanPopupError={alwanPopupError}
-          alwanPopupTitle={alwanPopupTitle}
-          setAlwanPopupError={setAlwanPopupError}
-          alwanSocketConnectionInProgress={alwanSocketConnectionInProgress}
-          setAlwanSocketConnectionInProgress={
-            setAlwanSocketConnectionInProgress
-          }
-          balanceDeviceList={balanceDeviceList}
-          setisPrecisionShow={setisPrecisionShow}
-          barcodeDeviceList={barcodeDeviceList}
-          setIsBarcodeOnShow={setIsBarcodeOnShow}
-          zebraDeviceList={zebraDeviceList}
-          setIsZebraOnShow={setIsZebraOnShow}
-        />
-      );
+    } else {
+      return <NewConnection />;
     }
-    return <NewConnection />;
   };
 
-  return renderView();
+  return (
+    <InstanceConnectionProvider>
+    {renderView()}
+    </InstanceConnectionProvider>
+
+  );
 }

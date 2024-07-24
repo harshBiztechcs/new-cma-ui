@@ -1,5 +1,6 @@
 const { ipcRenderer } = require('electron');
 const {
+  CONNECTION,
   SETTINGS,
   CALIBRATION,
   MEASUREMENT,
@@ -126,6 +127,37 @@ const onColorGateConnectionCheck = (fn) =>
 const onColorGateUpdateLicense = (fn) =>
   ipcRenderer.on(COLOR_GATE_UPDATE_LICENSE, fn);
 
+// colorgate multi instance
+const onConnectSocketMultiInstance1 = (fn) =>
+  ipcRenderer.on('CONNECT_SOCKET_INSTANCE_1', fn);
+const onConnectSocketMultiInstance2 = (fn) =>
+  ipcRenderer.on('CONNECT_SOCKET_INSTANCE_2', fn);
+const onDisconnectSocketMultiInstance1 = (fn) =>
+  ipcRenderer.on('DISCONNECT_SOCKET_INSTANCE_1', fn);
+const onDisconnectSocketMultiInstance2 = (fn) =>
+  ipcRenderer.on('DISCONNECT_SOCKET_INSTANCE_2', fn);
+const onColorGateApiResMultiInstance1 = (fn) =>
+  ipcRenderer.on('COLOR_GATE_API_RES_MULTI_INSTANCE_1', fn);
+const onColorGateApiResMultiInstance2 = (fn) =>
+  ipcRenderer.on('COLOR_GATE_API_RES_MULTI_INSTANCE_2', fn);
+const onColorGateServerConnectionReqMultiInstance1 = (fn) =>
+  ipcRenderer.on('COLOR_GATE_SERVER_CONNECTION_REQ_MULTI_INSTANCE_1', fn);
+const onColorGateServerConnectionReqMultiInstance2 = (fn) =>
+  ipcRenderer.on('COLOR_GATE_SERVER_CONNECTION_REQ_MULTI_INSTANCE_2', fn);
+const onColorGateConnectionCheckMultiInstance1 = (fn) =>
+  ipcRenderer.on('COLOR_GATE_CONNECTION_CHECK_MULTI_INSTANCE_1', fn);
+const onColorGateConnectionCheckMultiInstance2 = (fn) =>
+  ipcRenderer.on('COLOR_GATE_CONNECTION_CHECK_MULTI_INSTANCE_2', fn);
+
+const ipcClientSocketAlreadyExistInstance1 = (args) =>
+  ipcRenderer.send('CLIENT_SOCKET_ALREADY_EXIST_INSTANCE_1', args);
+const ipcClientSocketAlreadyExistInstance2 = (args) =>
+  ipcRenderer.send('CLIENT_SOCKET_ALREADY_EXIST_INSTANCE_2', args);
+const ipcConnectionStatusInstance1 = (msg) =>
+  ipcRenderer.send('CONNECTION_STATUS_INSTANCE_1', msg);
+const ipcConnectionStatusInstance2 = (msg) =>
+  ipcRenderer.send('CONNECTION_STATUS_INSTANCE_2', msg);
+
 // alwan
 const onAlwanAPIReq = (fn) => ipcRenderer.on(ALWAN_API_REQ, fn);
 const onAlwanAPIRes = (fn) => ipcRenderer.on(ALWAN_API_RES, fn);
@@ -206,4 +238,18 @@ module.exports = {
   onZebraPrinterHandler,
   onBarCodeReader,
   onChnageConnectionType,
+  onConnectSocketMultiInstance1,
+  onConnectSocketMultiInstance2,
+  onDisconnectSocketMultiInstance1,
+  onDisconnectSocketMultiInstance2,
+  onColorGateApiResMultiInstance1,
+  onColorGateApiResMultiInstance2,
+  onColorGateServerConnectionReqMultiInstance1,
+  onColorGateServerConnectionReqMultiInstance2,
+  onColorGateConnectionCheckMultiInstance1,
+  onColorGateConnectionCheckMultiInstance2,
+  ipcClientSocketAlreadyExistInstance1,
+  ipcClientSocketAlreadyExistInstance2,
+  ipcConnectionStatusInstance1,
+  ipcConnectionStatusInstance2,
 };

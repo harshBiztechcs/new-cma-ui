@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import cmaConnectIcon from '../assets/image/cma-connect-icon.png';
 function DevicePageTitle({
   title,
@@ -9,13 +9,20 @@ function DevicePageTitle({
   onGoBack,
   username,
   instanceURL,
+  multiInstanceList,
+  setMultiInstanceList
 }) {
+  // function onMultiInstance() {
+  //   alert('onMultiInstance');
+  // }
   return (
     <div className="title-header">
       <div className="d-flex justify-content-between">
         <div className="title-header-left">
           <div className="d-flex">
-            <div><img src={cmaConnectIcon} alt="CMA Connect Icon" /></div>
+            <div>
+              <img src={cmaConnectIcon} alt="CMA Connect Icon" />
+            </div>
             <div className="title-box">
               <h1>{title}</h1>
               <p className="sub-title">{subtitle}</p>
@@ -32,9 +39,17 @@ function DevicePageTitle({
             </button>
           )}
           {onGoBack && (
-            <button className="btn-secondary mr-12" onClick={onGoBack}>
-              Go Back
-            </button>
+            <>
+              <button className="btn-secondary mr-12" onClick={onGoBack}>
+                Go Back
+              </button>
+              <button
+                className="btn-secondary mr-12"
+                onClick={() => setMultiInstanceList(true)}
+              >
+                Multi Instance
+              </button>
+            </>
           )}
           <button className="btn-secondary mr-12" onClick={onRefresh}>
             Refresh

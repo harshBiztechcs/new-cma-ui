@@ -1,32 +1,19 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import { GET_APP_VERSION } from 'utility/constants';
 
+const { ipcRenderer } = window.require('electron');
+const currentAppVersion = ipcRenderer.sendSync(GET_APP_VERSION);
+
 function Footer() {
-  const [currentAppVersion, setCurrentAppVersion] = useState('');
-
-  const getAppVersion = useCallback((version) => {
-    setCurrentAppVersion(version);
-  }, []);
-
-  useEffect(() => {
-    const { ipcRenderer } = window.electron;
-
-    ipcRenderer.on(GET_APP_VERSION, getAppVersion);
-    ipcRenderer.send(GET_APP_VERSION);
-
-    return () => {
-      ipcRenderer.removeAllListeners(GET_APP_VERSION);
-    };
-  }, [getAppVersion]);
-
   const currentYear = new Date().getFullYear();
-
   return (
-    <footer className="copy-right">
-      <p>
-        {`© CMA IMAGING ${currentYear}. All rights reserved. CMA Connect App Version ${currentAppVersion}`}
-      </p>
-    </footer>
+    <>
+      <footer className="copy-right">
+        <p>
+          {`© CMA IMAGING ${currentYear}. All right reserved. CMA Connect App Version ${currentAppVersion}`}
+        </p>
+      </footer>
+    </>
   );
 }
 

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { BLUETOOTH_SCAN_DEVICE } from 'utility/constants';
 import BluetoothConnectSVG from '../assets/image/Bluetooth-connect.svg';
+import { BLUETOOTH_SCAN_DEVICE } from 'utility/constants';
 
-const { ipcRenderer } = window.electron;
+const { ipcRenderer } = window.require('electron');
 
 function DeviceScanModal({
   onConfirm,
@@ -23,7 +23,7 @@ function DeviceScanModal({
     };
   }, []);
 
-  const onDeviceListReceived = (args) => {
+  const onDeviceListReceived = (event, args) => {
     setIsLoading(false);
     if (args.res) {
       setScannedDeviceList(args.data);
@@ -54,7 +54,7 @@ function DeviceScanModal({
     <div id="deviceScanModal" className="modal">
       <div className="modal-content">
         <span className="close">X</span>
-        <img src={BluetoothConnectSVG} alt="Connect" />
+        <img src={BluetoothConnectSVG} alt="Connect"></img>
         <h4>Select Device</h4>
         {isLoading ? (
           <div>Loading...</div>
@@ -62,17 +62,17 @@ function DeviceScanModal({
           <div className="row">
             <div className="form-group">
               {scannedDeviceList.map((device, index) => (
-                <div key={`${device.Index}-${device.Address}`}>
+                <div key={`${device.Index}-${device.address}`}>
                   <input
                     type="radio"
                     id={`deviceOption${device.Index}`}
                     name="device"
-                    value={device.Address}
-                    checked={selectedOption === device.Address}
+                    value={device.address}
+                    checked={selectedOption === device.address}
                     onChange={handleOptionChange}
                   />
                   <label htmlFor={`deviceOption${device.Index}`}>
-                    {device.Name} - {device.Address}
+                    {device.name} - {device.address}
                   </label>
                 </div>
               ))}

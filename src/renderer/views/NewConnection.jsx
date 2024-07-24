@@ -1,13 +1,10 @@
-/* eslint-disable react/prop-types */
-/* eslint-disable jsx-a11y/label-has-associated-control */
-import React, { useCallback, useEffect, useState } from 'react';
-import { GET_TOKEN, LOGIN, URLRegex } from 'utility/constants';
+import React, { useEffect, useState } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import infoImage from '../assets/image/info.svg';
 import cmaConnectLogo from '../assets/image/cma-connect.jpg';
-
-const { ipcRenderer } = window.electron;
+const { ipcRenderer } = window.require('electron');
+import { GET_TOKEN, LOGIN, URLRegex } from 'utility/constants';
 
 function NewConnection({ afterNewConnection }) {
   const [username, setUsername] = useState('');
@@ -18,63 +15,24 @@ function NewConnection({ afterNewConnection }) {
   const [error, setError] = useState('');
   const [reqMsg, setReqMsg] = useState('');
 
-  const onGetToken = useCallback((args) => {
-    if (args.res) {
-      setError((state) => {
-        if (
-          state ===
-          'Unable to load token, verify your credentials and try again !'
-        ) {
-          setError('');
-        }
-      });
-      setToken(args.token);
-      setTokenExpiry(args.tokenExpiry);
-    } else {
-      setError(args.error);
-      setToken('');
-      setTokenExpiry(null);
-    }
-  }, []);
-
-  const onLogin = useCallback(
-    (args) => {
-      if (args.res) {
-        const connInfo = {
-          ...args,
-          socketURL: args.socketURL,
-          thirdPartyAPIUser: args.thirdPartyAPIUser,
-        };
-        afterNewConnection(connInfo);
-        setError('');
-        setReqMsg('');
-      } else {
-        setToken('');
-        setError(args.error);
-      }
-    },
-    [afterNewConnection],
-  );
-
   useEffect(() => {
+    // register event
     ipcRenderer.on(GET_TOKEN, onGetToken);
     ipcRenderer.on(LOGIN, onLogin);
     return () => {
       ipcRenderer.removeListener(GET_TOKEN, onGetToken);
       ipcRenderer.removeListener(LOGIN, onLogin);
     };
-  }, [onGetToken, onLogin]);
+  }, []);
 
   const checkInstanceURLValid = () => {
-    if (instanceURL.trim() === '') {
+    if (instanceURL.trim() == '') {
       setError('Instance url is required');
       return false;
-    }
-    if (!URLRegex.test(instanceURL)) {
+    } else if (!URLRegex.test(instanceURL)) {
       setError('Instance url is not valid');
       return false;
-    }
-    if (instanceURL.slice(-1) === '/') {
+    } else if (instanceURL.slice(-1) == '/') {
       setError("Remove '/' at the end of the Instance URL");
       return false;
     }
@@ -84,17 +42,17 @@ function NewConnection({ afterNewConnection }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     let valError = '';
-    if (username.trim() === '') {
+    if (username.trim() == '') {
       valError = 'Username is required';
-    } else if (password.trim() === '') {
+    } else if (password.trim() == '') {
       valError = 'Password is required';
-    } else if (instanceURL.trim() === '') {
+    } else if (instanceURL.trim() == '') {
       valError = 'Instance url is required';
     } else if (!URLRegex.test(instanceURL)) {
       valError = 'Instance url is not valid';
-    } else if (instanceURL.slice(-1) === '/') {
+    } else if (instanceURL.slice(-1) == '/') {
       valError = "Remove '/' at the end of the Instance URL";
-    } else if (token.trim() === '') {
+    } else if (token.trim() == '') {
       valError = 'Token is required';
     }
     setError(valError);
@@ -107,17 +65,48 @@ function NewConnection({ afterNewConnection }) {
       tokenExpiry,
     };
 
-    // perform login
+    //perform login
     ipcRenderer.send(LOGIN, newConnObj);
+  };
+
+  const onGetToken = (_, args) => {
+    if (args.res) {
+      setError((state) => {
+        if (
+          state ==
+          'Unable to load token, verify your credentials and try again !'
+        ) {
+          setError('');
+        }
+      });
+      setToken(args.token);
+      setTokenExpiry(args.tokenExpiry);
+    } else {
+      setError(args.error);
+      setToken('');
+      setTokenExpiry(null);
+    }
+  };
+
+  const onLogin = (_, args) => {
+    if (args.res) {
+      const connInfo = {
+        ...args,
+        socketURL: args.socketURL,
+        thirdPartyAPIUser: args.thirdPartyAPIUser,
+      };
+      afterNewConnection(connInfo);
+      setError('');
+      setReqMsg('');
+    } else {
+      setToken('');
+      setError(args.error);
+    }
   };
 
   const onGenerateToken = () => {
     if (checkInstanceURLValid()) {
-      ipcRenderer.send(GET_TOKEN, {
-        instanceURL,
-        username,
-        password,
-      });
+      ipcRenderer.send(GET_TOKEN, { instanceURL, username, password });
     }
   };
 
@@ -222,7 +211,7 @@ function NewConnection({ afterNewConnection }) {
                   {error && (
                     <p className="login-error-msg">
                       {error}{' '}
-                      <a href="mailto:help@cmaimaging.com">Need help?</a>
+                      <a href="mailto:help@cmaimaging.com">Need help ?</a>
                     </p>
                   )}
                   {reqMsg && (

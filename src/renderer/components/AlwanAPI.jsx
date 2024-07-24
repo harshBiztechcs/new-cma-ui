@@ -8,10 +8,9 @@ import {
   ALWAN_UPDATE_LICENSE,
 } from 'utility/constants';
 import APILogList from './APILogList';
-
-const { ipcRenderer } = window.electron;
-
-ipcRenderer.send(GET_IP);
+const { ipcRenderer } = window.require('electron');
+const ipv4 = ipcRenderer.sendSync(GET_IP, null);
+const ipAddress = ipv4 ? `http://${ipv4}` : '';
 
 const IndicatorStyle = {
   background: '#28B62C',
@@ -37,41 +36,26 @@ export default function AlwanAPI({
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [apiBaseURL, setApiBaseURL] = useState();
+  const [apiBaseURL, setApiBaseURL] = useState(ipAddress);
   const [port, setPort] = useState(8751);
   const [alwanLicense, setAlwanLicense] = useState('');
   const [error, setError] = useState('');
   const [gettingLocalIp, setGettingLocalIp] = useState(false);
-  const [ipv4, setipv4] = useState('');
-
-  useEffect(() => {
-    ipcRenderer.on(GET_IP, (ipAddress) => {
-      setApiBaseURL(`https://${ipAddress}`);
-      setTimeout(() => {
-        setGettingLocalIp(false);
-      }, 100);
-      setipv4(ipAddress);
-    });
-    ipcRenderer.send(GET_IP);
-    return () => {
-      ipcRenderer.removeAllListeners(GET_IP);
-    };
-  }, []);
 
   const connectionBtnText = ` ${
     checkConnection
       ? 'Checking Connection...'
       : alwanConnection
-        ? 'Connection Successful'
-        : 'Connection Failed'
+      ? 'Connection Successful'
+      : 'Connection Failed'
   }`;
 
   const alwanServerConnectionBtnText = `${
     alwanSocketConnectionInProgress
       ? 'Processing...'
       : alwanSocketConnection
-        ? 'Disconnect Server'
-        : 'Connect Server'
+      ? 'Disconnect Server'
+      : 'Connect Server'
   }`;
 
   useEffect(() => {
@@ -81,11 +65,11 @@ export default function AlwanAPI({
       console.log('CLOSING ALWAN API ');
       ipcRenderer.removeListener(
         TEST_ALWAN_API_CONNECTION,
-        onCheckAlwanAPIConnection,
+        onCheckAlwanAPIConnection
       );
       ipcRenderer.removeListener(
         CMA_API_FOR_ALWAN_STATUS_UPDATE,
-        onAlwanDisconnectionAPIRes,
+        onAlwanDisconnectionAPIRes
       );
     };
   }, []);
@@ -106,7 +90,7 @@ export default function AlwanAPI({
             password: password ? password : '',
             apiBaseURL: alwanAPIConfig.apiBaseURL
               ? alwanAPIConfig.apiBaseURL
-              : apiBaseURL,
+              : ipAddress,
             port: alwanAPIConfig.port ? alwanAPIConfig.port : 443,
             alwanLicense: alwanAPIConfig.alwanLicense
               ? alwanAPIConfig.alwanLicense
@@ -216,7 +200,7 @@ export default function AlwanAPI({
     }
   };
 
-  const onCheckAlwanAPIConnection = (args) => {
+  const onCheckAlwanAPIConnection = (_, args) => {
     setCheckConnection(false);
     if (args?.status && args.status == 200) {
       setAlwanConnection(true);
@@ -225,7 +209,7 @@ export default function AlwanAPI({
     }
   };
 
-  const onAlwanDisconnectionAPIRes = (args) => {
+  const onAlwanDisconnectionAPIRes = (_, args) => {
     if (!args.result) {
       setError(args.error);
     }
@@ -286,13 +270,12 @@ export default function AlwanAPI({
 
   const onGetLocalIP = () => {
     setGettingLocalIp(true);
+    const ipv4 = ipcRenderer.sendSync(GET_IP, null);
     if (ipv4) {
       setApiBaseURL(`http://${ipv4}`);
       setTimeout(() => {
         setGettingLocalIp(false);
       }, 100);
-    } else {
-      ipcRenderer.send(GET_IP, null);
     }
   };
 
@@ -332,8 +315,8 @@ export default function AlwanAPI({
                 backgroundColor: checkConnection
                   ? 'lightgrey'
                   : alwanConnection
-                    ? 'lightgreen'
-                    : 'orangered',
+                  ? 'lightgreen'
+                  : 'orangered',
               }}
             ></span>
             {connectionBtnText}

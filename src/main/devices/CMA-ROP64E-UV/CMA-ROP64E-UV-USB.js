@@ -1,11 +1,11 @@
 const fs = require('fs');
-var ffi = require('@lwahonen/ffi-napi');
-const ref = require('@lwahonen/ref-napi');
+const ffi = require('@lwahonen/ffi-napi');
+const ref = require('@lwahonen/ref-napi');;
 const path = require('path');
 const { dialog } = require('electron');
 const { getAssetPath } = require('../../util');
 const { spawn } = require('child_process');
-const { SerialPort } = require('serialport');
+const { listSystemUSBDevices } = require('../../utility');
 
 let dllDirectory = null;
 let cDemoFilePath = null;
@@ -14,6 +14,7 @@ let settingFilePath = null;
 let informationFilePath = null;
 let gratingspectrometer = null;
 let manuallyMesurment = null;
+let pushDataToRopDevice = null;
 
 const NH_SpectrometerHandle = ref.refType('void');
 const spectrometerHandle = ref.alloc(NH_SpectrometerHandle);
@@ -46,6 +47,12 @@ if (process.platform === 'win32') {
     'Device_Information',
     'getDeviceInformation'
   );
+  pushDataToRopDevice = getAssetPath(
+    'SDK',
+    'CMA-ROP64E-UV',
+    'pushDataToRopDevice',
+    'pushDataToRopDevice'
+  );
 }
 
 // all sdk functions related to ci64UV needs to expose here first
@@ -63,7 +70,11 @@ const loadSpectrometerLibraryFunctions = () => {
   } catch (error) {
     dialog.showMessageBox(null, {
       title: 'Exposing CMA-ROP64E-UV Library Functions',
-      message: `Error loading CMA-ROP64E-UV library :- ${error} && DLL file exists =>${fs.existsSync(path.join(dllDirectory, 'GratingSpectrometerApi')) ? 'yes' : 'no'} `,
+      message: `Error loading CMA-ROP64E-UV library :- ${error} && DLL file exists =>${
+        fs.existsSync(path.join(dllDirectory, 'GratingSpectrometerApi'))
+          ? 'yes'
+          : 'no'
+      } `,
     });
   }
 };
@@ -156,21 +167,22 @@ async function openSpectrometerDevice() {
     return { res: false, error: error };
   }
 }
+
 async function checkCMAROP64EConnection() {
   try {
-    const ports = await SerialPort.list();
-    const connectedPort = ports.find(
-      (port) => port.vendorId === '1782' && port.productId === '4D00'
-    );
+    const output = await listSystemUSBDevices();
+
+    // Search for the specific devices in the output
+    const isConnected = output.includes('4D00');
 
     return {
-      res: !!connectedPort,
+      res: isConnected,
       errorMessage: null,
     };
   } catch (error) {
     return {
       res: false,
-      errorMessage: `Error connecting to the CMA-ROP64E-UV: ${error}`,
+      errorMessage: `Error connecting to the device: ${error}`,
     };
   }
 }
@@ -191,6 +203,16 @@ async function getInformationDevice() {
 }
 
 async function calibrateSpectrometerDevice() {
+  const floatArray = new Float32Array(270);
+// Initialize the array with values
+  for (let i = 0; i < 270; i++) {
+    floatArray[i] = Math.random(); // Replace with your actual values
+  }
+
+// Convert the Float32Array to a string
+  const floatArrayString = floatArray.toString();
+
+  pushDataToDevice(floatArrayString)
   return { res: true, error: null };
 }
 
@@ -367,6 +389,73 @@ async function calculateAverages(dataArray) {
   return output;
 }
 
+async function attemptPushDataToDevice(data) {
+  try {
+    await closeSpectrometerDevice();
+
+    console.log('Arguments for pushing data to device:', data);
+
+    const response = await runCPlusPlusProgram(pushDataToRopDevice, [
+      data,
+    ]);
+
+    if (response) {
+      const parsedData = JSON.parse(response);
+      return { res: true, data: parsedData, error: null };
+    }
+
+    return {
+      res: false,
+      data: null,
+      error: 'Failed to push data to device',
+    };
+  } catch (error) {
+    console.error('Error during data push to device:', error);
+    return {
+      res: false,
+      data: null,
+      error: `Failed to push data to device: ${error.message}`,
+    };
+  }
+}
+
+async function pushDataToDevice(dataArray) {
+  const maxRetries = 10;
+  let attemptCount = 0;
+
+  while (attemptCount < maxRetries) {
+    try {
+      const result = await attemptPushDataToDevice(dataArray);
+
+      if (result.res) {
+        console.log('Data pushed to device successfully');
+        return result;
+      }
+    } catch (error) {
+      console.error(
+        `Error during attempt ${attemptCount + 1} to push data to device:`,
+        error
+      );
+      if (attemptCount === maxRetries - 1) {
+        return {
+          res: false,
+          data: null,
+          error:
+            'Failed to push data to device. Please unplug the USB and plug it again.',
+        };
+      }
+    }
+    attemptCount++;
+  }
+
+  return {
+    res: false,
+    data: null,
+    error:
+      'Failed to push data to device. Please unplug the USB and plug it again.',
+  };
+}
+
 module.exports = {
   loadSpectrometerLibraryFunctions,
   openSpectrometerDevice,
@@ -378,4 +467,5 @@ module.exports = {
   getInformationDevice,
   checkCMAROP64EConnection,
   calculateAverages,
+  pushDataToDevice,
 };

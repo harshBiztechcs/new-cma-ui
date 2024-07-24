@@ -2,7 +2,7 @@ const fs = require('fs');
 var ffi = require('@lwahonen/ffi-napi');
 const { dialog } = require('electron');
 var path = require('path');
-const ref = require('@lwahonen/ref-napi');
+var ref = require('@lwahonen/ref-napi');;
 const {
   I1_LAST_ERROR_TEXT,
   I1_LAST_ERROR_NUMBER,

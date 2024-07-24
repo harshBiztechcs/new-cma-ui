@@ -1,12 +1,4 @@
-/* eslint-disable camelcase */
 const fs = require('fs');
-const ffi = require('@lwahonen/ffi-napi');
-const ref = require('@lwahonen/ref-napi');
-const ArrayType = require('ref-array-di')(ref);
-const path = require('path');
-const { dialog } = require('electron');
-const { getAssetPath } = require('../../util');
-
 const {
   I1PRO3_964_REPORTING_KEY,
   I1PRO3_AVAILABLE_ILLUMINATIONS_KEY,
@@ -52,28 +44,42 @@ const {
   I1PRO3_ILLUMINATION_CONDITION_M1,
   I1PRO3_ILLUMINATION_CONDITION_M2,
   I1PRO3_PATCH_RECOGNITION_KEY,
+  I1PRO3_PATCH_RECOGNITION_BASIC,
+  I1PRO3_PATCH_RECOGNITION_CORRELATION,
+  I1PRO3_PATCH_RECOGNITION_POSITION,
   I1PRO3_PATCH_RECOGNITION_POSITION_DARK,
+  I1PRO3_PATCH_RECOGNITION_FLASH,
+  I1PRO3_PATCH_RECOGNITION_RECOGNIZED_PATCHES,
 } = require('./constants');
 
+const ffi = require('@lwahonen/ffi-napi');
+const ref = require('@lwahonen/ref-napi');;
+const path = require('path');
+const { dialog } = require('electron');
+const { getAssetPath } = require('../../util');
+const { checkCi62Calibration } = require('../ci62/ci62');
+
+let ArrayType = require('ref-array-di')(ref);
+
 // typedef
-const { float } = ref.types;
+let float = ref.types.float;
 // define the "int[]" type
-const FloatArray = ArrayType(float);
+let FloatArray = ArrayType(float);
 
 let sEC = null;
-// msg buffer for error/result output
-const msgBuffer = new Buffer.alloc(256);
+//msg buffer for error/result output
+let msgBuffer = new Buffer.alloc(256);
 msgBuffer.type = ref.types.char;
-// msg buffer length pointer
-const msgLength = new Buffer.alloc(4);
+//msg buffer length pointer
+let msgLength = new Buffer.alloc(4);
 msgLength.type = ref.types.uint32;
 msgLength.writeInt32LE(65000, 0);
 
-// number of entries in the array
-const count = new Buffer.alloc(4);
+//number of entries in the array
+let count = new Buffer.alloc(4);
 count.type = ref.types.uint32;
 
-// device state
+//device state
 let isReadyForCalibration = false;
 let isCalibrationDone = false;
 let isReadyForMeasurement = false;
@@ -82,10 +88,11 @@ let dllDir = null;
 let measAvgNum = 1;
 let startMeasure = false;
 let measurementInterval = null;
+let measurementTimeout = null;
 let resultIndexKey = null;
 
-// constant
-const M0_M1_M2 = 'M0_M1_M2';
+//constant
+let M0_M1_M2 = 'M0_M1_M2';
 
 try {
   if (process.platform == 'win32') {
@@ -104,7 +111,7 @@ try {
 let i1Pro3 = null;
 
 // all sdk functions related to i1Pro3 needs to expose here first
-const loadI1PRO3LibraryFunctions = () => {
+const exposeLibraryFunctions = () => {
   try {
     // exposing dll functions to electron
     i1Pro3 = ffi.Library(path.join(dllDir, 'i1Pro3Bridge'), {
@@ -134,7 +141,7 @@ const loadI1PRO3LibraryFunctions = () => {
   }
 };
 
-// fetch all globaloptions info from sdk
+//fetch all globaloptions info from sdk
 const getSDKVersion = () => {
   try {
     const sdkVersion = i1Pro3.getSDKVersion();
@@ -145,16 +152,16 @@ const getSDKVersion = () => {
   }
 };
 
-// open selected device
+//open selected device
 const openDevice = () => {
   try {
-    const isOpen = i1Pro3.openDevice();
+    var isOpen = i1Pro3.openDevice();
 
     if (!isOpen) {
       const error = printErrorInfo();
 
       if (error.message.includes('Device already open')) {
-        return true; // device is already open
+        return true; //device is already open
       }
     }
     return isOpen;
@@ -172,7 +179,7 @@ const getI1Pro3SerialNumber = () => {
   }
 };
 
-// get device info to be send to odoo after connection
+//get device info to be send to odoo after connection
 const getI1Pro3BasicDeviceInfo = () => {
   const keys = [
     I1PRO3_SERIAL_NUMBER,
@@ -193,96 +200,96 @@ const getI1Pro3BasicDeviceInfo = () => {
   return basicInfo;
 };
 
-// print opened device info
+//print opened device info
 const printDeviceInfo = () => {
   try {
     sEC = i1Pro3.getOption(I1PRO3_SERIAL_NUMBER, msgBuffer, msgLength);
     console.log(
-      `I1PRO3_SERIAL_NUMBER:               ${msgBuffer.toString('utf-8')}`,
+      'I1PRO3_SERIAL_NUMBER:               ' + msgBuffer.toString('utf-8')
     );
     sEC = i1Pro3.getOption(
       I1PRO3_AVAILABLE_MEASUREMENT_MODES,
       msgBuffer,
-      msgLength,
+      msgLength
     );
     console.log(
-      `I1PRO3_AVAILABLE_MEASUREMENT_MODES: ${msgBuffer.toString('utf-8')}`,
+      'I1PRO3_AVAILABLE_MEASUREMENT_MODES: ' + msgBuffer.toString('utf-8')
     );
     sEC = i1Pro3.getOption(
       I1PRO3_AVAILABLE_ILLUMINATIONS_KEY,
       msgBuffer,
-      msgLength,
+      msgLength
     );
     console.log(
-      `I1PRO3_AVAILABLE_ILLUMINATIONS_KEY: ${msgBuffer.toString('utf-8')}`,
+      'I1PRO3_AVAILABLE_ILLUMINATIONS_KEY: ' + msgBuffer.toString('utf-8')
     );
     sEC = i1Pro3.getOption(
       I1PRO3_AVAILABLE_RESULT_INDEXES_KEY,
       msgBuffer,
-      msgLength,
+      msgLength
     );
     console.log(
-      `I1PRO3_AVAILABLE_RESULT_INDEXES_KEY: ${msgBuffer.toString('utf-8')}`,
+      'I1PRO3_AVAILABLE_RESULT_INDEXES_KEY: ' + msgBuffer.toString('utf-8')
     );
     sEC = i1Pro3.getOption(I1PRO3_964_REPORTING_KEY, msgBuffer, msgLength);
     console.log(
-      `I1PRO3_964_REPORTING_KEY:           ${msgBuffer.toString('utf-8')}`,
+      'I1PRO3_964_REPORTING_KEY:           ' + msgBuffer.toString('utf-8')
     );
     sEC = i1Pro3.getOption(I1PRO3_HAS_WAVELENGTH_LED_KEY, msgBuffer, msgLength);
     console.log(
-      `I1PRO3_HAS_WAVELENGTH_LED_KEY:      ${msgBuffer.toString('utf-8')}`,
+      'I1PRO3_HAS_WAVELENGTH_LED_KEY:      ' + msgBuffer.toString('utf-8')
     );
     sEC = i1Pro3.getOption(
       I1PRO3_HAS_ZEBRA_RULER_SENSOR_KEY,
       msgBuffer,
-      msgLength,
+      msgLength
     );
     console.log(
-      `I1PRO3_HAS_ZEBRA_RULER_SENSOR_KEY:  ${msgBuffer.toString('utf-8')}`,
+      'I1PRO3_HAS_ZEBRA_RULER_SENSOR_KEY:  ' + msgBuffer.toString('utf-8')
     );
     sEC = i1Pro3.getOption(I1PRO3_HAS_HEAD_SENSOR_KEY, msgBuffer, msgLength);
     console.log(
-      `I1PRO3_HAS_HEAD_SENSOR_KEY:         ${msgBuffer.toString('utf-8')}`,
+      'I1PRO3_HAS_HEAD_SENSOR_KEY:         ' + msgBuffer.toString('utf-8')
     );
     sEC = i1Pro3.getOption(I1PRO3_HAS_INDICATOR_LED_KEY, msgBuffer, msgLength);
     console.log(
-      `I1PRO3_HAS_INDICATOR_LED_KEY:       ${msgBuffer.toString('utf-8')}`,
+      'I1PRO3_HAS_INDICATOR_LED_KEY:       ' + msgBuffer.toString('utf-8')
     );
     sEC = i1Pro3.getOption(I1PRO3_HAS_AMBIENT_LIGHT_KEY, msgBuffer, msgLength);
     console.log(
-      `I1PRO3_HAS_AMBIENT_LIGHT_KEY:       ${msgBuffer.toString('utf-8')}`,
+      'I1PRO3_HAS_AMBIENT_LIGHT_KEY:       ' + msgBuffer.toString('utf-8')
     );
     sEC = i1Pro3.getOption(I1PRO3_HAS_POLARIZER_KEY, msgBuffer, msgLength);
     console.log(
-      `I1PRO3_HAS_POLARIZER_KEY:           ${msgBuffer.toString('utf-8')}`,
+      'I1PRO3_HAS_POLARIZER_KEY:           ' + msgBuffer.toString('utf-8')
     );
     sEC = i1Pro3.getOption(I1PRO3_HAS_LOW_RESOLUTION_KEY, msgBuffer, msgLength);
     console.log(
-      `I1PRO3_HAS_LOW_RESOLUTION_KEY:      ${msgBuffer.toString('utf-8')}`,
+      'I1PRO3_HAS_LOW_RESOLUTION_KEY:      ' + msgBuffer.toString('utf-8')
     );
     sEC = i1Pro3.getOption(I1PRO3_MAX_RULER_LENGTH_KEY, msgBuffer, msgLength);
     console.log(
-      `I1PRO3_MAX_RULER_LENGTH_KEY:        ${msgBuffer.toString('utf-8')}`,
+      'I1PRO3_MAX_RULER_LENGTH_KEY:        ' + msgBuffer.toString('utf-8')
     );
     sEC = i1Pro3.getOption(I1PRO3_HW_REVISION_KEY, msgBuffer, msgLength);
     console.log(
-      `I1PRO3_HW_REVISION_KEY:             ${msgBuffer.toString('utf-8')}`,
+      'I1PRO3_HW_REVISION_KEY:             ' + msgBuffer.toString('utf-8')
     );
     sEC = i1Pro3.getOption(I1PRO3_SUPPLIER_NAME_KEY, msgBuffer, msgLength);
     console.log(
-      `I1PRO3_SUPPLIER_NAME_KEY:           ${msgBuffer.toString('utf-8')}`,
+      'I1PRO3_SUPPLIER_NAME_KEY:           ' + msgBuffer.toString('utf-8')
     );
     sEC = i1Pro3.getOption(I1PRO3_DEVICE_TYPE_KEY, msgBuffer, msgLength);
     console.log(
-      `I1PRO3_DEVICE_TYPE_KEY:             ${msgBuffer.toString('utf-8')}`,
+      'I1PRO3_DEVICE_TYPE_KEY:             ' + msgBuffer.toString('utf-8')
     );
     sEC = i1Pro3.getOption(
       I1PRO3_MEASUREMENT_GEOMETRY_KEY,
       msgBuffer,
-      msgLength,
+      msgLength
     );
     console.log(
-      `I1PRO3_MEASUREMENT_GEOMETRY_KEY:    ${msgBuffer.toString('utf-8')}`,
+      'I1PRO3_MEASUREMENT_GEOMETRY_KEY:    ' + msgBuffer.toString('utf-8')
     );
   } catch (error) {}
 };
@@ -368,6 +375,18 @@ const waitForButtonPressed = (callback) => {
   }
 };
 
+const setMeasTimeout = () => {
+  // 5 mins timeout for measurement btn press
+
+  measurementTimeout = setTimeout(() => {
+    clearI1Pro3MeasurementInterval();
+  }, 300000);
+};
+
+const clearMeasTimeout = () => {
+  clearTimeout(measurementTimeout);
+};
+
 // to clear measurement interval
 const clearI1Pro3MeasurementInterval = () => {
   clearInterval(measurementInterval);
@@ -421,22 +440,22 @@ const printMeasurementModeInfo = () => {
     sEC = i1Pro3.getOption(
       I1PRO3_TIME_SINCE_LAST_CALIBRATION,
       msgBuffer,
-      msgLength,
+      msgLength
     );
     console.log(
-      `I1PRO3_TIME_SINCE_LAST_CALIBRATION:   ${msgBuffer.toString('utf-8')}`,
+      'I1PRO3_TIME_SINCE_LAST_CALIBRATION:   ' + msgBuffer.toString('utf-8')
     );
     sEC = i1Pro3.getOption(
       I1PRO3_TIME_UNTIL_CALIBRATION_EXPIRE,
       msgBuffer,
-      msgLength,
+      msgLength
     );
     console.log(
-      `I1PRO3_TIME_UNTIL_CALIBRATION_EXPIRE: ${msgBuffer.toString('utf-8')}`,
+      'I1PRO3_TIME_UNTIL_CALIBRATION_EXPIRE: ' + msgBuffer.toString('utf-8')
     );
     sEC = i1Pro3.getOption(I1PRO3_MEASURE_COUNT, msgBuffer, msgLength);
     console.log(
-      `I1PRO3_MEASURE_COUNT:                 ${msgBuffer.toString('utf-8')}`,
+      'I1PRO3_MEASURE_COUNT:                 ' + msgBuffer.toString('utf-8')
     );
   } catch (error) {}
 };
@@ -478,12 +497,12 @@ const printSpectra = () => {
     sEC = i1Pro3.getOption(
       I1PRO3_AVAILABLE_RESULT_INDEXES_KEY,
       msgBuffer,
-      msgLength,
+      msgLength
     );
 
     let spectrum = new FloatArray(36);
     const indexesList = getActualMsgFromBuffer(msgBuffer).split(
-      I1PRO3_VALUE_DELIMITER,
+      I1PRO3_VALUE_DELIMITER
     );
 
     const spectralData = {};
@@ -493,7 +512,7 @@ const printSpectra = () => {
       try {
         sEC = i1Pro3.setOption(I1PRO3_RESULT_INDEX_KEY, indx);
         console.log(
-          '>>>> getSpectrum for spot measurement which uses zero index ',
+          '>>>> getSpectrum for spot measurement which uses zero index '
         );
         sEC = i1Pro3.getSpectrum(spectrum, 0);
 
@@ -539,10 +558,10 @@ const printTristimuli = () => {
     sEC = i1Pro3.getOption(
       I1PRO3_AVAILABLE_RESULT_INDEXES_KEY,
       msgBuffer,
-      msgLength,
+      msgLength
     );
     const indexesList = getActualMsgFromBuffer(msgBuffer).split(
-      I1PRO3_VALUE_DELIMITER,
+      I1PRO3_VALUE_DELIMITER
     );
     // const indexesList = ["M1"];
     const triStimulusData = {};
@@ -553,7 +572,7 @@ const printTristimuli = () => {
         sEC = i1Pro3.getTriStimulus(tristimulus, 0);
 
         tristimulus[indx] = tristimulus.toArray();
-        // return tristimulus.toArray();
+        //return tristimulus.toArray();
       } catch (error) {}
     });
     if (sEC != 0) {
@@ -597,7 +616,7 @@ const setMeasurementCondition = () => {
   try {
     sEC = i1Pro3.setOption(
       I1PRO3_RESULT_INDEX_KEY,
-      I1PRO3_ILLUMINATION_CONDITION_M0,
+      I1PRO3_ILLUMINATION_CONDITION_M0
     );
     sEC = i1Pro3.setOption(I1PRO3_NUMBER_OF_PATCHES_PER_LINE, '10');
 
@@ -628,6 +647,24 @@ const printErrorInfo = () => {
   }
 };
 
+// websocket functions
+const setOptions = (options) => {
+  try {
+    for (const key in options) {
+      sEC = i1Pro3.setOption(key, options[key]);
+
+      if (sEC != 0) {
+        printErrorInfo();
+        throw new Error('setting Options failed');
+      }
+    }
+
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
 // sets all device options from odoo
 const setDeviceOptions = (options) => {
   const preM3spot = isM3Spot;
@@ -644,18 +681,18 @@ const setDeviceOptions = (options) => {
       }
       if (key == 'ResultIndexKey') {
         resultIndexKey = options[key];
-        // if all resultIndexKey is given then dont set in device
+        //if all resultIndexKey is given then dont set in device
         if (resultIndexKey == M0_M1_M2) continue;
         if (options[key] == 'M3') {
           sEC = i1Pro3.setOption(
             I1PRO3_MEASUREMENT_MODE,
-            I1PRO3_REFLECTANCE_M3_SPOT,
+            I1PRO3_REFLECTANCE_M3_SPOT
           );
           printErrorInfo();
         } else {
           sEC = i1Pro3.setOption(
             I1PRO3_MEASUREMENT_MODE,
-            I1PRO3_REFLECTANCE_SPOT,
+            I1PRO3_REFLECTANCE_SPOT
           );
           printErrorInfo();
         }
@@ -692,12 +729,9 @@ const setDeviceOptionsStripMode = (options) => {
       }
       if (key == 'ResultIndexKey') {
         resultIndexKey = options[key];
-        // if all resultIndexKey is given then dont set in device
+        //if all resultIndexKey is given then dont set in device
         if (resultIndexKey == M0_M1_M2) {
-          sEC = i1Pro3.setOption(
-            I1PRO3_MEASUREMENT_MODE,
-            I1PRO3_REFLECTANCE_SCAN,
-          );
+          sEC = i1Pro3.setOption(I1PRO3_MEASUREMENT_MODE, I1PRO3_REFLECTANCE_SCAN);
           if (sEC != 0) {
             printErrorInfo();
             return false;
@@ -707,13 +741,13 @@ const setDeviceOptionsStripMode = (options) => {
         if (options[key] == 'M3') {
           sEC = i1Pro3.setOption(
             I1PRO3_MEASUREMENT_MODE,
-            I1PRO3_REFLECTANCE_M3_SCAN,
+            I1PRO3_REFLECTANCE_M3_SCAN
           );
           printErrorInfo();
         } else {
           sEC = i1Pro3.setOption(
             I1PRO3_MEASUREMENT_MODE,
-            I1PRO3_REFLECTANCE_SCAN,
+            I1PRO3_REFLECTANCE_SCAN
           );
           printErrorInfo();
         }
@@ -761,7 +795,7 @@ const calibrateDeviceStripMode = () => {
     sEC = i1Pro3.setOption(I1PRO3_MEASUREMENT_MODE, I1PRO3_REFLECTANCE_SCAN);
     console.log({ setReflectanceMode: sEC });
 
-    console.log({ isM3Spot });
+    console.log({isM3Spot});
     if (sEC != 0) {
       printErrorInfo();
       return false;
@@ -772,7 +806,7 @@ const calibrateDeviceStripMode = () => {
       // sEC = i1Pro3.calibrateReflectanceMode();
       sEC = i1Pro3.calibrateDevice();
       console.log('Calibrate Device');
-      console.log({ sEC });
+      console.log({sEC});
     }
     if (sEC != 0) {
       printErrorInfo();
@@ -784,7 +818,7 @@ const calibrateDeviceStripMode = () => {
   }
 };
 
-// common function to get average of data array
+//common function to get average of data array
 const getAverageData = (data, averageOf) => {
   let avgData = [];
   for (let i = 0; i < data[0].length; i++) {
@@ -808,7 +842,7 @@ const getAvgOfSingleResultKeyMeasurementOld = () => {
     for (let i = 0; i < measAvgNum; i++) {
       const res = triggerMeasurement();
       if (res) {
-        // get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
+        //get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
         spectrumDatas[i] = getSpectrumResult();
 
         LABDatas[i] = getLABResult();
@@ -839,6 +873,74 @@ const getAvgOfSingleResultKeyMeasurementOld = () => {
   }
 };
 
+const getAvgOfAllResultKeyMeasurementOld = () => {
+  try {
+    let M0SpectrumData = [];
+    let M1SpectrumData = [];
+    let M2SpectrumData = [];
+    let M0LABData = [];
+    let M1LABData = [];
+    let M2LABData = [];
+    let avgM0SpectrumData = [];
+    let avgM1SpectrumData = [];
+    let avgM2SpectrumData = [];
+    let avgM0LABData = [];
+    let avgM1LABData = [];
+    let avgM2LABData = [];
+    for (let i = 0; i < measAvgNum; i++) {
+      const res = triggerMeasurement();
+      if (res) {
+        const M0MeasData = getIndexKeyMeasurementData(
+          I1PRO3_ILLUMINATION_CONDITION_M0
+        );
+        const M1MeasData = getIndexKeyMeasurementData(
+          I1PRO3_ILLUMINATION_CONDITION_M1
+        );
+        const M2MeasData = getIndexKeyMeasurementData(
+          I1PRO3_ILLUMINATION_CONDITION_M2
+        );
+        //get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
+        M0SpectrumData[i] = M0MeasData.measData.spectrumData;
+        M1SpectrumData[i] = M1MeasData.measData.spectrumData;
+        M2SpectrumData[i] = M2MeasData.measData.spectrumData;
+        M0LABData = M0MeasData.measData.LABData;
+        M1LABData = M1MeasData.measData.LABData;
+        M2LABData = M2MeasData.measData.LABData;
+      } else {
+        const error = printErrorInfo();
+        return { res: false, error };
+      }
+    }
+
+    avgM0SpectrumData = getAverageData(M0SpectrumData, measAvgNum);
+    avgM1SpectrumData = getAverageData(M1SpectrumData, measAvgNum);
+    avgM2SpectrumData = getAverageData(M2SpectrumData, measAvgNum);
+    avgM0LABData = getAverageData(M0LABData, measAvgNum);
+    avgM1LABData = getAverageData(M1LABData, measAvgNum);
+    avgM2LABData = getAverageData(M2LABData, measAvgNum);
+    return {
+      res: true,
+      measData: {
+        M0SpectrumData: avgM0SpectrumData,
+        M1SpectrumData: avgM1SpectrumData,
+        M2SpectrumData: avgM2SpectrumData,
+        M0LABData: avgM0LABData,
+        M1LABData: avgM1LABData,
+        M2LABData: avgM2LABData,
+      },
+    };
+  } catch (error) {
+    return { res: false, error: { message: error?.message } };
+  }
+};
+
+const triggerAvgMeasurementOld = () => {
+  if (resultIndexKey == M0_M1_M2) {
+    return getAvgOfAllResultKeyMeasurement();
+  }
+  return getAvgOfSingleResultKeyMeasurement();
+};
+
 const waitForButtonPressPromise = () =>
   new Promise((resolve) => waitForButtonPressed((res) => resolve(res)));
 
@@ -853,7 +955,7 @@ const getAvgOfSingleResultKeyMeasurement = async () => {
       if (buttonPressRes.res) {
         const res = triggerMeasurement();
         if (res) {
-          // get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
+          //get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
           spectrumData[i] = getSpectrumResult();
           LABData[i] = getLABResult();
         } else {
@@ -898,7 +1000,7 @@ const getIndexKeyMeasurementData = (indexKey) => {
   }
 };
 
-const getIndexKeyMeasurementDataStripMode = (indexKey, index) => {
+const getIndexKeyMeasurementDataStripMode = (indexKey,index) => {
   try {
     sEC = i1Pro3.setOption(I1PRO3_RESULT_INDEX_KEY, indexKey);
     console.log('I1PRO3_RESULT_INDEX_KEY', indexKey, index);
@@ -909,8 +1011,8 @@ const getIndexKeyMeasurementDataStripMode = (indexKey, index) => {
     }
     const LABData = getLABResultByIndex(index);
     const spectrumData = getSpectrumResultByIndex(index);
-    console.log({ LABData });
-    console.log({ spectrumData });
+    console.log({LABData});
+    console.log({spectrumData});
     if (LABData && spectrumData) {
       return { res: true, measData: { spectrumData, LABData }, error: null };
     }
@@ -941,15 +1043,15 @@ const getAvgOfAllResultKeyMeasurement = async () => {
         const res = triggerMeasurement();
         if (res) {
           const M0MeasData = getIndexKeyMeasurementData(
-            I1PRO3_ILLUMINATION_CONDITION_M0,
+            I1PRO3_ILLUMINATION_CONDITION_M0
           );
           const M1MeasData = getIndexKeyMeasurementData(
-            I1PRO3_ILLUMINATION_CONDITION_M1,
+            I1PRO3_ILLUMINATION_CONDITION_M1
           );
           const M2MeasData = getIndexKeyMeasurementData(
-            I1PRO3_ILLUMINATION_CONDITION_M2,
+            I1PRO3_ILLUMINATION_CONDITION_M2
           );
-          // get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
+          //get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
           M0SpectrumData[i] = M0MeasData.measData.spectrumData;
           M1SpectrumData[i] = M1MeasData.measData.spectrumData;
           M2SpectrumData[i] = M2MeasData.measData.spectrumData;
@@ -1003,95 +1105,83 @@ const triggerAvgMeasurementStripMode = async (numOfPatches) => {
 
 const getAvgOfAllResultKeyMeasurementStripMode = async (numOfPatches) => {
   try {
-    let M0SpectrumData = [];
-    let M1SpectrumData = [];
-    let M2SpectrumData = [];
-    let M0LABData = [];
-    let M1LABData = [];
-    let M2LABData = [];
-    let avgM0SpectrumData = [];
-    let avgM1SpectrumData = [];
-    let avgM2SpectrumData = [];
-    let avgM0LABData = [];
-    let avgM1LABData = [];
-    let avgM2LABData = [];
-    let M0SpectrumDataObj = {};
-    let M1SpectrumDataObj = {};
-    let M2SpectrumDataObj = {};
-    let M0LABDataObj = {};
-    let M1LABDataObj = {};
-    let M2LABDataObj = {};
+      let M0SpectrumData = [];
+      let M1SpectrumData = [];
+      let M2SpectrumData = [];
+      let M0LABData = [];
+      let M1LABData = [];
+      let M2LABData = [];
+      let avgM0SpectrumData = [];
+      let avgM1SpectrumData = [];
+      let avgM2SpectrumData = [];
+      let avgM0LABData = [];
+      let avgM1LABData = [];
+      let avgM2LABData = [];
+      let M0SpectrumDataObj = {};
+      let M1SpectrumDataObj = {};
+      let M2SpectrumDataObj = {};
+      let M0LABDataObj = {};
+      let M1LABDataObj = {};
+      let M2LABDataObj = {};
 
-    // sEC = i1Pro3.calibrateDevice();
-    // console.log({ calibrateDevice: sEC });
-    console.log('Measurement Call');
-    calibrateDeviceStripMode();
+      // sEC = i1Pro3.calibrateDevice();
+      // console.log({ calibrateDevice: sEC });
+      console.log('Measurement Call');
+      calibrateDeviceStripMode();
 
-    sEC = i1Pro3.setOption(I1PRO3_MEASUREMENT_MODE, I1PRO3_REFLECTANCE_SCAN);
-    console.log({ setReflectanceMode: sEC });
+      sEC = i1Pro3.setOption(I1PRO3_MEASUREMENT_MODE, I1PRO3_REFLECTANCE_SCAN);
+      console.log({ setReflectanceMode: sEC });
 
-    // recognize patches in SDK.
-    // sEC = i1Pro3.setOption(I1PRO3_PATCH_RECOGNITION_KEY, I1PRO3_PATCH_RECOGNITION_POSITION_DARK);
-    // console.log({ recognitionPatch: sEC });
+      // recognize patches in SDK.
+      // sEC = i1Pro3.setOption(I1PRO3_PATCH_RECOGNITION_KEY, I1PRO3_PATCH_RECOGNITION_POSITION_DARK);
+      // console.log({ recognitionPatch: sEC });
 
-    // sEC = i1Pro3.setOption(I1PRO3_NUMBER_OF_PATCHES_PER_LINE, numOfPatches.toString());
-    // console.log({ setNoOfPatches: sEC });
+      // sEC = i1Pro3.setOption(I1PRO3_NUMBER_OF_PATCHES_PER_LINE, numOfPatches.toString());
+      // console.log({ setNoOfPatches: sEC });
 
-    // recognize patches in SDK.
-    sEC = i1Pro3.setOption(
-      I1PRO3_PATCH_RECOGNITION_KEY,
-      I1PRO3_PATCH_RECOGNITION_POSITION_DARK,
-    );
-    console.log({ recognitionPatch: sEC });
+      // recognize patches in SDK.
+      sEC = i1Pro3.setOption(I1PRO3_PATCH_RECOGNITION_KEY, I1PRO3_PATCH_RECOGNITION_POSITION_DARK);
+      console.log({ recognitionPatch: sEC });
 
-    sEC = i1Pro3.setOption(I1PRO3_NUMBER_OF_PATCHES_PER_LINE, '16');
-    console.log({ setNoOfPatches: sEC });
+      sEC = i1Pro3.setOption(I1PRO3_NUMBER_OF_PATCHES_PER_LINE, '16');
+      console.log({ setNoOfPatches: sEC });
 
-    const BeforeSamples = i1Pro3.getNumberOfAvailableSamples();
-    console.log({ BeforeSamples });
-    console.log('waiting for button press ...');
+      const BeforeSamples = i1Pro3.getNumberOfAvailableSamples();
+      console.log({ BeforeSamples });
+      console.log("waiting for button press ...");
 
-    const buttonPressRes = await waitForButtonPressPromise();
-    console.log({ buttonPressRes });
+      const buttonPressRes = await waitForButtonPressPromise();
+      console.log({ buttonPressRes });
 
-    if (buttonPressRes.res) {
-      const res = triggerMeasurement();
-      console.log({ res });
-      if (res) {
-        for (let i = 0; i < numOfPatches; i++) {
-          const M0MeasData = getIndexKeyMeasurementDataStripMode(
-            I1PRO3_ILLUMINATION_CONDITION_M0,
-            i,
-          );
-          const M1MeasData = getIndexKeyMeasurementDataStripMode(
-            I1PRO3_ILLUMINATION_CONDITION_M1,
-            i,
-          );
-          const M2MeasData = getIndexKeyMeasurementDataStripMode(
-            I1PRO3_ILLUMINATION_CONDITION_M2,
-            i,
-          );
-          // get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
-          // M0SpectrumData[i] = M0MeasData.measData.spectrumData;
-          // M1SpectrumData[i] = M1MeasData.measData.spectrumData;
-          // M2SpectrumData[i] = M2MeasData.measData.spectrumData;
-          // M0LABData[i] = M0MeasData.measData.LABData;
-          // M1LABData[i] = M1MeasData.measData.LABData;
-          // M2LABData[i] = M2MeasData.measData.LABData;
-          M0SpectrumData.push(M0MeasData.measData.spectrumData);
-          M1SpectrumData.push(M1MeasData.measData.spectrumData);
-          M2SpectrumData.push(M2MeasData.measData.spectrumData);
-          M0LABData.push(M0MeasData.measData.LABData);
-          M1LABData.push(M1MeasData.measData.LABData);
-          M2LABData.push(M2MeasData.measData.LABData);
+      if (buttonPressRes.res) {
+        const res = triggerMeasurement();
+        console.log({ res });
+        if (res) {
+          for (let i = 0; i < numOfPatches; i++) {
+            const M0MeasData = getIndexKeyMeasurementDataStripMode(I1PRO3_ILLUMINATION_CONDITION_M0,i);
+            const M1MeasData = getIndexKeyMeasurementDataStripMode(I1PRO3_ILLUMINATION_CONDITION_M1,i);
+            const M2MeasData = getIndexKeyMeasurementDataStripMode(I1PRO3_ILLUMINATION_CONDITION_M2,i);
+            //get result from calling printSpectra(), printSampleInRGB(), printSampleInLAB()
+            // M0SpectrumData[i] = M0MeasData.measData.spectrumData;
+            // M1SpectrumData[i] = M1MeasData.measData.spectrumData;
+            // M2SpectrumData[i] = M2MeasData.measData.spectrumData;
+            // M0LABData[i] = M0MeasData.measData.LABData;
+            // M1LABData[i] = M1MeasData.measData.LABData;
+            // M2LABData[i] = M2MeasData.measData.LABData;
+            M0SpectrumData.push(M0MeasData.measData.spectrumData);
+            M1SpectrumData.push(M1MeasData.measData.spectrumData);
+            M2SpectrumData.push(M2MeasData.measData.spectrumData);
+            M0LABData.push(M0MeasData.measData.LABData);
+            M1LABData.push(M1MeasData.measData.LABData);
+            M2LABData.push(M2MeasData.measData.LABData);
+          }
+        } else {
+          const error = printErrorInfo();
+          return { res: false, error };
         }
       } else {
-        const error = printErrorInfo();
-        return { res: false, error };
+        return { res: false, error: { message: buttonPressRes.error } };
       }
-    } else {
-      return { res: false, error: { message: buttonPressRes.error } };
-    }
 
     // avgM0SpectrumData = getAverageData(M0SpectrumData, measAvgNum);
     // avgM1SpectrumData = getAverageData(M1SpectrumData, measAvgNum);
@@ -1128,13 +1218,14 @@ const getAvgOfAllResultKeyMeasurementStripMode = async (numOfPatches) => {
 const triggerMeasurement = () => {
   try {
     sEC = i1Pro3.triggerMeasurement();
-    console.log({ triggerMeasurement: sEC });
+    console.log({ triggerMeasurement : sEC});
 
     if (sEC != 0) {
       printErrorInfo();
       return false;
+    } else {
+      return true;
     }
-    return true;
   } catch (error) {
     return false;
   }
@@ -1143,14 +1234,15 @@ const triggerMeasurement = () => {
 // get Spectrum data of last measurement
 const getSpectrumResult = () => {
   try {
-    const spectrum = new FloatArray(36);
+    let spectrum = new FloatArray(36);
     sEC = i1Pro3.getSpectrum(spectrum, 0);
 
     if (sEC != 0) {
       printErrorInfo();
       return null;
+    } else {
+      return spectrum.toArray();
     }
-    return spectrum.toArray();
   } catch (error) {
     return null;
   }
@@ -1165,8 +1257,9 @@ const getSpectrumResultByIndex = (index) => {
     if (sEC != 0) {
       printErrorInfo();
       return null;
+    } else {
+      return spectrum.toArray();
     }
-    return spectrum.toArray();
   } catch (error) {
     return null;
   }
@@ -1237,8 +1330,42 @@ const getRGBResult = () => {
   }
 };
 
+const test = () => {
+  exposeLibraryFunctions();
+  const isOpen = i1Pro3.openDevice();
+  console.log({ isOpen });
+  console.log({ erro: printErrorInfo() });
+  //const calRes = triggerCalibration();
+  // ['A','B','C','D50','D55','D65','D75','F2','F7','F11'].forEach(x=>{
+  //   console.log('setting..'+ x);
+  //   sEC = i1Pro3.setOption('Colorimetric.Illumination',x);
+  //   if(sEC !=0) printErrorInfo();
+  // });
+  // ['DIN','DINNB','ANSIA','ANSIE','ANSII','ANSIT','SPI'].forEach(x=>{
+  //   console.log('setting..'+ x);
+  //   sEC = i1Pro3.setOption('Colorimetric.DensityStandard',x);
+  //   if(sEC !=0) printErrorInfo();
+  // });
+  // ['TwoDegree','TenDegree'].forEach(x=>{
+  //   console.log('setting..'+ x);
+  //   sEC = i1Pro3.setOption('Colorimetric.Observer',x);
+  //   if(sEC !=0) printErrorInfo();
+  // });
+  // sEC = i1Pro3.setOption(I1PRO3_MEASUREMENT_MODE,I1PRO3_REFLECTANCE_SPOT);
+  // console.log({sEC});
+  // printErrorInfo();
+  // sEC = i1Pro3.setOption(I1PRO3_MEASUREMENT_MODE,I1PRO3_REFLECTANCE_M3_SPOT);
+  // console.log({sEC});
+  // printErrorInfo();
+  //measAvgNum = 3;
+  //const measRes = triggerAvgMeasurement();
+  //console.log({ measRes });
+};
+
+//test();
+
 module.exports = {
-  loadI1PRO3LibraryFunctions,
+  exposeLibraryFunctions,
   getSDKVersion,
   openDevice,
   printDeviceInfo,
@@ -1269,5 +1396,5 @@ module.exports = {
   clearI1Pro3MeasurementInterval,
   updateI1PRO3StartMeasure,
   getI1PRO3MeasureStatus,
-  setDeviceOptionsStripMode,
+  setDeviceOptionsStripMode
 };

@@ -1,15 +1,13 @@
-/* eslint-disable @typescript-eslint/no-shadow */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable react/prop-types */
-/* eslint-disable react-hooks/exhaustive-deps */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import DevicePageTitle from 'renderer/components/DeviceHeader';
+import DeviceLicense from 'renderer/components/DeviceLicense';
 import Pagination from 'renderer/components/Pagination';
 import Timeline from 'renderer/components/Timeline';
 import {
   CHECK_DEVICE_CONNECTION,
   CLEAR_SAMPLES,
   CLOSE_DEVICE,
+  CURRENT_ACTION,
   DEVICE_CONNECTION,
   DEVICE_DISCONNECT_API_CALL,
   DEVICE_DISCONNECT_TIMEOUT,
@@ -23,18 +21,18 @@ import {
   DEVICE_DISCONNECTION,
   MEASURE_IN_PROGRESS,
   REFRESH_DEVICES_AND_LICENSES,
+  MEASUREMENT,
   SCAN_MEASUREMENT_RES,
   EXPORT_LAST_SCAN_DATA,
 } from 'utility/constants';
-
+import MeasureDeviceList from 'renderer/components/MeasureDeviceList';
 import PopupModal from 'renderer/components/PopupModal';
+import { downloadCSV } from 'utility/DownloadCSV';
 import Loader from 'renderer/components/Loader';
-
+import MultiFilesSelector from 'renderer/components/MultiFilesSelector';
 import ThirdPartyAPI from 'renderer/components/ThirdPartyAPI';
 import HomeFooter from 'renderer/components/HomeFooter';
-import downloadCSV from '../../utility/DownloadCSV';
-
-const { ipcRenderer } = window.electron;
+const { ipcRenderer } = window.require('electron');
 
 function ColorMatch({
   username,
@@ -43,6 +41,7 @@ function ColorMatch({
   onLogout,
   deviceList,
   onGetDeviceAndLicenses,
+  licenses,
   onChangeDevice,
   connectedDevice,
   onDeviceDisConnect,
@@ -74,6 +73,7 @@ function ColorMatch({
   scanRes,
   setScanRes,
   currentAction,
+  setCurrentAction,
 }) {
   const [currentDevice, setCurrentDevice] = useState(connectedDevice);
   const [deviceConnectionStatus, setDeviceConnectionStatus] = useState(true);
@@ -87,225 +87,10 @@ function ColorMatch({
   const [info, setInfo] = useState('');
   const [isSampleInProgress, setIsSampleInProgress] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('Please wait..');
+  const [openMultiFileModal, setOpenMultiFileModal] = useState(false);
   const csvFileRef = useRef(null);
   const [deviceInfo, setDeviceInfo] = useState(null);
 
-  const handleRefresh = () => {
-    ipcRenderer.send(GET_DEVICE_AND_LICENSES, { instanceURL, username, token });
-  };
-
-  useEffect(() => {
-    const device = deviceList.find((x) => x.deviceId === currentDevice);
-    setDeviceInfo(device);
-  }, [currentDevice, deviceList]);
-
-  useEffect(() => {
-    let deviceConnectionInterval = null;
-    if (deviceList.length && currentDevice) {
-      const device = deviceList.find((x) => x.deviceId === currentDevice);
-      if (device) {
-        deviceConnectionInterval = setInterval(() => {
-          if (
-            device.deviceType !== 'I1IO3' ||
-            device.deviceType !== 'I1IO2' ||
-            device.deviceType !== 'CI62_COLORSCOUT' ||
-            device.deviceType !== 'CI64_COLORSCOUT'
-          ) {
-            ipcRenderer.send(CHECK_DEVICE_CONNECTION, device?.deviceType);
-          }
-        }, 3000);
-      }
-    }
-    return () => {
-      clearInterval(deviceConnectionInterval);
-    };
-  }, [deviceList, currentDevice]);
-
-  useEffect(() => {
-    const device = deviceList.find((x) => x.deviceId === currentDevice);
-    if (updateDeviceStatus && isDisconnected) {
-      ipcRenderer.send(UPDATE_DEVICE_RECONNECTION, device);
-      ipcRenderer.send(DEVICE_RECONNECT_API_CALL, {
-        instanceURL,
-        deviceName: device?.deviceType,
-        deviceId: device?.deviceId,
-      });
-      handleRefresh();
-      setIsDisconnected(false);
-    }
-    if (!updateDeviceStatus) {
-      ipcRenderer.send(DISCONNECT_DEVICE, device);
-      ipcRenderer.send(DEVICE_DISCONNECT_API_CALL, {
-        instanceURL,
-        deviceName: device?.deviceType,
-        deviceId: device?.deviceId,
-      });
-      handleRefresh();
-      setIsDisconnected(true);
-    }
-  }, [updateDeviceStatus]);
-
-  const onShowDialog = (args) => {
-    if (args.message === 'Requested CMA client not found') {
-      // setError('Requested action not completed!!');
-      // setErrorBtnText('Retry On Instance');
-      // do nothing
-    } else if (
-      args.message === 'Requested CMA-connect client is already available'
-    ) {
-      // do nothing
-    } else {
-      setError(args.message);
-      setErrorBtnText('OK');
-    }
-  };
-
-  const onDisconnectDeviceAfterTimeout = (deviceType) => {
-    ipcRenderer.send(CLOSE_DEVICE, {
-      forceClose: false,
-      deviceType,
-      deviceId: currentDevice,
-      instanceURL,
-    });
-  };
-
-  const onDeviceDisconnectTimeout = (args) => {
-    if (args.hasTimeout) {
-      onDisconnectDeviceAfterTimeout(args.deviceType);
-    }
-  };
-
-  const onClearSamplesRes = (args) => {
-    if (!args.res) {
-      setError(args.message);
-      setErrorBtnText('OK');
-    } else {
-      setInfoTitle('Samples cleared');
-      setInfo(args.message);
-    }
-    setIsSampleInProgress(false);
-  };
-
-  const onSamplesData = (args) => {
-    const { header, data, error } = args;
-    if (error) {
-      setError(error);
-    } else if (data.length > 0) {
-      const res = downloadCSV(header, data);
-      if (!res) setError('Error Generating CSV File');
-    } else {
-      setError('No samples found from the device');
-    }
-    setIsSampleInProgress(false);
-  };
-
-  const onCheckDeviceConnection = (args) => {
-    if (args) {
-      setDeviceConnectionStatus(true);
-    } else {
-      setDeviceConnectionStatus(false);
-      setUpdateDeviceStatus(false);
-    }
-  };
-
-  const onRetry = () => {
-    if (deviceConnectionStatus) {
-      setUpdateDeviceStatus(true);
-    }
-  };
-
-  const onCloseDevice = (args) => {
-    if (args.res) {
-      // TODO : release device licenses here by calling main
-      onDeviceDisConnect(currentDevice);
-    } else {
-      setError(args.error ?? 'Device Disconnection Failed !!');
-      setErrorBtnText('OK');
-    }
-  };
-
-  const onGetDeviceInstanceLink = (args) => {
-    if (args.res) {
-      window.open(args.url);
-    } else {
-      setError(args.error);
-      setErrorBtnText('OK');
-    }
-  };
-
-  const onDisconnectCurrentDevice = () => {
-    const device = deviceList.find((x) => x.deviceId === currentDevice);
-    ipcRenderer.send(CLOSE_DEVICE, {
-      forceClose: false,
-      deviceType: device?.deviceType,
-      deviceId: device?.deviceId,
-      instanceURL,
-    });
-  };
-
-  const onRefreshDevicesLicenses = () => {
-    setTimeout(() => {
-      handleRefresh();
-    }, 3000);
-  };
-
-  const onDeviceAndLicensesRes = useCallback((args) => {
-    onGetDeviceAndLicenses(args);
-  }, []);
-
-  const onDeviceConnection = (args) => {
-    if (args) {
-      setTimeout(() => {
-        handleRefresh();
-      }, 3000);
-    }
-  };
-
-  const onDeviceRelease = (args) => {
-    if (args) {
-      setTimeout(() => {
-        handleRefresh();
-      }, 3000);
-    }
-  };
-
-  const onMeasureInProgress = () => {
-    setForceDisconnectError(
-      'Measurement is in progress, are you sure you want to disconnect ?',
-    );
-  };
-
-  const onForceDisconnect = () => {
-    const device = deviceList.find((x) => x.deviceId === currentDevice);
-    ipcRenderer.send(CLOSE_DEVICE, {
-      forceClose: true,
-      deviceType: device?.deviceType,
-      deviceId: device?.deviceId,
-      instanceURL,
-    });
-  };
-
-  const downloadTxtFile = (data, filename) => {
-    const element = document.createElement('a');
-    const file = new Blob([data], {
-      type: 'text/plain',
-    });
-    element.href = URL.createObjectURL(file);
-    element.download = filename;
-    document.body.appendChild(element); // Required for this to work in FireFox
-    element.click();
-  };
-
-  const onExportLastScanData = (_, exportRes) => {
-    if (exportRes.res) {
-      downloadTxtFile(exportRes.fileData, 'i1io3_scan_LAB_data.txt');
-    } else {
-      setErrorTitle('Error');
-      setError('Exporting scan data failed');
-    }
-  };
-
-  const onScanMeasurementRes = (_, res) => setScanRes(res);
   useEffect(() => {
     // register current action event
     ipcRenderer.on(GET_DEVICE_AND_LICENSES, onDeviceAndLicensesRes);
@@ -329,11 +114,11 @@ function ColorMatch({
     return () => {
       ipcRenderer.removeListener(
         GET_DEVICE_AND_LICENSES,
-        onDeviceAndLicensesRes,
+        onDeviceAndLicensesRes
       );
       ipcRenderer.removeListener(
         CHECK_DEVICE_CONNECTION,
-        onCheckDeviceConnection,
+        onCheckDeviceConnection
       );
       ipcRenderer.removeListener(CLOSE_DEVICE, onCloseDevice);
       ipcRenderer.removeListener(SHOW_DIALOG, onShowDialog);
@@ -341,23 +126,275 @@ function ColorMatch({
       ipcRenderer.removeListener(CLEAR_SAMPLES, onClearSamplesRes);
       ipcRenderer.removeListener(
         DEVICE_DISCONNECT_TIMEOUT,
-        onDeviceDisconnectTimeout,
+        onDeviceDisconnectTimeout
       );
       ipcRenderer.removeListener(
         GET_DEVICE_INSTANCE_URL,
-        onGetDeviceInstanceLink,
+        onGetDeviceInstanceLink
       );
       ipcRenderer.removeListener(DEVICE_CONNECTION, onDeviceConnection);
       ipcRenderer.removeListener(DEVICE_DISCONNECTION, onDeviceRelease);
       ipcRenderer.removeListener(MEASURE_IN_PROGRESS, onMeasureInProgress);
       ipcRenderer.removeListener(
         REFRESH_DEVICES_AND_LICENSES,
-        onRefreshDevicesLicenses,
+        onRefreshDevicesLicenses
       );
       ipcRenderer.removeListener(SCAN_MEASUREMENT_RES, onScanMeasurementRes);
       ipcRenderer.removeListener(EXPORT_LAST_SCAN_DATA, onExportLastScanData);
     };
   }, []);
+
+  useEffect(() => {
+    const device = deviceList.find((x) => x.deviceId == currentDevice);
+    setDeviceInfo(device);
+  }, [currentDevice, deviceList]);
+
+  useEffect(() => {
+    let deviceConnectionInterval = null;
+    if (deviceList.length && currentDevice) {
+      const device = deviceList.find((x) => x.deviceId == currentDevice);
+      if (device) {
+        deviceConnectionInterval = setInterval(() => {
+          if(device.deviceType !== 'I1IO3' || device.deviceType !== 'I1IO2' || device.deviceType !== 'CI62_COLORSCOUT' || device.deviceType !== 'CI64_COLORSCOUT'){
+            ipcRenderer.send(CHECK_DEVICE_CONNECTION, device?.deviceType);
+          }
+        }, 3000);
+      }
+    }
+    return () => {
+      clearInterval(deviceConnectionInterval);
+    };
+  }, [deviceList, currentDevice]);
+
+  useEffect(() => {
+    const device = deviceList.find((x) => x.deviceId == currentDevice);
+    if (updateDeviceStatus && isDisconnected) {
+      ipcRenderer.send(UPDATE_DEVICE_RECONNECTION, device);
+      ipcRenderer.send(DEVICE_RECONNECT_API_CALL, {
+        instanceURL,
+        deviceName: device?.deviceType,
+        deviceId: device?.deviceId,
+      });
+      handleRefresh();
+      setIsDisconnected(false);
+    }
+    if (!updateDeviceStatus) {
+      ipcRenderer.send(DISCONNECT_DEVICE, device);
+      ipcRenderer.send(DEVICE_DISCONNECT_API_CALL, {
+        instanceURL,
+        deviceName: device?.deviceType,
+        deviceId: device?.deviceId,
+      });
+      handleRefresh();
+      setIsDisconnected(true);
+    }
+  }, [updateDeviceStatus]);
+
+  const onShowDialog = (_, args) => {
+    if (args.message == 'Requested CMA client not found') {
+      // setError('Requested action not completed!!');
+      // setErrorBtnText('Retry On Instance');
+      // do nothing
+    } else if (
+      args.message == 'Requested CMA-connect client is already available'
+    ) {
+      // do nothing
+    } else {
+      setError(args.message);
+      setErrorBtnText('OK');
+    }
+  };
+
+  const onDeviceDisconnectTimeout = (_, args) => {
+    if (args.hasTimeout) {
+      onDisconnectDeviceAfterTimeout(args.deviceType);
+    }
+  };
+
+  const onClearSamplesRes = (_, args) => {
+    if (!args.res) {
+      setError(args.message);
+      setErrorBtnText('OK');
+    } else {
+      setInfoTitle('Samples cleared');
+      setInfo(args.message);
+    }
+    setIsSampleInProgress(false);
+  };
+
+  const onSamplesData = (_, args) => {
+    const { header, data, error } = args;
+    if (error) {
+      setError(error);
+    } else if (data.length > 0) {
+      const res = downloadCSV(header, data);
+      if (!res) setError('Error Generating CSV File');
+    } else {
+      setError('No samples found from the device');
+    }
+    setIsSampleInProgress(false);
+  };
+
+  const onExportSamples = () => {
+    setLoadingMsg('Exporting samples, please wait...');
+    setIsSampleInProgress(true);
+    const device = deviceList.find((x) => x.deviceId == currentDevice);
+    ipcRenderer.send(GET_SAMPLES_DATA, device?.deviceType);
+  };
+
+  const onClearSamples = () => {
+    setLoadingMsg('Clearing samples, please wait...');
+    setIsSampleInProgress(true);
+    const device = deviceList.find((x) => x.deviceId == currentDevice);
+    ipcRenderer.send(CLEAR_SAMPLES, device?.deviceType);
+  };
+
+  const onCheckDeviceConnection = (event, args) => {
+    if (args) {
+      setDeviceConnectionStatus(true);
+    } else {
+      setDeviceConnectionStatus(false);
+      setUpdateDeviceStatus(false);
+    }
+  };
+
+  const onRetry = () => {
+    if (deviceConnectionStatus) {
+      setUpdateDeviceStatus(true);
+    }
+  };
+
+  const onCloseDevice = (event, args) => {
+    if (args.res) {
+      // TODO : release device licenses here by calling main
+      onDeviceDisConnect(currentDevice);
+    } else {
+      setError(args.error ?? 'Device Disconnection Failed !!');
+      setErrorBtnText('OK');
+    }
+  };
+
+  const onGoToInstance = async () => {
+    ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
+  };
+
+  const onGetDeviceInstanceLink = (_, args) => {
+    if (args.res) {
+      window.open(args.url);
+    } else {
+      setError(args.error);
+      setErrorBtnText('OK');
+    }
+  };
+
+  const onDisconnectDeviceAfterTimeout = (deviceType) => {
+    ipcRenderer.send(CLOSE_DEVICE, {
+      forceClose: false,
+      deviceType,
+      deviceId: currentDevice,
+      instanceURL
+    });
+  };
+
+  const onDisconnectCurrentDevice = () => {
+    const device = deviceList.find((x) => x.deviceId == currentDevice);
+    ipcRenderer.send(CLOSE_DEVICE, {
+      forceClose: false,
+      deviceType: device?.deviceType,
+      deviceId: device?.deviceId,
+      instanceURL
+    });
+  };
+
+  const handleRefresh = () => {
+    ipcRenderer.send(GET_DEVICE_AND_LICENSES, { instanceURL, username, token });
+  };
+
+  const onRefreshDevicesLicenses = (_, args) => {
+    setTimeout(() => {
+      handleRefresh();
+    }, 3000);
+  };
+
+  const onDeviceAndLicensesRes = (_, args) => {
+    onGetDeviceAndLicenses(args);
+  };
+
+  const onDeviceConnection = (_, args) => {
+    // if device connected successfully from equipment app then refresh device list and licenses
+    if (args) {
+      setTimeout(() => {
+        handleRefresh();
+      }, 3000);
+    }
+  };
+
+  const onDeviceRelease = (_, args) => {
+    // if device disconnected from equipment app then refresh device list and licenses
+    if (args) {
+      setTimeout(() => {
+        handleRefresh();
+      }, 3000);
+    }
+  };
+
+  const onMeasureInProgress = (_, args) => {
+    setForceDisconnectError(
+      'Measurement is in progress, are you sure you want to disconnect ?'
+    );
+  };
+
+  const onForceDisconnect = () => {
+    const device = deviceList.find((x) => x.deviceId == currentDevice);
+    ipcRenderer.send(CLOSE_DEVICE, {
+      forceClose: true,
+      deviceType: device?.deviceType,
+      deviceId: device?.deviceId,
+      instanceURL
+    });
+  };
+
+  const onMeasure = () => {
+    setScanRes(null);
+    const deviceConnection = {
+      type: 'measurement',
+      deviceConnection: {
+        deviceType: deviceInfo.deviceType,
+        deviceName: deviceInfo.name,
+        isConnected: false,
+      },
+      measurement: { hasMeasured: false, measurementData: {}, error: '' },
+    };
+    ipcRenderer.send(MEASUREMENT, deviceConnection);
+  };
+
+  const onClickExportLastScanData = () => {
+    if (scanRes && scanRes.measurement && scanRes.measurement.hasMeasured) {
+      ipcRenderer.send(EXPORT_LAST_SCAN_DATA, null);
+    }
+  };
+
+  const downloadTxtFile = (data, filename) => {
+    const element = document.createElement('a');
+    const file = new Blob([data], {
+      type: 'text/plain',
+    });
+    element.href = URL.createObjectURL(file);
+    element.download = filename;
+    document.body.appendChild(element); // Required for this to work in FireFox
+    element.click();
+  };
+
+  const onExportLastScanData = (_, exportRes) => {
+    if (exportRes.res) {
+      downloadTxtFile(exportRes.fileData, 'i1io3_scan_LAB_data.txt');
+    } else {
+      setErrorTitle('Error');
+      setError('Exporting scan data failed');
+    }
+  };
+
+  const onScanMeasurementRes = (_, res) => setScanRes(res);
 
   return (
     <div id="main" className="cma-connect-page">
@@ -396,14 +433,12 @@ function ColorMatch({
                 </div>
                 <div>
                   <button
-                    type="button" // Add this
                     className="btn-default mr-12"
                     onClick={onChangeDevice}
                   >
                     Change device
                   </button>
                   <button
-                    type="button" // Add this
                     className="btn-danger mr-12"
                     onClick={onDisconnectCurrentDevice}
                   >

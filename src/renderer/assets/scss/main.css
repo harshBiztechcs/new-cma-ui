@@ -1437,3 +1437,7 @@ table.ready-measure-table tfoot td {
     padding: 7px 15px;
   }
 }
+
+#multiInstanceFormModal .modal-content{
+  min-width: 400px;
+}

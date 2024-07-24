@@ -1,17 +1,17 @@
-var ffi = require('@lwahonen/ffi-napi');
+const ffi = require('@lwahonen/ffi-napi');
 const ref = require('@lwahonen/ref-napi');
 const path = require('path');
 const { dialog } = require('electron');
 const { getAssetPath } = require('../../util');
 const { spawn } = require('child_process');
-const { SerialPort } = require('serialport');
+const { listSystemUSBDevices } = require('../../utility');
 const ReadlineParser = require('@serialport/parser-readline');
 const { closeSpectrometerDevice } = require('./CMA-ROP64E-UV-USB');
 
 let autoMeasurementFilePath = null;
 let measurementParamsFilePath = null;
 let manualMeasurementFilePath = null;
-let scanDEviceFilePath = null;
+let scanDeviceFilePath = null;
 let informationFilePath = null;
 let deviceSerialNumber = null;
 
@@ -20,13 +20,13 @@ if (process.platform === 'win32') {
     'SDK',
     'CMA-ROP64E-UV-BT',
     'Automatic_measurement',
-    'automaticMeasurement'
+    'Automatic_measurement'
   );
   measurementParamsFilePath = getAssetPath(
     'SDK',
     'CMA-ROP64E-UV-BT',
     'Measurement_parameter',
-    'measurementParameterSettings'
+    'Measurement_parameter'
   );
   manualMeasurementFilePath = getAssetPath(
     'SDK',
@@ -34,58 +34,35 @@ if (process.platform === 'win32') {
     'Manual_measurement',
     'manualMeasurement'
   );
-  scanDEviceFilePath = getAssetPath(
+  scanDeviceFilePath = getAssetPath(
     'SDK',
     'CMA-ROP64E-UV-BT',
     'Scan_Device',
-    'scanDevice'
+    'Scan_Device'
   );
   informationFilePath = getAssetPath(
     'SDK',
     'CMA-ROP64E-UV-BT',
     'Device_Information',
-    'getDeviceInformation'
+    'Device_Information'
   );
-}
-
-async function findConnectedPort() {
-  try {
-    const ports = await SerialPort.list();
-    const connectedPort = ports.find(
-      (port) => port.vendorId === '1A86' && port.productId === '7523'
-    );
-    if (connectedPort) {
-      return {
-        res: true,
-        data: connectedPort,
-        error: null,
-      };
-    } else {
-      return {
-        res: false,
-        data: null,
-        error: 'No connected port found.',
-      };
-    }
-  } catch (error) {
-    return {
-      res: false,
-      data: null,
-      error: `Error finding connected port: ${error}`,
-    };
-  }
 }
 
 async function checkBluetoothConnection() {
   try {
-    // await closeSpectrometerDevice();
-    const { res, data, error } = await findConnectedPort();
-    return { res, data, error };
+    const output = await listSystemUSBDevices();
+
+    // Search for the specific devices in the output
+    const isConnected = output.includes('7523') && output.includes('1A86');
+
+    return {
+      res: isConnected,
+      errorMessage: null,
+    };
   } catch (error) {
     return {
       res: false,
-      data: null,
-      error: `Error checking connection: ${error}`,
+      errorMessage: `Error connecting to the device: ${error}`,
     };
   }
 }
@@ -105,7 +82,7 @@ async function executeCPlusPlusProgram(executablePath, args = []) {
     });
 
     childProcess.stderr.on('data', (data) => {
-      reject('execution failed.');
+      reject(data.toString());
     });
 
     childProcess.on('error', (error) => {
@@ -254,7 +231,8 @@ async function tryMeasureDeviceAutomaticallyWithBluetooth(
     const args = [
       measurementParams['Colorimetric.Observer'],
       measurementParams['Colorimetric.Illumination'],
-      deviceMAC,
+      measurementParams.Specular,
+      measurementParams.UV,
     ];
 
     console.log('Arguments for automatic measurement:', args);
@@ -318,58 +296,52 @@ async function measureDeviceAutomaticWithBT(options, deviceMAC) {
   };
 }
 
-function convertData(data) {
-  // Split data by newline character
-  const lines = data.split('\n');
-
-  // Initialize an empty array to store the converted data
-  const convertedData = [];
-
-  // Loop through each line of the data
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    // Split each line by comma
-    const parts = line.split(', ');
-
-    // Check if the line has three parts
-    if (parts.length === 3) {
-      // Extract individual parts
-      const name = parts[0];
-      const address = parts[1];
-      const signalIntensity = parseInt(parts[2]);
-
-      // Create an object with the extracted parts and push it to the convertedData array
-      convertedData.push({
-        Index: i,
-        Name: name,
-        Address: address,
-        SignalIntensity: signalIntensity,
-      });
-    }
-  }
-
-  return convertedData;
-}
-
 async function tryGetScannedDeviceList() {
   await closeSpectrometerDevice();
-
   try {
-    const scannedDeviceListArr = await executeCPlusPlusProgram(scanDEviceFilePath);
+    const scannedDeviceListResponse = await executeCPlusPlusProgram(
+      scanDeviceFilePath
+    );
 
-    if (scannedDeviceListArr) {
-      const scannedDeviceList = convertData(scannedDeviceListArr);
-      console.log('Scanning YS3060 device!!!...');
-      return { res: true, data: scannedDeviceList, error: null };
+    if (scannedDeviceListResponse) {
+      const parsedDeviceList = JSON.parse(scannedDeviceListResponse);
+
+      if (
+        parsedDeviceList &&
+        parsedDeviceList.name !== undefined &&
+        parsedDeviceList.address !== undefined
+      ) {
+        console.log('Scanning YS3060 device!!!...');
+        return {
+          res: true,
+          data: [
+            { name: parsedDeviceList.name, address: parsedDeviceList.address },
+          ],
+          error: null,
+        };
+      }
+
+      return {
+        res: false,
+        data: null,
+        error: 'Failed to scan device',
+      };
     }
 
-    return { res: false, data: null, error: 'Failed to scan device' };
+    return {
+      res: false,
+      data: null,
+      error: 'Failed to retrieve scanned device list',
+    };
   } catch (error) {
     console.error('Error during device scan:', error);
-    return { res: false, data: null, error: `Failed to scan device: ${error}` };
+    return {
+      res: false,
+      data: null,
+      error: `Failed to scan device: ${error}`,
+    };
   }
 }
-
 async function getScannedDeviceList() {
   const maxAttempts = 10;
   let attempt = 0;
@@ -382,42 +354,41 @@ async function getScannedDeviceList() {
         return deviceListData;
       }
     } catch (error) {
-      return { res: false, data: null, error: 'Failed to scan device. Please unplug the USB and plug it again' };
+      return {
+        res: false,
+        data: null,
+        error: 'Failed to scan device. Please unplug the USB and plug it again',
+      };
     }
     attempt++;
   }
 
-  return { res: false, data: null, error: 'Please unplug the USB and plug it again' };
-}
-
-function convertStringToObject(inputString) {
-  const lines = inputString.trim().split('\n');
-  const resultObject = {};
-
-  lines.forEach((line) => {
-    const [key, value] = line.split(':').map((item) => item.trim());
-    resultObject[key] = isNaN(value) ? value : parseFloat(value) || value;
-  });
-
-  return resultObject;
+  return {
+    res: false,
+    data: null,
+    error: 'Please unplug the USB and plug it again',
+  };
 }
 
 async function fetchDataFromDevice() {
   try {
     await closeSpectrometerDevice();
-    const informationData = await executeCPlusPlusProgram(informationFilePath);
-    const parsedData = convertStringToObject(informationData);
-    deviceSerialNumber = parsedData.SN;
-    return {
-      res: true,
-      data: { serialNumber: parsedData.SN },
-      error: null,
-    };
+    const deviceInfoData = await executeCPlusPlusProgram(informationFilePath);
+    if (deviceInfoData) {
+      const deviceInfoObject = JSON.parse(deviceInfoData);
+      const serialNumber = deviceInfoObject.serialNumber;
+      deviceSerialNumber = serialNumber;
+      return {
+        res: true,
+        data: { serialNumber },
+        error: null,
+      };
+    }
   } catch (error) {
     return {
       res: false,
       data: null,
-      error: `Error retrieving information: ${error}`,
+      error: `Error retrieving device information: ${error}`,
     };
   }
 }
@@ -441,7 +412,6 @@ async function fetchDataFromDeviceWithRetry() {
   while (attempt < maxAttempts) {
     try {
       const informationData = await fetchDataFromDevice();
-
       if (informationData.res) {
         return informationData;
       }

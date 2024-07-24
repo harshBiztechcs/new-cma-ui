@@ -6,12 +6,13 @@ import {
   GET_IP,
   URLRegex,
   COLOR_GATE_UPDATE_LICENSE,
+  filePathRegex,
   filePathRegexCCT,
 } from 'utility/constants';
 import APILogList from './APILogList';
-
-const { ipcRenderer } = window.electron;
-ipcRenderer.send(GET_IP);
+const { ipcRenderer } = window.require('electron');
+const ipv4 = ipcRenderer.sendSync(GET_IP, null);
+const ipAddress = ipv4 ? `https://${ipv4}` : '';
 
 const IndicatorStyle = {
   background: '#28B62C',
@@ -37,68 +38,53 @@ export default function ColorGate({
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [apiBaseURL, setApiBaseURL] = useState();
+  const [apiBaseURL, setApiBaseURL] = useState(ipAddress);
   const [port, setPort] = useState(443);
   const [colorGateLicense, setColorGateLicense] = useState('');
   const [filePath, setFilePath] = useState('');
   const [error, setError] = useState('');
   const [gettingLocalIp, setGettingLocalIp] = useState(false);
-  const [ipv4, setipv4] = useState('');
-
-  useEffect(() => {
-    ipcRenderer.on(GET_IP, (ipAddress) => {
-      setApiBaseURL(`https://${ipAddress}`);
-      setTimeout(() => {
-        setGettingLocalIp(false);
-      }, 100);
-      setipv4(ipAddress);
-    });
-    ipcRenderer.send(GET_IP);
-    return () => {
-      ipcRenderer.removeAllListeners(GET_IP);
-    };
-  }, []);
 
   const connectionBtnText = ` ${
     checkConnection
       ? 'Checking Connection...'
       : colorGateConnection
-        ? 'Connection Successful'
-        : 'Connection Failed'
+      ? 'Connection Successful'
+      : 'Connection Failed'
   }`;
 
   const colorgateServerConnectionBtnText = `${
     socketConnectionInProgress
       ? 'Processing...'
       : colorGateSocketConnection
-        ? 'Disconnect Server'
-        : 'Connect Server'
+      ? 'Disconnect Server'
+      : 'Connect Server'
   }`;
 
   useEffect(() => {
     ipcRenderer.on(
       CHECK_THIRD_PARTY_API_CONNECTION,
-      onCheckThirdPartyAPIConnection,
+      onCheckThirdPartyAPIConnection
     );
     ipcRenderer.on(
       CMA_API_FOR_COLOR_GATE_STATUS_UPDATE,
-      onColorGateDisconnectionAPIRes,
+      onColorGateDisconnectionAPIRes
     );
     return () => {
       console.log('CLOSING THIRD PARTY API ');
       ipcRenderer.removeListener(
         CHECK_THIRD_PARTY_API_CONNECTION,
-        onCheckThirdPartyAPIConnection,
+        onCheckThirdPartyAPIConnection
       );
       ipcRenderer.removeListener(
         CMA_API_FOR_COLOR_GATE_STATUS_UPDATE,
-        onColorGateDisconnectionAPIRes,
+        onColorGateDisconnectionAPIRes
       );
     };
   }, []);
 
   useEffect(() => {
-    // get info from local storage
+    //get info from local storage
     let thirdPartyAPIConfig = localStorage.getItem('thirdPartyAPIConfig');
     console.log({ thirdPartyAPIConfig, username, password });
     if (thirdPartyAPIConfig) {
@@ -109,11 +95,11 @@ export default function ColorGate({
         if (decodedAuth) {
           const [username, password] = decodedAuth.split(':');
           const apiConfig = {
-            username: username || '',
-            password: password || '',
+            username: username ? username : '',
+            password: password ? password : '',
             apiBaseURL: thirdPartyAPIConfig.apiBaseURL
               ? thirdPartyAPIConfig.apiBaseURL
-              : apiBaseURL,
+              : ipAddress,
             port: thirdPartyAPIConfig.port ? thirdPartyAPIConfig.port : 443,
             colorGateLicense: thirdPartyAPIConfig.colorGateLicense
               ? thirdPartyAPIConfig.colorGateLicense
@@ -155,8 +141,8 @@ export default function ColorGate({
       console.log('=========== useEffect for server connection ===========');
       console.log({ checkConnection, colorGateConnection, socketConnection });
       console.log({ username, password, colorGateSocketConnection });
-      // check if colorGateLicense has changed and connection is successful
-      // then call colorGate de-active api to disable previous session on cma
+      //check if colorGateLicense has changed and connection is successful
+      //then call colorGate de-active api to disable previous session on cma
       let thirdPartyAPIConfig = localStorage.getItem('thirdPartyAPIConfig');
       console.log({ thirdPartyAPIConfig });
       if (thirdPartyAPIConfig) {
@@ -166,7 +152,7 @@ export default function ColorGate({
           thirdPartyAPIConfig.colorGateLicense &&
           thirdPartyAPIConfig.colorGateLicense !== colorGateLicense
         ) {
-          // call disconnect colorGate api
+          //call disconnect colorGate api
           console.log(' === calling disconnect colorGate api === ');
           ipcRenderer.send(CMA_API_FOR_COLOR_GATE_STATUS_UPDATE, {
             instanceURL,
@@ -213,7 +199,7 @@ export default function ColorGate({
         isConnected: true,
         colorGateLicense,
       });
-      // call disconnect colorGate api
+      //call disconnect colorGate api
       console.log(' === calling disconnect colorGate api === ');
       ipcRenderer.send(CMA_API_FOR_COLOR_GATE_STATUS_UPDATE, {
         instanceURL,
@@ -228,7 +214,7 @@ export default function ColorGate({
     }
   };
 
-  const onCheckThirdPartyAPIConnection = (args) => {
+  const onCheckThirdPartyAPIConnection = (_, args) => {
     setCheckConnection(false);
     if (
       args.colorGateAPI?.response?.data &&
@@ -240,7 +226,7 @@ export default function ColorGate({
     }
   };
 
-  const onColorGateDisconnectionAPIRes = (args) => {
+  const onColorGateDisconnectionAPIRes = (_, args) => {
     if (!args.result) {
       setError(args.error);
     }
@@ -306,19 +292,18 @@ export default function ColorGate({
 
   const onGetLocalIP = () => {
     setGettingLocalIp(true);
+    const ipv4 = ipcRenderer.sendSync(GET_IP, null);
     if (ipv4) {
       setApiBaseURL(`https://${ipv4}`);
       setTimeout(() => {
         setGettingLocalIp(false);
       }, 100);
-    } else {
-      ipcRenderer.send(GET_IP, null);
     }
   };
 
   const onCheckConnectionAndSave = async (e) => {
     e.preventDefault();
-    const valError = validateAPIConfig({
+    let valError = validateAPIConfig({
       username,
       password,
       apiBaseURL,
@@ -354,10 +339,10 @@ export default function ColorGate({
                 backgroundColor: checkConnection
                   ? 'lightgrey'
                   : colorGateConnection
-                    ? 'lightgreen'
-                    : 'orangered',
+                  ? 'lightgreen'
+                  : 'orangered',
               }}
-            />
+            ></span>
             {connectionBtnText}
           </button>
           <div>

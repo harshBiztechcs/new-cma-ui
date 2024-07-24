@@ -928,3 +928,7 @@ table.ready-measure-table tfoot td {
     margin-top: 5px;
   }
 } /*# sourceMappingURL=style.css.map */
+
+#multiInstanceFormModal .modal-content{
+  min-width: 400px;
+}

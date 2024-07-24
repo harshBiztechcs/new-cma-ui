@@ -1,5 +1,4 @@
-/* eslint-disable no-console */
-/* eslint-disable @typescript-eslint/no-shadow */
+const path = require('path');
 const { encJObj, decJObj } = require('./crypto');
 const {
   auth,
@@ -21,6 +20,7 @@ const {
   zebraPrinterDataObj,
 } = require('./data');
 const {
+  ipcLog,
   ipcConnectionStatus,
   ipcCurrentAction,
   ipcSettings,
@@ -38,6 +38,7 @@ const {
   ipcShowDialog,
   onDisconnectDevice,
   ipcSocketConnection,
+  ipcSocketDisconnectCleanly,
   onDeviceReconnection,
   ipcClientSocketAlreadyExist,
   ipcDeviceDisconnection,
@@ -73,34 +74,181 @@ const {
   ipcSendToBarcodeReader,
   onBarCodeReader,
   onZebraPrinterHandler,
-  onChnageConnectionType,
+  onChnageConnectionType
 } = require('./ipcRendererCall');
 
 let socket = null;
 let colorGateSocketConnection = false;
 let alwanSocketConnection = false;
 let availableDevice = [];
-// let forceConnect = undefined;
+let forceConnect = undefined;
 let clientAlreadyAvailable = false;
+let dummyInterval = null;
+const fs = window.require('fs');
+const connectSocket = (url, auth) => {
+  if (socket) return;
+  clientAlreadyAvailable = false;
+  const config = {
+    headers: {
+      username: auth.username,
+      instance_url: auth.instanceURL,
+      token: auth.token,
+    },
+  };
+  socket = new WebSocket(url);
+  socket.onopen = () => {
+    ipcSocketConnection(true);
+    ipcConnectionStatus('connected');
+    ipcCurrentAction('connected');
+  };
 
-// sends client encrypted msg / error string
-const sendEncryptMsg = (socket, content) => {
-  const res = encJObj(content);
-  if (res.success) {
-    socket.send(Buffer.from(res.message));
-  } else {
-    ipcCurrentAction(res.message);
-  }
-  return res.success;
+  socket.onmessage = ({ data }) => {
+    try {
+      const res = JSON.parse(data);
+      if (res?.error) {
+        ipcCurrentAction(res.error);
+        ipcShowDialog('Error', res.error ?? 'Unknown Error');
+        return;
+      }
+    } catch (error) {}
+    const decRes = decryptMsg(socket, data);
+    if (
+      decRes.message?.error?.message &&
+      decRes.message?.error?.message ==
+        'Requested CMA-connect client is already available'
+    ) {
+      clientAlreadyAvailable = true;
+      ipcClientSocketAlreadyExist(true);
+    }
+    if (!decRes.success) return;
+    handleResponse(decRes.message);
+  };
+
+  socket.onerror = (error) => {
+    socket = null;
+    colorGateSocketConnection = false;
+    alwanSocketConnection = false;
+    resetConnectionObj();
+    if (clientAlreadyAvailable) return;
+    ipcConnectionStatus('disconnected');
+    ipcCurrentAction('error occurred !!');
+    ipcSocketConnection(false);
+  };
+
+  socket.onclose = (event) => {
+    socket = null;
+    colorGateSocketConnection = false;
+    alwanSocketConnection = false;
+    resetConnectionObj();
+    if (event.reason == 'client already exist') {
+      clientAlreadyAvailable = true;
+      ipcClientSocketAlreadyExist(true);
+    } else {
+      clientAlreadyAvailable = false;
+      ipcClientSocketAlreadyExist(false);
+    }
+    if (clientAlreadyAvailable) return;
+    ipcConnectionStatus('disconnected');
+    ipcCurrentAction('disconnected');
+    ipcSocketConnection(false);
+    resetDevice();
+  };
 };
 
-// sends back to client if failed
-const decryptMsg = (socket, content) => {
-  const res = decJObj(content);
-  if (!res.success) {
-    ipcCurrentAction(res.message);
+const handleResponse = (msg) => {
+  if (msg?.error) {
+    ipcCurrentAction(msg.error?.message);
+    ipcShowDialog('Error', msg.error?.message ?? 'Unknown Error');
+    return;
   }
-  return res;
+  switch (msg?.type) {
+    case 'connection':
+      handleConnectionResponse(msg);
+      break;
+
+    case 'deviceConnection':
+      handleDeviceConnectionResponse(msg);
+      break;
+
+    case 'settings':
+      handleSettingsResponse(msg);
+      break;
+
+    case 'calibration':
+      handleCalibrationResponse(msg);
+      break;
+
+    case 'measurement':
+      handleMeasurementResponse(msg);
+      break;
+
+    case 'disconnection':
+      handleDisconnectionResponse(msg);
+      break;
+
+    case 'disconnectDevice':
+      handleDisconnectDeviceResponse(msg);
+      break;
+
+    case 'colorGateAPI':
+      handleColorGateAPIRequest(msg);
+      break;
+
+    case 'alwanAPI':
+      handleAlwanAPIRequest(msg);
+      break;
+
+    case 'colorGateServerConnection':
+      handleColorGateServerConnectionResponse(msg);
+      break;
+
+    case 'alwanServerConnection':
+      handleAlwanServerConnectionResponse(msg);
+      break;
+
+    case 'colorGateConnectionCheck':
+      handleColorGateConnectionCheck(msg);
+      break;
+
+    case 'alwanConnectionCheck':
+      handleAlwanConnectionCheck(msg);
+      break;
+
+    case 'grabInitialPosition':
+      handleGrabInitialPosition(msg);
+      break;
+
+    case 'chartPosition':
+      handleChartPosition(msg);
+      break;
+
+    case 'pb_weight':
+      handleWeightResponse(msg);
+      break;
+
+    case 'pb_resetData':
+      handleResetDataForPB(msg);
+      break;
+
+    case 'pb_get_tare_value':
+      handleGetTareValue(msg);
+      break;
+
+    case 'pb_set_tare_value':
+      handleSetTareValue(msg);
+      break;
+
+    case 'zebra_label_printer':
+      handleZebraPrinter(msg);
+      break;
+
+    case 'handle_barcode_reader':
+      handleBarcodeReader(msg);
+      break;
+
+    default:
+      break;
+  }
 };
 
 const handleConnectionResponse = (msg) => {
@@ -119,12 +267,7 @@ const handleConnectionResponse = (msg) => {
 };
 
 const handleDeviceConnectionResponse = (msg) => {
-  if (
-    !availableDevice.includes(msg.deviceConnection.deviceType) &&
-    !availableDevice.includes(
-      String(msg.deviceConnection.deviceType).split('_')[0],
-    )
-  ) {
+  if (!availableDevice.includes(msg.deviceConnection.deviceType) && (!availableDevice.includes(String(msg.deviceConnection.deviceType).split('_')[0]))) {
     const obj = { auth, content: msg };
     obj.content.error = { message: 'Requested device is not available' };
     sendEncryptMsg(socket, obj);
@@ -148,22 +291,22 @@ const handleDisconnectDeviceResponse = (msg) => {
 
 const handleSettingsResponse = (msg) => {
   ipcCurrentAction('setting options...');
-  ipcSettings(msg); // calling main process to set options on device
+  ipcSettings(msg); //calling main process to set options on device
 };
 
 const handleCalibrationResponse = (msg) => {
   ipcCurrentAction('calibrating...');
-  ipcCalibration(msg); // calling main process to perform calibration on device
+  ipcCalibration(msg); //calling main process to perform calibration on device
 };
 
 const handleMeasurementResponse = (msg) => {
   ipcCurrentAction('taking measurement...');
-  ipcMeasurement(msg); // calling main process to perform measurement on device
+  ipcMeasurement(msg); //calling main process to perform measurement on device
 };
 
 const handleWeightResponse = (msg) => {
   ipcCurrentAction('taking Weighting...');
-  ipcWeightMeasurement(msg); // calling main process to perform measurement on device
+  ipcWeightMeasurement(msg); //calling main process to perform measurement on device
 };
 
 const handleResetDataForPB = (msg) => {
@@ -191,7 +334,7 @@ const handleBarcodeReader = (msg) => {
   ipcSendToBarcodeReader(msg);
 };
 
-const handleDisconnectionResponse = () => {
+const handleDisconnectionResponse = (msg) => {
   ipcCurrentAction('disconnecting..');
   setTimeout(() => {
     socket.close();
@@ -217,12 +360,21 @@ const handleGrabInitialPosition = (msg) => {
   ipcGrabInitialPosition(msg);
 };
 
+onConnectSocket(
+  (event, { username, instanceURL, token, socketURL, forceConnect }) => {
+    connection.connection.forceConnect = forceConnect;
+    connectSocket(socketURL, { username, instanceURL, token });
+    auth.username = username;
+    auth.instanceURL = instanceURL;
+  }
+);
+
 onDisconnectSocket((event) => {
   socket.close();
 });
 
-// on ipcRenderer handling to send successful result to be sent to server
-// ipcMain send msg after handling i1Pro3 functions and that will be listened here
+//on ipcRenderer handling to send successful result to be sent to server
+//ipcMain send msg after handling i1Pro3 functions and that will be listened here
 
 onVerifyDeviceConnection((event, args) => {
   const { device, serialNumber } = args;
@@ -244,7 +396,7 @@ onDeviceReconnection((event, args) => {
   updateAvailableDevice.serialNumber = serialNumber;
   // updateAvailableDevice.isReconnect = true;
   const content = { ...updateAvailableDevice, isReconnect: true };
-  const obj = { auth, content };
+  const obj = { auth, content: content };
   sendEncryptMsg(socket, obj);
 });
 
@@ -337,7 +489,7 @@ onZebraPrinterHandler((event, zebraPrinterObj) => {
 });
 
 onDisconnectDeviceFromServer((event, args) => {
-  auth.deviceId = args.deviceId;
+  auth['deviceId'] = args.deviceId;
   disconnectDevice.disconnectDevice.deviceDisconnected = true;
   disconnectDevice.disconnectDevice.deviceType = args.deviceName;
   disconnectDevice.disconnectDevice.deviceName = args.deviceName;
@@ -425,7 +577,7 @@ const handleAlwanServerConnectionResponse = (msg) => {
   ipcAlwanServerConnectionRes(msg);
 };
 
-// colorGate api
+//colorGate api
 onColorGateAPIReq((event, args) => {
   const colorGateAPIRequest = {
     type: 'colorGateAPIRequest',
@@ -441,7 +593,7 @@ onColorGateAPIRes((event, args) => {
 });
 
 onColorGateServerConnectionReq((event, args) => {
-  if (args?.isConnected === !colorGateSocketConnection) return;
+  if (args?.isConnected == !colorGateSocketConnection) return;
   if (!args.colorGateLicense) return;
   console.log('onColorGateServerConnectionReq === ');
   const obj = {
@@ -500,178 +652,120 @@ const resetDevice = () => {
   device.deviceName = null;
 };
 
-const handleResponse = (msg) => {
-  if (msg?.error) {
-    ipcCurrentAction(msg.error?.message);
-    ipcShowDialog('Error', msg.error?.message ?? 'Unknown Error');
-    return;
-  }
-  switch (msg?.type) {
-    case 'connection':
-      handleConnectionResponse(msg);
-      break;
-
-    case 'deviceConnection':
-      handleDeviceConnectionResponse(msg);
-      break;
-
-    case 'settings':
-      handleSettingsResponse(msg);
-      break;
-
-    case 'calibration':
-      handleCalibrationResponse(msg);
-      break;
-
-    case 'measurement':
-      handleMeasurementResponse(msg);
-      break;
-
-    case 'disconnection':
-      handleDisconnectionResponse();
-      break;
-
-    case 'disconnectDevice':
-      handleDisconnectDeviceResponse(msg);
-      break;
-
-    case 'colorGateAPI':
-      handleColorGateAPIRequest(msg);
-      break;
-
-    case 'alwanAPI':
-      handleAlwanAPIRequest(msg);
-      break;
-
-    case 'colorGateServerConnection':
-      handleColorGateServerConnectionResponse(msg);
-      break;
-
-    case 'alwanServerConnection':
-      handleAlwanServerConnectionResponse(msg);
-      break;
-
-    case 'colorGateConnectionCheck':
-      handleColorGateConnectionCheck(msg);
-      break;
-
-    case 'alwanConnectionCheck':
-      handleAlwanConnectionCheck(msg);
-      break;
-
-    case 'grabInitialPosition':
-      handleGrabInitialPosition(msg);
-      break;
-
-    case 'chartPosition':
-      handleChartPosition(msg);
-      break;
-
-    case 'pb_weight':
-      handleWeightResponse(msg);
-      break;
-
-    case 'pb_resetData':
-      handleResetDataForPB(msg);
-      break;
-
-    case 'pb_get_tare_value':
-      handleGetTareValue(msg);
-      break;
-
-    case 'pb_set_tare_value':
-      handleSetTareValue(msg);
-      break;
-
-    case 'zebra_label_printer':
-      handleZebraPrinter(msg);
-      break;
-
-    case 'handle_barcode_reader':
-      handleBarcodeReader(msg);
-      break;
-
-    default:
-      break;
-  }
+const getErrorObj = (message, errorNo) => {
+  return { message, errorNo };
 };
 
-const connectSocket = (url, auth) => {
-  if (socket) return;
-  clientAlreadyAvailable = false;
-  const config = {
-    headers: {
-      username: auth.username,
-      instance_url: auth.instanceURL,
-      token: auth.token,
-    },
-  };
-  socket = new WebSocket(url);
-  socket.onopen = () => {
-    ipcSocketConnection(true);
-    ipcConnectionStatus('connected');
-    ipcCurrentAction('connected');
-  };
-
-  socket.onmessage = ({ data }) => {
-    try {
-      const res = JSON.parse(data);
-      if (res?.error) {
-        ipcCurrentAction(res.error);
-        ipcShowDialog('Error', res.error ?? 'Unknown Error');
-        return;
-      }
-      // eslint-disable-next-line no-empty
-    } catch (error) {}
-    const decRes = decryptMsg(socket, data);
-    if (
-      decRes.message?.error?.message &&
-      decRes.message?.error?.message ===
-        'Requested CMA-connect client is already available'
-    ) {
-      clientAlreadyAvailable = true;
-      ipcClientSocketAlreadyExist(true);
-    }
-    if (!decRes.success) return;
-    handleResponse(decRes.message);
-  };
-
-  socket.onerror = () => {
-    socket = null;
-    colorGateSocketConnection = false;
-    alwanSocketConnection = false;
-    resetConnectionObj();
-    if (clientAlreadyAvailable) return;
-    ipcConnectionStatus('disconnected');
-    ipcCurrentAction('error occurred !!');
-    ipcSocketConnection(false);
-  };
-
-  socket.onclose = (event) => {
-    socket = null;
-    colorGateSocketConnection = false;
-    alwanSocketConnection = false;
-    resetConnectionObj();
-    if (event.reason === 'client already exist') {
-      clientAlreadyAvailable = true;
-      ipcClientSocketAlreadyExist(true);
-    } else {
-      clientAlreadyAvailable = false;
-      ipcClientSocketAlreadyExist(false);
-    }
-    if (clientAlreadyAvailable) return;
-    ipcConnectionStatus('disconnected');
-    ipcCurrentAction('disconnected');
-    ipcSocketConnection(false);
-    resetDevice();
-  };
+const getEncErrorObj = (message, errorNo) => {
+  return encJObj({ message, errorNo });
 };
 
-onConnectSocket(
-  (event, { username, instanceURL, token, socketURL, forceConnect }) => {
-    connection.connection.forceConnect = forceConnect;
-    connectSocket(socketURL, { username, instanceURL, token });
-    auth.username = username;
-    auth.instanceURL = instanceURL;
-  },
-);
+// sends client encrypted msg / error string
+const sendEncryptMsg = (socket, content) => {
+  const res = encJObj(content);
+  if (res.success) {
+    socket.send(Buffer.from(res.message));
+  } else {
+    ipcCurrentAction(res.message);
+  }
+  return res.success;
+};
+
+// sends back to client if failed
+const decryptMsg = (socket, content) => {
+  const res = decJObj(content);
+  if (!res.success) {
+    ipcCurrentAction(res.message);
+  }
+  return res;
+};
+
+const sendDummyColorGateReq = () => {
+  console.log('sending colorgate req in 5 seconds');
+  dummyInterval = setInterval(() => {
+    const fileName = 'Colorportal_Epson_SP4900_A3_CMYK.pdf';
+    const RESOURCES_PATH = path.join(process.resourcesPath, 'assets');
+    const getAssetPath = (...paths) => {
+      return path.join(RESOURCES_PATH, ...paths);
+    };
+    const obj = {
+      auth: { ...auth, isElectron: false },
+      type: 'colorGateAPI',
+      colorGateAPI: {
+        request: {
+          url: `/v1/files?filename=${fileName}`,
+          method: 'post',
+          headers: {
+            'Content-Type': 'application/octet-stream',
+          },
+          data: fs.readFileSync(path.join(__dirname, '..', fileName), {
+            encoding: 'base64',
+          }),
+        },
+        type: 'file',
+      },
+    };
+    const obj2 = {
+      auth: { ...auth, isElectron: false },
+      type: 'colorGateAPI',
+      colorGateAPI: {
+        request: {
+          url: '/v1/jobs',
+          method: 'post',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          data: fs.readFileSync(`./${fileName}`, {
+            encoding: 'base64',
+          }),
+        },
+        type: 'file',
+        body: {
+          queueName: 'Roland VS-300i',
+          hotfolder: 'Roland VS-300i',
+          fileID: '',
+        },
+      },
+    };
+    console.log('sending to websocket == ');
+    sendEncryptMsg(socket, obj);
+  }, 5000);
+};
+
+const sendDummyReq = () => {
+  dummyInterval = setTimeout(() => {
+    console.log('sending dummy req');
+    const obj = {
+      type: 'colorGateAPI',
+      colorGateAPI: {
+        request: {
+          baseURL: 'https://google.com',
+          url: '/users',
+        },
+      },
+    };
+    const obj2 = {
+      type: 'colorGateAPI',
+      colorGateAPI: {
+        request: {
+          baseURL: 'https://google.com',
+          url: '/google',
+        },
+      },
+    };
+    const obj3 = {
+      type: 'colorGateAPI',
+      colorGateAPI: {
+        request: {
+          baseURL: 'https://jsonplaceholder.typicode.com',
+          url: '/comments',
+        },
+      },
+    };
+    ipcSendColorGateAPIReq(obj);
+    setTimeout(() => {
+      ipcSendColorGateAPIReq(obj2);
+    }, 2000);
+    //ipcSendColorGateAPIReq(obj3);
+  }, 5000);
+};

@@ -1,10 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import AlwanAPI from './AlwanAPI';
 import ColorGate from './ColorGate';
 import DevicePageTitle from './DeviceHeader';
 import HomeFooter from './HomeFooter';
 import Pagination from './Pagination';
 import PopupModal from './PopupModal';
+import MultiInstanceListModal from './MultiInstanceListModal';
+import MultiInstanceFormModal from './MultiInstanceFormModal.jsx';
+import { InstanceConnectionContext } from 'renderer/context/InstanceConnectionProvider';
+
+const { ipcRenderer } = window.require('electron');
 
 export default function ThirdPartyAPI({
   onLogout,
@@ -34,6 +39,21 @@ export default function ThirdPartyAPI({
   currentPage,
 }) {
   const [activeTab, setActiveTab] = useState('colorgate');
+  const {instanceConnectionDetails, setInstanceConnectionDetails} = useContext(InstanceConnectionContext);
+
+  const [multiInstance, setMultiInstance] = useState(false);
+  const [multiInstanceList, setMultiInstanceList] = useState(false);
+  const [multiInstanceForm, setMultiInstanceForm] = useState(false);
+  const [errorAlreadyExist, setErrorAlreadyExist] = useState('');
+  // const [instanceConnectionDetails, setInstanceConnectionDetails] = useState([]);
+  const [countInstance, setCountInstance] = useState(1);
+
+  const handleBackForList = () => {
+    setMultiInstanceList(false);
+  };
+  const handleBackForForm = () => {
+    setMultiInstanceForm(false);
+  };
 
   return (
     <div className="right-side">
@@ -45,6 +65,8 @@ export default function ThirdPartyAPI({
         onGoBack={() => onThirdPartyAPI(false)}
         username={username}
         instanceURL={instanceURL}
+        multiInstanceList={multiInstanceList}
+        setMultiInstanceList={setMultiInstanceList}
       />
       <h3 className="page-title">
         API connection settings for Colorportal Enterprise
@@ -119,6 +141,30 @@ export default function ThirdPartyAPI({
           message={alwanPopupError}
           onConfirm={() => setAlwanPopupError('')}
           confirmBtnText="OK"
+        />
+      )}
+      {multiInstanceList && (
+        <MultiInstanceListModal
+          onCancel={handleBackForList}
+          setMultiInstanceForm={setMultiInstanceForm}
+          setErrorAlreadyExist={setErrorAlreadyExist}
+          errorAlreadyExist={errorAlreadyExist}
+          setInstanceConnectionDetails={setInstanceConnectionDetails}
+          instanceConnectionDetails={instanceConnectionDetails}
+          setCountInstance={setCountInstance}
+          countInstance={countInstance}
+        />
+      )}
+      {multiInstanceForm && (
+        <MultiInstanceFormModal
+          onCancel={handleBackForForm}
+          setMultiInstanceForm={setMultiInstanceForm}
+          setErrorAlreadyExist={setErrorAlreadyExist}
+          setInstanceConnectionDetails={setInstanceConnectionDetails}
+          instanceConnectionDetails={instanceConnectionDetails}
+          setCountInstance={setCountInstance}
+          countInstance={countInstance}
+          onThirdPartyAPI={onThirdPartyAPI}
         />
       )}
     </div>

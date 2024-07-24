@@ -1,8 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import Timeline from 'renderer/components/Timeline';
 import { GET_APP_VERSION } from 'utility/constants';
 import cmaConnectIcon from '../assets/image/cma-connect-icon.png';
 
+const { ipcRenderer } = window.require('electron');
+
+const currentAppVersion = ipcRenderer.sendSync(GET_APP_VERSION, null);
 const updateNoteBoxStyle = {
   border: '1px solid #e4e7ec',
   boxSizing: 'border-box',
@@ -41,23 +44,6 @@ function AutoUpdate({
   downloadProgress,
 }) {
   const progressBarStyle = { width: `${downloadProgress}%`, marginTop: '0px' };
-
-  const [currentAppVersion, setCurrentAppVersion] = useState('');
-
-  const getAppVersion = useCallback((version) => {
-    setCurrentAppVersion(version);
-  }, []);
-
-  useEffect(() => {
-    const { ipcRenderer } = window.electron;
-
-    ipcRenderer.on(GET_APP_VERSION, getAppVersion);
-    ipcRenderer.send(GET_APP_VERSION);
-
-    return () => {
-      ipcRenderer.removeAllListeners(GET_APP_VERSION);
-    };
-  }, [getAppVersion]);
 
   return (
     <div id="main" className="cma-connect-page">
@@ -177,7 +163,7 @@ function AutoUpdate({
                       <span className="progress-bar" style={progressBarStyle} />
                     </div>
                   )}
-
+{/* 
                   {updateError && (
                     <div>
                       <div>Error occurred while updating app</div>
@@ -191,11 +177,11 @@ function AutoUpdate({
                         {updateError}
                       </div>
                     </div>
-                  )}
-
-                  {/* {updateError && (
-                    <div>Error 404 : occurred while updating app </div>
                   )} */}
+
+                  {updateError && (
+                    <div>Error 404 : occurred while updating app </div>
+                  )}
                 </div>
 
                 <div style={{ marginTop: '40px' }}>

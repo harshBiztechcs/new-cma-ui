@@ -19,8 +19,8 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 const RESOURCES_PATH = app.isPackaged
-  ? path.join(process.resourcesPath, 'assets')
-  : path.join(__dirname, '../../assets');
+? path.join(process.resourcesPath, 'assets')
+: path.join(__dirname, '../../assets');
 
 export const getAssetPath = (...paths: any[]) => {
   return path.join(RESOURCES_PATH, ...paths);

@@ -490,7 +490,7 @@ const getSampleInfo = (options, index, geometry) => {
         sampleInfo[key] = ci64.GetOption('NetProfiler');
       } else if (key == 'TRANSFORMID') {
         sampleInfo[key] = getTransformName(
-          execQuery(`SAMPLE GET ${key} ${index} ${geometry}`),
+          execQuery(`SAMPLE GET ${key} ${index} ${geometry}`)
         );
       } else if (key == 'NAME') {
         sampleInfo[key] = '';
@@ -511,18 +511,18 @@ const getSampleData = (index) => {
   try {
     sampleData['reflectanceData'] = {
       refSpinData: convertFloatValues(
-        ci64.Execute(`SAMPLE GET REFL ${index} SPIN`).split(' '),
+        ci64.Execute(`SAMPLE GET REFL ${index} SPIN`).split(' ')
       ),
       refSpexData: convertFloatValues(
-        ci64.Execute(`SAMPLE GET REFL ${index} SPEX`).split(' '),
+        ci64.Execute(`SAMPLE GET REFL ${index} SPEX`).split(' ')
       ),
     };
     sampleData['LABData'] = {
       labSpinData: convertFloatValues(
-        ci64.Execute(`SAMPLE GET LAB ${index} SPIN`).split(' '),
+        ci64.Execute(`SAMPLE GET LAB ${index} SPIN`).split(' ')
       ),
       labSpexData: convertFloatValues(
-        ci64.Execute(`SAMPLE GET LAB ${index} SPEX`).split(' '),
+        ci64.Execute(`SAMPLE GET LAB ${index} SPEX`).split(' ')
       ),
     };
     if (
@@ -548,7 +548,7 @@ const getCi64AllSamples = () =>
       const data = [];
       const header =
         'Name,TimeStamp,Aperture,NetProfiler Status,Transform,Trigger Mode,Project ID,Job ID,Standard,400 nm (SPIN),410 nm (SPIN),420 nm (SPIN),430 nm (SPIN),440 nm (SPIN),450 nm (SPIN),460 nm (SPIN),470 nm (SPIN),480 nm (SPIN),490 nm (SPIN),500 nm (SPIN),510 nm (SPIN),520 nm (SPIN),530 nm (SPIN),540 nm (SPIN),550 nm (SPIN),560 nm (SPIN),570 nm (SPIN),580 nm (SPIN),590 nm (SPIN),600 nm (SPIN),610 nm (SPIN),620 nm (SPIN),630 nm (SPIN),640 nm (SPIN),650 nm (SPIN),660 nm (SPIN),670 nm (SPIN),680 nm (SPIN),690 nm (SPIN),700 nm (SPIN),400 nm (SPEX),410 nm (SPEX),420 nm (SPEX),430 nm (SPEX),440 nm (SPEX),450 nm (SPEX),460 nm (SPEX),470 nm (SPEX),480 nm (SPEX),490 nm (SPEX),500 nm (SPEX),510 nm (SPEX),520 nm (SPEX),530 nm (SPEX),540 nm (SPEX),550 nm (SPEX),560 nm (SPEX),570 nm (SPEX),580 nm (SPEX),590 nm (SPEX),600 nm (SPEX),610 nm (SPEX),620 nm (SPEX),630 nm (SPEX),640 nm (SPEX),650 nm (SPEX),660 nm (SPEX),670 nm (SPEX),680 nm (SPEX),690 nm (SPEX),700 nm (SPEX),L value (SPIN)LAB,A value (SPIN)LAB,B value (SPIN)LAB,L value (SPEX)LAB,A value (SPEX)LAB,B value (SPEX)LAB'.split(
-          ',',
+          ','
         );
       const basicOptions = [
         'NAME',
@@ -564,6 +564,7 @@ const getCi64AllSamples = () =>
       const totalSamples = ci64.GetSampleCount();
       if (totalSamples) {
         for (let index = 1; index <= totalSamples; index++) {
+          const basicInfo = [];
           const getBasicInfo = getSampleInfo(basicOptions, index, 'SPIN');
 
           const element = getSampleData(index);
@@ -628,10 +629,8 @@ const clearAllCi64Samples = () =>
     }
   });
 
-// Export Measurement Data
-const getCi64SingleSamples = (SpecularCi64) => {
-  return new Promise((resolve) => {
-    const processSampleData = async () => {
+  const getCi64SingleSamples = (SpecularCi64) => {
+    return new Promise(async (resolve) => {
       try {
         const totalSamples = ci64.GetSampleCount();
         console.log({ totalSamples });
@@ -640,31 +639,33 @@ const getCi64SingleSamples = (SpecularCi64) => {
           const sampleElement = await getSampleData(0);
 
           if (sampleElement) {
-            let reflectanceData;
-            let LABData;
+            try {
+              let reflectanceData, LABData;
 
-            if (SpecularCi64 === 'SPIN') {
-              reflectanceData = sampleElement.reflectanceData.refSpinData;
-              LABData = sampleElement.LABData.labSpinData;
-            } else if (SpecularCi64 === 'SPEX') {
-              reflectanceData = sampleElement.reflectanceData.refSpexData;
-              LABData = sampleElement.LABData.labSpexData;
-            } else if (SpecularCi64 === 'SPIN_SPEX') {
+              if (SpecularCi64 === 'SPIN') {
+                reflectanceData = sampleElement.reflectanceData.refSpinData;
+                LABData = sampleElement.LABData.labSpinData;
+              } else if (SpecularCi64 === 'SPEX') {
+                reflectanceData = sampleElement.reflectanceData.refSpexData;
+                LABData = sampleElement.LABData.labSpexData;
+              } else if (SpecularCi64 === 'SPIN_SPEX') {
+                resolve({
+                  res: true,
+                  SPEXLABData: sampleElement.LABData.labSpexData,
+                  SPEXREFData: sampleElement.reflectanceData.refSpexData,
+                  SPINLABData: sampleElement.LABData.labSpinData,
+                  SPINREFData: sampleElement.reflectanceData.refSpinData,
+                });
+                return;
+              }
               resolve({
                 res: true,
-                SPEXLABData: sampleElement.LABData.labSpexData,
-                SPEXREFData: sampleElement.reflectanceData.refSpexData,
-                SPINLABData: sampleElement.LABData.labSpinData,
-                SPINREFData: sampleElement.reflectanceData.refSpinData,
+                reflectanceData,
+                LABData,
               });
-              return;
+            } catch (error) {
+              resolve({ res: false, error: error.message });
             }
-
-            resolve({
-              res: true,
-              reflectanceData,
-              LABData,
-            });
           } else {
             resolve({ error: 'Error retrieving sample data from the device' });
           }
@@ -674,11 +675,112 @@ const getCi64SingleSamples = (SpecularCi64) => {
       } catch (error) {
         resolve({ error: error.message });
       }
-    };
+    });
+  };
 
-    processSampleData();
-  });
+const testCi64 = () => {
+  try {
+    loadCi64LibraryFunctions();
+    var isDisconnected = ci64.Disconnect();
+    console.log({ isDisconnected });
+    console.log(`isConnected ${ci64.IsConnected()}`);
+    var interfaceVersion = ci64.GetInterfaceVersion();
+    console.log({ interfaceVersion });
+    var allAvailabelSettings = getAvailableSettings();
+    console.log({ allAvailabelSettings });
+
+    // console.log(
+    //   "trigger option button  " + ci64.SetOption("Reading_Mode", "Button")
+    // );
+
+    allAvailabelSettings.split(';').forEach((setting) => {
+      console.log(setting + ' ' + ci64.GetSettingOptions(setting));
+      console.log('default value ' + ' - ' + ci64.GetOption(setting));
+    });
+
+    console.log({
+      setMeasurementMode: ci64.SetOption('Measurement_Mode', 'Tungsten'),
+      setMeasurementMode1: ci64.SetOption('Measurement_Mode', 'UV_D65'),
+      setMeasurementMode2: ci64.SetOption('Measurement_Mode', 'UV_ADJ1'),
+      setMeasurementMode3: ci64.SetOption('Measurement_Mode', 'UV_ADJ2'),
+    });
+    console.log({
+      measurementMode: ci64.GetSettingOptions('Measurement_Mode'),
+    });
+    console.log('default value ' + ' - ' + ci64.GetOption('Measurement_Mode'));
+
+    console.log('version : ' + ci64.Execute('VERSION GET'));
+    console.log(`calibration standard ${ci64.GetCalibrationStandard()}`);
+    console.log(`calibration steps ${ci64.GetCalSteps()}`);
+    console.log(`calStatus ${ci64.Execute('CALSTATUS GET')}`);
+    const spectralCount = ci64.GetSpectralSetCount();
+    console.log(`spectralCount ${spectralCount}`);
+    for (let i = 0; i < spectralCount; i++) {
+      const countName = ci64.GetSpectralSetName(i);
+      console.log({ countName });
+    }
+    // connection
+    var isConnect = connect();
+    if (!isConnect) {
+      console.log('error connecting');
+      var error = getLastError();
+      console.log(error);
+      return;
+    }
+    console.log(`isConnected ${ci64.IsConnected()}`);
+    // console.log(
+    //   "trigger option button  " + ci64.SetOption("Reading_Mode", "Pressure")
+    // );
+    // console.log("volume get " + ci64.Execute("PARAM GET VolumeLevel"));
+    // console.log("volume set " + ci64.Execute("PARAM SET VolumeLevel 1")); //working
+    // console.log("volume get " + ci64.Execute("PARAM GET VolumeLevel"));
+    // console.log("perform calibration !!!");
+    // console.log(" calMode " + ci64.GetCalMode());
+    // console.log(" timeout " + ci64.Execute("PARAM GET CalWhiteTimeout"));
+    // // PARAM SET CalWhiteTimeout 8
+    // console.log(" timeout set " + ci64.Execute("PARAM SET CalWhiteTimeout 0"));
+    // console.log(" illuobs get " + ci64.Execute("PARAM GET ILLUMOBS"));
+    // console.log(" illuobs set " + ci64.Execute("PARAM SET ILLUMOBS 5")); //working
+    // console.log(" illuobs set " + ci64.Execute("PARAM SET COLORSPACE 2")); //working
+    // console.log(
+    //   " standard set tolerance illu " +
+    //     ci64.Execute("STANDARD SET TOLERANCE ILLUMOBS 1 D65_10")
+    // );
+    // console.log(
+    //   "defaulttol - " + ci64.Execute("DEFAULTTOL SET ILLUMOBS D65/10")
+    // );
+    // console.log("store " + ci64.Execute("DefaultTol Store"));
+    console.log(`calibration standard ${ci64.GetCalibrationStandard()}`);
+    console.log(`calibration steps ${ci64.GetCalSteps()}`);
+    console.log(`calStatus ${ci64.Execute('CALSTATUS GET')}`);
+    var calres = performCalibration();
+    console.log({ calres });
+    waitForCi64CalibrationComplete(() => {
+      console.log('getting white cal value');
+      var whiteCalValue = getCi64WhiteCalibrationResult();
+      console.log({ whiteCalValue });
+      console.log(`measurement status - ${isDataReady()}`);
+      console.log('perform measurement !!');
+      //var measureRes = performMeasurement();
+      console.log({ measureRes });
+      waitForCi64MeasurementComplete(() => {
+        console.log('getting measurement data');
+        var measurementData = getCi64MeasurementData();
+        console.log({ measurementData });
+        console.log(`after getting data measurement status - ${isDataReady()}`);
+        var getSpectralData = ci64.GetSpectralData(0, 0);
+        console.log({ getSpectralData });
+        console.log(
+          `after getting Spectraldata measurement status - ${isDataReady()}`
+        );
+      });
+    });
+  } catch (error) {
+    console.log(error);
+  }
 };
+
+//testCi64();
 
 module.exports = {
   loadCi64LibraryFunctions,

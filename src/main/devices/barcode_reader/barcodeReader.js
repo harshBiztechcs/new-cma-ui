@@ -1,5 +1,5 @@
-/* eslint-disable no-console */
 const { exec } = require('child_process');
+const path = require('path');
 
 // Function to parse the output and extract device information
 function parseDeviceOutput(output) {
@@ -8,7 +8,9 @@ function parseDeviceOutput(output) {
     .split('\n')
     .slice(1)
     .map((line) => {
-      const [deviceId, manufacturer, name] = line.trim().split(/\s{2,}/);
+      const [deviceId, manufacturer, name, PNPDeviceID] = line
+        .trim()
+        .split(/\s{2,}/);
       // Extract VID and PID from DeviceID
       const [, VID, PID] =
         deviceId.match(/VID_([A-F0-9]+)&PID_([A-F0-9]+)/) || [];
@@ -16,8 +18,8 @@ function parseDeviceOutput(output) {
         Name: name,
         DeviceID: deviceId,
         Manufacturer: manufacturer,
-        VID,
-        PID,
+        VID: VID,
+        PID: PID,
       };
     });
 }
@@ -25,8 +27,7 @@ function parseDeviceOutput(output) {
 // Function to filter devices based on name, VID, and PID
 function filterDevicesByVIDPID(devices, name, vid, pid) {
   return devices.some(
-    (device) =>
-      device.Name === name && device.VID === vid && device.PID === pid,
+    (device) => device.Name === name && device.VID === vid && device.PID === pid
   );
 }
 
@@ -42,7 +43,7 @@ function checkScannerDeviceConnection() {
         }
 
         if (stderr) {
-          reject(new Error(`Command stderr: ${stderr}`));
+          reject(`Command stderr: ${stderr}`);
           return;
         }
 
@@ -54,12 +55,12 @@ function checkScannerDeviceConnection() {
           devices,
           'HID Keyboard Device',
           '05E0',
-          '1200',
+          '1200'
         );
 
         // Resolve with the result
         resolve(isHIDKeyboardFound);
-      },
+      }
     );
   });
 }
@@ -68,6 +69,7 @@ async function checkBarcodeScannerConnection() {
   try {
     const isHIDKeyboardFound = await checkScannerDeviceConnection();
     return { res: isHIDKeyboardFound, error: null };
+    console.log('HID Keyboard Device Found:', isHIDKeyboardFound);
   } catch (error) {
     console.error(error);
     return { res: false, error: 'Error checking device connection' };

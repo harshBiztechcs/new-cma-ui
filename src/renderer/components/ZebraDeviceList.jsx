@@ -9,6 +9,7 @@ import i1ioIcon from '../assets/image/i1io.jpeg';
 import precisionBalanceIcon from '../assets/image/Precision-balance.png';
 import onlineIndicatorImg from '../assets/image/online-indicator.svg';
 import labelPrinterIcon from '../assets/image/zebra.jpg';
+const { ipcRenderer, shell } = window.require('electron');
 
 const getDeviceImg = (deviceType) => {
   switch (deviceType) {

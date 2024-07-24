@@ -1,26 +1,34 @@
-const crypto = require('crypto');
-
+var crypto = require('crypto');
 const password = 'jiEKG3rLcWdu1IO0GKhHLQMrpFaPk2n3';
 
-const decrypt = (input) => {
+var decrypt = function (input) {
   try {
-    const inputBase64 = input.replace(/\-/g, '+').replace(/_/g, '/');
-    const edata = Buffer.from(inputBase64, 'base64').toString('binary');
+    // Convert urlsafe base64 to normal base64
+    var input = input.replace(/\-/g, '+').replace(/_/g, '/');
+    // Convert from base64 to binary string
+    var edata = new Buffer.from(input, 'base64').toString('binary');
 
-    const key = crypto.createHash('md5').update(password).digest('hex');
-    const iv = crypto
-      .createHash('md5')
-      .update(`${password}${key}`)
-      .digest('hex')
-      .slice(0, 16);
+    // Create key from password
+    var m = crypto.createHash('md5');
+    m.update(password);
+    var key = m.digest('hex');
 
-    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-    let plaintext;
+    // Create iv from password and key
+    m = crypto.createHash('md5');
+    m.update(password + key);
+    var iv = m.digest('hex');
 
-    if (process.version.startsWith('v0.')) {
-      const decrypted =
-        decipher.update(edata, 'binary', 'utf8') + decipher.final('utf8');
-      plaintext = decrypted;
+    // Decipher encrypted data
+    var decipher = crypto.createDecipheriv('aes-256-cbc', key, iv.slice(0, 16));
+
+    // UPDATE: crypto changed in v0.10
+    // https://github.com/joyent/node/wiki/Api-changes-between-v0.8-and-v0.10
+    var nodev = process.version.match(/^v(\d+)\.(\d+)/);
+    var decrypted, plaintext;
+
+    if (nodev[1] === '0' && parseInt(nodev[2]) < 10) {
+      decrypted = decipher.update(edata, 'binary') + decipher.final('binary');
+      plaintext = new Buffer.from(decrypted, 'binary').toString('utf8');
     } else {
       plaintext =
         decipher.update(edata, 'binary', 'utf8') + decipher.final('utf8');
@@ -31,6 +39,7 @@ const decrypt = (input) => {
     return { success: false, message: 'CMA connect decryption failed' };
   }
 };
+
 
 const decJObj = (jsonStr) => {
   try {
