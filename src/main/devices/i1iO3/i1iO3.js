@@ -1,6 +1,6 @@
 const fs = require('fs');
 const ffi = require('@lwahonen/ffi-napi');
-const ref = require('@lwahonen/ref-napi');;
+const ref = require('@lwahonen/ref-napi');
 const path = require('path');
 const { dialog, app } = require('electron');
 const { getAssetPath } = require('../../util');
