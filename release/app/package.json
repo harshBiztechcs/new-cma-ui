@@ -1,18 +1,22 @@
 {
   "name": "cma_connect",
   "productName": "CMA Connect",
-  "version": "24.7.1",
+  "version": "24.8.1",
   "description": "CMA Connect",
+  "license": "MIT",
+  "author": {
+    "name": "Gerardo Cerros",
+    "email": "sales@cmaimaging.com",
+    "url": "https://cmaimaging.com"
+  },
   "main": "./dist/main/main.js",
   "scripts": {
-    "electron-rebuild": "node -r ts-node/register ../../.erb/scripts/electron-rebuild.js",
-    "link-modules": "node -r ts-node/register ../../.erb/scripts/link-modules.ts",
-    "postinstall": "npm run electron-rebuild && npm run link-modules"
+    "rebuild": "node -r ts-node/register ../../.erb/scripts/electron-rebuild.js",
+    "postinstall": "npm run rebuild && npm run link-modules",
+    "link-modules": "node -r ts-node/register ../../.erb/scripts/link-modules.ts"
   },
-  "license": "MIT",
   "dependencies": {
-    "@serialport/parser-readline": "^10.5.0",
-    "koffi": "^2.8.10",
-    "serialport": "^10.5.0"
+    "@serialport/parser-readline": "^12.0.0",
+    "serialport": "^12.0.0"
   }
 }
