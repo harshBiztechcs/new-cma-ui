@@ -11,29 +11,11 @@ import {
 } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
+import axios from 'axios';
 import { resolveHtmlPath } from './util';
-import {
-  acquireLicense,
-  alwanAPI,
-  clientDeviceDisconnectAPICall,
-  clientDeviceReconnectAPICall,
-  colorGateAPI,
-  getDeviceInstanceLink,
-  getDeviceListAPICall,
-  getLicensesAPICall,
-  getToken,
-  login,
-  releaseLicense,
-  switchConnetionModeAPICall,
-  updateAlwanUserStatusAPICall,
-  updateColorGateUserStatusAPICall,
-  updateDeviceStatusAPICall,
-} from './API';
-
 import config from './config.json';
 import { decJObj } from './crypto';
 import { getLocalIp } from './utility';
-import axios from 'axios';
 import {
   checkPrecisionConnection,
   connectPrecisionBalance,
@@ -49,7 +31,6 @@ import {
 } from './devices/precisionBalance/precisionBalance';
 import {
   loadSpectrometerLibraryFunctions,
-  openSpectrometerDevice,
   closeSpectrometerDevice,
   calibrateSpectrometerDevice,
   measureDeviceManually,
@@ -73,6 +54,22 @@ import {
   measureDeviceManuallyWithBT,
   setSpectrometerOptions,
 } from './devices/CMA-ROP64E-UV/CMA-ROP64E-UV-BT';
+import {
+  clientDeviceDisconnectAPICall,
+  clientDeviceReconnectAPICall,
+  getDeviceInstanceLink,
+  getDeviceListAPICall,
+  getLicensesAPICall,
+  switchConnectionModeAPICall,
+  updateDeviceStatusAPICall,
+} from './API/device-connection';
+import { getToken, login } from './API/login';
+import {
+  alwanAPI,
+  colorGateAPI,
+  updateAlwanUserStatusAPICall,
+  updateColorGateUserStatusAPICall,
+} from './API/rest-api';
 
 // using octokit for calling github api
 const { Octokit } = require('@octokit/rest');
@@ -342,7 +339,7 @@ const updateToken = decJObj(encryptToken).message;
 
 const octokit = new Octokit({ auth: updateToken });
 
-//for open current tab in UI side
+// for open current tab in UI side
 let currectOpenTab;
 // auto updater constructor with github configuration
 export default class AppUpdater {
@@ -409,7 +406,7 @@ const installExtensions = async () => {
   return installer
     .default(
       extensions.map((name) => installer[name]),
-      forceDownload
+      forceDownload,
     )
     .catch(console.log);
 };
@@ -509,14 +506,14 @@ const createWebSocketWorkerWindow = () => {
       __dirname,
       '..',
       'webSocketWorker',
-      'index.html'
+      'index.html',
     );
     webSocketWorkerWindow.loadFile(websocketPath);
   } else {
     websocketPath = `file://${path.resolve(
       __dirname,
       '../webSocketWorker/',
-      'index.html'
+      'index.html',
     )}`;
     webSocketWorkerWindow.loadURL(websocketPath);
   }
@@ -542,14 +539,14 @@ const createWebSocketWorkerWindowInstance1 = () => {
       __dirname,
       '..',
       'webSocketWorker',
-      'indexMultiInst1.html'
+      'indexMultiInst1.html',
     );
     webSocketMultiInstanceWorker1.loadFile(websocketPath);
   } else {
     websocketPath = `file://${path.resolve(
       __dirname,
       '../webSocketWorker/',
-      'indexMultiInst1.html'
+      'indexMultiInst1.html',
     )}`;
     webSocketMultiInstanceWorker1.loadURL(websocketPath);
   }
@@ -574,14 +571,14 @@ const createWebSocketWorkerWindowInstance2 = () => {
       __dirname,
       '..',
       'webSocketWorker',
-      'indexMultiInst2.html'
+      'indexMultiInst2.html',
     );
     webSocketMultiInstanceWorker2.loadFile(websocketPath);
   } else {
     websocketPath = `file://${path.resolve(
       __dirname,
       '../webSocketWorker/',
-      'indexMultiInst2.html'
+      'indexMultiInst2.html',
     )}`;
     webSocketMultiInstanceWorker2.loadURL(websocketPath);
   }
@@ -643,7 +640,7 @@ if (!singleInstanceLock) {
                 { role: 'selectall' },
               ],
             },
-          ])
+          ]),
         );
       }
       return true;
@@ -702,14 +699,14 @@ ipcMain.on(CONNECT_SOCKET, (event, args) => {
 ipcMain.on(CONNECT_SOCKET_INSTANCE_1, (event, args) => {
   webSocketMultiInstanceWorker1.webContents.send(
     CONNECT_SOCKET_INSTANCE_1,
-    args
+    args,
   );
 });
 
 ipcMain.on(CONNECT_SOCKET_INSTANCE_2, (event, args) => {
   webSocketMultiInstanceWorker2.webContents.send(
     CONNECT_SOCKET_INSTANCE_2,
-    args
+    args,
   );
 });
 
@@ -746,10 +743,10 @@ ipcMain.on(VERIFY_DEVICE_CONNECTION, async (event, args) => {
         deviceId: args?.deviceId,
         isConnectWithBT: connectionTypeROP,
       };
-      switchConnetionModeAPICall(
+      switchConnectionModeAPICall(
         object.instanceURL,
         object.deviceId,
-        object.isConnectWithBT
+        object.isConnectWithBT,
       );
     }
     // send socket window to update available Device list
@@ -796,7 +793,7 @@ ipcMain.on(DEVICE_RECONNECT_API_CALL, (event, args) => {
     instanceURL,
     deviceId,
     deviceName,
-    deviceSerialNumber
+    deviceSerialNumber,
   );
 });
 
@@ -807,7 +804,7 @@ ipcMain.on(DEVICE_DISCONNECT_API_CALL, async (event, args) => {
     instanceURL,
     deviceId,
     deviceName,
-    deviceSerialNumber
+    deviceSerialNumber,
   );
   mainWindow.webContents.send(DEVICE_DISCONNECT_API_CALL, res);
 });
@@ -826,7 +823,7 @@ ipcMain.on(DEVICE_STATUS_UPDATE_CALL, (event, args) => {
     device?.deviceId,
     device?.deviceType,
     deviceSerialNumber,
-    status
+    status,
   );
 });
 
@@ -875,7 +872,7 @@ ipcMain.on(NETWORK_CONNECTION, async (event, args) => {
   ];
 
   // Implement retry logic with three attempts
-  for (let url of urls) {
+  for (const url of urls) {
     const onlinePromise = checkStatus(url);
 
     try {
@@ -921,7 +918,7 @@ ipcMain.on(CLOSE_DEVICE, async (event, args) => {
     args.instanceURL,
     args.deviceId,
     args.deviceType,
-    deviceSerialNumber
+    deviceSerialNumber,
   );
   if (response.res) {
     mainWindow.webContents.send(CLOSE_DEVICE, disconnectResult);
@@ -1057,21 +1054,20 @@ ipcMain.on(DEVICE_CONNECTION, async (event, args) => {
   // calling openDevice function
   const openRes = await openDeviceAndGetInfo(
     args.deviceConnection.deviceType,
-    args
+    args,
   );
 
   if (args.deviceConnection.deviceType.split('_')[1] == 'COLORSCOUT') {
     args.deviceConnection.deviceInfo = openRes.deviceInfo;
     args.deviceConnection.isConnected = openRes.res;
     updateCurrentAction(
-      `device set ${args.deviceConnection.deviceName} : ${args.deviceConnection.isConnected}`
+      `device set ${args.deviceConnection.deviceName} : ${args.deviceConnection.isConnected}`,
     );
     webSocketWorkerWindow.webContents.send(DEVICE_CONNECTION, args);
     mainWindow.webContents.send(DEVICE_CONNECTION, openRes.res);
     return;
-  } else {
-    if (!openRes.res) return;
   }
+  if (!openRes.res) return;
 
   args.deviceConnection.deviceInfo = openRes.deviceInfo;
   args.deviceConnection.isConnected = true;
@@ -1301,7 +1297,7 @@ const checkStatus = async (url) => {
 
 // common function to get device info
 const openDeviceAndGetInfo = async (msgType, content) => {
-  var newErrorMessage = '';
+  let newErrorMessage = '';
   try {
     switch (content.deviceConnection.deviceType) {
       case 'I1PRO3':
@@ -1334,7 +1330,7 @@ const openDeviceAndGetInfo = async (msgType, content) => {
 
       case 'CI62_COLORSCOUT': {
         const result = await connectColorScoutDevice(
-          content.deviceConnection.deviceType
+          content.deviceConnection.deviceType,
         );
         if (result.res) {
           const ci62DeviceInfo = getBasicCi62DeviceInfo();
@@ -1366,7 +1362,7 @@ const openDeviceAndGetInfo = async (msgType, content) => {
 
       case 'CI64_COLORSCOUT': {
         const result = await connectColorScoutDevice(
-          content.deviceConnection.deviceType
+          content.deviceConnection.deviceType,
         );
         if (result.res) {
           const ci64DeviceInfo = getBasicCi64DeviceInfo();
@@ -1380,7 +1376,7 @@ const openDeviceAndGetInfo = async (msgType, content) => {
 
       case 'CI64UV_COLORSCOUT': {
         const result = await connectColorScoutDevice(
-          content.deviceConnection.deviceType
+          content.deviceConnection.deviceType,
         );
         if (result.res) {
           const ci64UVDeviceInfo = getBasicCi64UVDeviceInfo();
@@ -1476,7 +1472,7 @@ const openDeviceAndGetInfo = async (msgType, content) => {
 
       case 'CMA-ROP64E-UV_COLORSCOUT': {
         const result = await connectColorScoutDevice(
-          content.deviceConnection.deviceType
+          content.deviceConnection.deviceType,
         );
         if (result.res) {
           const deviceInfo = await getInformationDevice();
@@ -2226,7 +2222,7 @@ const handleSetTareValue = async (content) => {
 
 const handleZebraPrinter = async (args) => {
   try {
-    let response = await handlePrintingProcess(args);
+    const response = await handlePrintingProcess(args);
     args.zebra_data.isPrinted = response.res;
     args.zebra_data.error = response.error;
   } catch (error) {
@@ -2241,27 +2237,25 @@ const handleBarcodeReader = async (args) => {
   try {
     if (args.barCode_data.is_responed) {
       webSocketWorkerWindow.webContents.send(BAR_CODE_READER_HANDLER, args);
+    } else if (currectOpenTab !== 3) {
+      const data = {
+        deviceConnection: {
+          deviceType: 'barcode_reader',
+          deviceName: 'barcode_reader',
+          isConnected: false,
+        },
+        barCode_data: {
+          isReaded: false,
+          open_Url: '',
+          deviceName: false,
+          is_responed: false,
+          error:
+            'The Barcode Device tab is not open in the CMA-Connect application!!',
+        },
+      };
+      webSocketWorkerWindow.webContents.send(BAR_CODE_READER_HANDLER, data);
     } else {
-      if (currectOpenTab !== 3) {
-        const data = {
-          deviceConnection: {
-            deviceType: 'barcode_reader',
-            deviceName: 'barcode_reader',
-            isConnected: false,
-          },
-          barCode_data: {
-            isReaded: false,
-            open_Url: '',
-            deviceName: false,
-            is_responed: false,
-            error:
-              'The Barcode Device tab is not open in the CMA-Connect application!!',
-          },
-        };
-        webSocketWorkerWindow.webContents.send(BAR_CODE_READER_HANDLER, data);
-      } else {
-        mainWindow.webContents.send(SEND_OPEN_URL_TO_INPUT, args);
-      }
+      mainWindow.webContents.send(SEND_OPEN_URL_TO_INPUT, args);
     }
   } catch (error) {
     console.error('An error occurred:', error.message);
@@ -2404,11 +2398,14 @@ const measureI1Pro3 = async (args) => {
   updateCurrentAction('measurement waiting for button press...');
   // return back first call
   clearTimeout(deviceMeasurementTimeout);
-  deviceMeasurementTimeout = setTimeout(() => {
-    deviceMeasurementTimeout = 0;
-    updateDeviceMeasureFlag(args.deviceConnection.deviceType, false);
-    updateCurrentAction('measurement timeout...');
-  }, 1000 * 60 * 5);
+  deviceMeasurementTimeout = setTimeout(
+    () => {
+      deviceMeasurementTimeout = 0;
+      updateDeviceMeasureFlag(args.deviceConnection.deviceType, false);
+      updateCurrentAction('measurement timeout...');
+    },
+    1000 * 60 * 5,
+  );
   const measRes = await triggerAvgMeasurement();
   args.measurement.hasMeasured = measRes.res;
   if (measRes.res) {
@@ -2432,13 +2429,16 @@ const measureI1Pro3StripMode = async (args) => {
   updateCurrentAction('measurement waiting for button press...');
   // return back first call
   clearTimeout(deviceMeasurementTimeout);
-  deviceMeasurementTimeout = setTimeout(() => {
-    deviceMeasurementTimeout = 0;
-    updateDeviceMeasureFlag(args.deviceConnection.deviceType, false);
-    updateCurrentAction('measurement timeout...');
-  }, 1000 * 60 * 10);
+  deviceMeasurementTimeout = setTimeout(
+    () => {
+      deviceMeasurementTimeout = 0;
+      updateDeviceMeasureFlag(args.deviceConnection.deviceType, false);
+      updateCurrentAction('measurement timeout...');
+    },
+    1000 * 60 * 10,
+  );
   const measRes = await triggerAvgMeasurementStripMode(
-    args.measurement.numOfPatches
+    args.measurement.numOfPatches,
   );
   args.measurement.hasMeasured = measRes.res;
   if (measRes.res) {
@@ -2616,11 +2616,14 @@ const settingExact2StripMode = (args) => {
 const measureExact = (args) => {
   updateCurrentAction('waiting for measurement to complete...');
   clearTimeout(deviceMeasurementTimeout);
-  deviceMeasurementTimeout = setTimeout(() => {
-    deviceMeasurementTimeout = 0;
-    updateDeviceMeasureFlag(args.deviceConnection.deviceType, false);
-    updateCurrentAction('measurement timeout...');
-  }, 1000 * 60 * 5);
+  deviceMeasurementTimeout = setTimeout(
+    () => {
+      deviceMeasurementTimeout = 0;
+      updateDeviceMeasureFlag(args.deviceConnection.deviceType, false);
+      updateCurrentAction('measurement timeout...');
+    },
+    1000 * 60 * 5,
+  );
   waitForExactMeasurementComplete((result) => {
     if (result.res) {
       clearTimeout(deviceMeasurementTimeout);
@@ -2651,11 +2654,14 @@ const measureExact = (args) => {
 const measureExact2 = (args) => {
   updateCurrentAction('waiting for measurement to complete...');
   clearTimeout(deviceMeasurementTimeout);
-  deviceMeasurementTimeout = setTimeout(() => {
-    deviceMeasurementTimeout = 0;
-    updateDeviceMeasureFlag(args.deviceConnection.deviceType, false);
-    updateCurrentAction('measurement timeout...');
-  }, 1000 * 60 * 5);
+  deviceMeasurementTimeout = setTimeout(
+    () => {
+      deviceMeasurementTimeout = 0;
+      updateDeviceMeasureFlag(args.deviceConnection.deviceType, false);
+      updateCurrentAction('measurement timeout...');
+    },
+    1000 * 60 * 5,
+  );
   waitForExact2MeasurementComplete((result) => {
     if (result.res) {
       clearTimeout(deviceMeasurementTimeout);
@@ -2686,14 +2692,17 @@ const measureExact2 = (args) => {
 const measureExact2StripMode = async (args) => {
   updateCurrentAction('waiting for measurement to complete...');
   clearTimeout(deviceMeasurementTimeout);
-  deviceMeasurementTimeout = setTimeout(() => {
-    deviceMeasurementTimeout = 0;
-    updateDeviceMeasureFlag(args.deviceConnection.deviceType, false);
-    updateCurrentAction('measurement timeout...');
-  }, 1000 * 60 * 5);
+  deviceMeasurementTimeout = setTimeout(
+    () => {
+      deviceMeasurementTimeout = 0;
+      updateDeviceMeasureFlag(args.deviceConnection.deviceType, false);
+      updateCurrentAction('measurement timeout...');
+    },
+    1000 * 60 * 5,
+  );
   const measRes = await getExact2AvgMeasurementDataStripMode(
     args.measurement.numOfPatches,
-    args.measurement.patchWidth
+    args.measurement.patchWidth,
   );
   args.measurement.hasMeasured = measRes.res;
   if (measRes.res) {
@@ -2782,29 +2791,32 @@ const waitForTheI1IO3PositionGetForIndex = (index) =>
   new Promise((resolve, reject) => {
     if (index === 1) {
       updateCurrentAction(
-        'Move the visor to the center of the first field in the first row and press the i1Pro3 button when ready (top-left)'
+        'Move the visor to the center of the first field in the first row and press the i1Pro3 button when ready (top-left)',
       );
     }
     if (index === 2) {
       updateCurrentAction(
-        'Move the visor to the center of the first field in the last row and press the i1Pro3 button when ready (bottom-left)'
+        'Move the visor to the center of the first field in the last row and press the i1Pro3 button when ready (bottom-left)',
       );
     }
     if (index === 3) {
       updateCurrentAction(
-        'Move the visor to the center of the last field in the last row and press the i1Pro3 button when ready (bottom-right)'
+        'Move the visor to the center of the last field in the last row and press the i1Pro3 button when ready (bottom-right)',
       );
     }
 
     clearTimeout(deviceMeasurementTimeout);
-    deviceMeasurementTimeout = setTimeout(() => {
-      const measStatus = getDeviceMeasureStatus('I1IO3');
-      if (measStatus) {
-        deviceMeasurementTimeout = null;
-        updateDeviceMeasureFlag('I1IO3', false);
-        updateCurrentAction('measurement Timed-out... please try again');
-      }
-    }, 1000 * 60 * 5);
+    deviceMeasurementTimeout = setTimeout(
+      () => {
+        const measStatus = getDeviceMeasureStatus('I1IO3');
+        if (measStatus) {
+          deviceMeasurementTimeout = null;
+          updateDeviceMeasureFlag('I1IO3', false);
+          updateCurrentAction('measurement Timed-out... please try again');
+        }
+      },
+      1000 * 60 * 5,
+    );
 
     waitForButtonPressedI1IO3((result) => {
       clearTimeout(deviceMeasurementTimeout);
@@ -2819,7 +2831,7 @@ const waitForTheI1IO3PositionGetForIndex = (index) =>
 // function to get chart position for i1io3 device
 const getChartPositionI1IO3Device = async (args) => {
   const posRes = await waitForTheI1IO3PositionGetForIndex(
-    args.chartPosition.position
+    args.chartPosition.position,
   );
   args.chartPosition.hasTaken = posRes.res;
   if (!posRes.res) args.error = posRes.error;
@@ -2832,7 +2844,7 @@ const measureI1iO3 = (args) => {
     let measurementDataJson = {};
     const { column, row, patchGap, patchesToIgnoreInLastRow } = args.chartInfo;
     const isAllNumbers = Object.values(args.chartInfo).every(
-      (x) => typeof x === 'number'
+      (x) => typeof x === 'number',
     );
     if (isAllNumbers) {
       updateCurrentAction('Scanning Chart...');
@@ -2840,7 +2852,7 @@ const measureI1iO3 = (args) => {
         row,
         column,
         patchGap,
-        patchesToIgnoreInLastRow
+        patchesToIgnoreInLastRow,
       );
       args.measurement.hasMeasured = scanRes.res;
 
@@ -2960,29 +2972,32 @@ const waitForTheI1IOPositionGetForIndex = (index) =>
   new Promise((resolve, reject) => {
     if (index === 1) {
       updateCurrentAction(
-        'Move the visor to the center of the first field in the first row and press the i1Pro2 button when ready (top-left)'
+        'Move the visor to the center of the first field in the first row and press the i1Pro2 button when ready (top-left)',
       );
     }
     if (index === 2) {
       updateCurrentAction(
-        'Move the visor to the center of the first field in the last row and press the i1Pro2 button when ready (bottom-left)'
+        'Move the visor to the center of the first field in the last row and press the i1Pro2 button when ready (bottom-left)',
       );
     }
     if (index === 3) {
       updateCurrentAction(
-        'Move the visor to the center of the last field in the last row and press the i1Pro2 button when ready (bottom-right)'
+        'Move the visor to the center of the last field in the last row and press the i1Pro2 button when ready (bottom-right)',
       );
     }
 
     clearTimeout(deviceMeasurementTimeout);
-    deviceMeasurementTimeout = setTimeout(() => {
-      const measStatus = getDeviceMeasureStatus('I1IO');
-      if (measStatus) {
-        deviceMeasurementTimeout = null;
-        updateDeviceMeasureFlag('I1IO', false);
-        updateCurrentAction('measurement Timed-out... please try again');
-      }
-    }, 1000 * 60 * 5);
+    deviceMeasurementTimeout = setTimeout(
+      () => {
+        const measStatus = getDeviceMeasureStatus('I1IO');
+        if (measStatus) {
+          deviceMeasurementTimeout = null;
+          updateDeviceMeasureFlag('I1IO', false);
+          updateCurrentAction('measurement Timed-out... please try again');
+        }
+      },
+      1000 * 60 * 5,
+    );
 
     waitForButtonPressedI1IO((result) => {
       clearTimeout(deviceMeasurementTimeout);
@@ -2997,7 +3012,7 @@ const waitForTheI1IOPositionGetForIndex = (index) =>
 // function to get chart position for i1io device
 const getChartPositionI1IODevice = async (args) => {
   const posRes = await waitForTheI1IOPositionGetForIndex(
-    args.chartPosition.position
+    args.chartPosition.position,
   );
   args.chartPosition.hasTaken = posRes.res;
   if (!posRes.res) args.error = posRes.error;
@@ -3010,7 +3025,7 @@ const measureI1IO = (args) => {
     let measurementDataJson = {};
     const { column, row, patchGap, patchesToIgnoreInLastRow } = args.chartInfo;
     const isAllNumbers = Object.values(args.chartInfo).every(
-      (x) => typeof x === 'number'
+      (x) => typeof x === 'number',
     );
     if (isAllNumbers) {
       updateCurrentAction('Scanning Chart...');
@@ -3018,7 +3033,7 @@ const measureI1IO = (args) => {
         row,
         column,
         patchGap,
-        patchesToIgnoreInLastRow
+        patchesToIgnoreInLastRow,
       );
       args.measurement.hasMeasured = scanRes.res;
 
@@ -3087,40 +3102,43 @@ const grabInitialPositionColorScoutDevice = async (args) => {
 const waitForTheColorScoutPositionGetForIndex = async (
   index,
   typeOfDevice,
-  row
+  row,
 ) =>
   new Promise(async (resolve, reject) => {
     if (index === 1) {
       updateCurrentAction(
-        'Move the ColorScout to the center of the first field in the first row and press the ENTER button when ready (top-left)'
+        'Move the ColorScout to the center of the first field in the first row and press the ENTER button when ready (top-left)',
       );
     }
     if (index === 2) {
       updateCurrentAction(
-        'Move the ColorScout to the center of the first field in the last row and press the ENTER button when ready (bottom-left)'
+        'Move the ColorScout to the center of the first field in the last row and press the ENTER button when ready (bottom-left)',
       );
     }
     if (index === 3) {
       updateCurrentAction(
-        'Move the ColorScout to the center of the last field in the last row and press the ENTER button when ready (bottom-right)'
+        'Move the ColorScout to the center of the last field in the last row and press the ENTER button when ready (bottom-right)',
       );
     }
 
     clearTimeout(deviceMeasurementTimeout);
-    deviceMeasurementTimeout = setTimeout(() => {
-      const measStatus = getDeviceMeasureStatus('COLORSCOUT');
-      if (measStatus) {
-        deviceMeasurementTimeout = null;
-        updateDeviceMeasureFlag('COLORSCOUT', false);
-        updateCurrentAction('measurement Timed-out... please try again');
-      }
-    }, 1000 * 60 * 5);
+    deviceMeasurementTimeout = setTimeout(
+      () => {
+        const measStatus = getDeviceMeasureStatus('COLORSCOUT');
+        if (measStatus) {
+          deviceMeasurementTimeout = null;
+          updateDeviceMeasureFlag('COLORSCOUT', false);
+          updateCurrentAction('measurement Timed-out... please try again');
+        }
+      },
+      1000 * 60 * 5,
+    );
 
     updateDeviceMeasureFlag('COLORSCOUT', true);
     const result = await waitForButtonPressedColorScout(
       index,
       typeOfDevice,
-      row
+      row,
     );
     updateDeviceMeasureFlag('COLORSCOUT', false);
     clearTimeout(deviceMeasurementTimeout);
@@ -3132,7 +3150,7 @@ const getChartPositionColorScoutDevice = async (args) => {
   const posRes = await waitForTheColorScoutPositionGetForIndex(
     args.chartPosition.position,
     args.deviceConnection.deviceType,
-    args.chartPosition.row
+    args.chartPosition.row,
   );
   args.chartPosition.hasTaken = posRes.res;
   if (!posRes.res) args.error = posRes.error;
@@ -3151,7 +3169,7 @@ const measureColorScout = async (args) => {
       patchHeight,
     } = args.chartInfo;
     const isAllNumbers = Object.values(args.chartInfo).every(
-      (x) => typeof x === 'number'
+      (x) => typeof x === 'number',
     );
     if (isAllNumbers) {
       updateCurrentAction('Scanning Chart...');
@@ -3164,7 +3182,7 @@ const measureColorScout = async (args) => {
         patchesToIgnoreInLastRow,
         patchWidth,
         patchHeight,
-        args?.settings
+        args?.settings,
       );
       updateColorScoutStartMeasure(false);
       args.measurement.hasMeasured = scanRes.res;
@@ -3185,7 +3203,7 @@ const measureColorScout = async (args) => {
             args.deviceConnection.deviceType,
             row,
             column,
-            patchesToIgnoreInLastRow
+            patchesToIgnoreInLastRow,
           );
           args.error = { message: fileRes.error };
           args.measurement.hasMeasured = fileRes.res;
@@ -3351,11 +3369,14 @@ const calibrateCi64UV = (args) => {
 const measureCi64UV = (args) => {
   updateCurrentAction('waiting for measurement to complete...');
   clearTimeout(deviceMeasurementTimeout);
-  deviceMeasurementTimeout = setTimeout(() => {
-    deviceMeasurementTimeout = 0;
-    updateDeviceMeasureFlag(args.deviceConnection.deviceType, false);
-    updateCurrentAction('measurement timeout...');
-  }, 1000 * 60 * 5);
+  deviceMeasurementTimeout = setTimeout(
+    () => {
+      deviceMeasurementTimeout = 0;
+      updateDeviceMeasureFlag(args.deviceConnection.deviceType, false);
+      updateCurrentAction('measurement timeout...');
+    },
+    1000 * 60 * 5,
+  );
   waitForCi64UVMeasurementComplete((resMsg) => {
     if (resMsg.res) {
       clearTimeout(deviceMeasurementTimeout);
@@ -3409,7 +3430,7 @@ const settingSpectrometer = async (args) => {
 const settingSpectrometerWithBT = async (args) => {
   const result = await setSpectrometerOptions(
     args?.settings?.options,
-    macAddress
+    macAddress,
   );
 
   if (!result.res) {
@@ -3428,20 +3449,23 @@ const calibrateSpectrometer = async (args) => {
   webSocketWorkerWindow.webContents.send(CALIBRATION, args);
 };
 
-//function for measure Spectrometer device type with USB
+// function for measure Spectrometer device type with USB
 const measureROPWithUSB = async (measurementArgs) => {
   try {
     updateCurrentAction('Waiting for measurement to complete via USB...');
     clearTimeout(deviceMeasurementTimeout);
 
-    deviceMeasurementTimeout = setTimeout(() => {
-      deviceMeasurementTimeout = 0;
-      updateDeviceMeasureFlag(
-        measurementArgs.deviceConnection.deviceType,
-        false
-      );
-      updateCurrentAction('Measurement timeout...');
-    }, 1000 * 60 * 5);
+    deviceMeasurementTimeout = setTimeout(
+      () => {
+        deviceMeasurementTimeout = 0;
+        updateDeviceMeasureFlag(
+          measurementArgs.deviceConnection.deviceType,
+          false,
+        );
+        updateCurrentAction('Measurement timeout...');
+      },
+      1000 * 60 * 5,
+    );
 
     const { settings } = measurementArgs;
     const isManuallyMeasured = settings.measurement_type === 'manually';
@@ -3452,11 +3476,11 @@ const measureROPWithUSB = async (measurementArgs) => {
     updateCurrentAction(
       `Waiting for ${
         isManuallyMeasured ? 'manually' : 'automatic'
-      } measurement to complete via USB...`
+      } measurement to complete via USB...`,
     );
 
     if (settings.MeasAverageNum) {
-      let lastMeasurementResult = [];
+      const lastMeasurementResult = [];
       for (
         let index = 0;
         index < parseInt(settings.MeasAverageNum, 10);
@@ -3478,20 +3502,23 @@ const measureROPWithUSB = async (measurementArgs) => {
   }
 };
 
-//function for measure Spectrometer device type with Bluetooth
+// function for measure Spectrometer device type with Bluetooth
 const measureROPWithBluetooth = async (measurementArgs) => {
   try {
     updateCurrentAction('Waiting for measurement to complete via Bluetooth...');
     clearTimeout(deviceMeasurementTimeout);
 
-    deviceMeasurementTimeout = setTimeout(() => {
-      deviceMeasurementTimeout = 0;
-      updateDeviceMeasureFlag(
-        measurementArgs.deviceConnection.deviceType,
-        false
-      );
-      updateCurrentAction('Measurement timeout...');
-    }, 1000 * 60 * 5);
+    deviceMeasurementTimeout = setTimeout(
+      () => {
+        deviceMeasurementTimeout = 0;
+        updateDeviceMeasureFlag(
+          measurementArgs.deviceConnection.deviceType,
+          false,
+        );
+        updateCurrentAction('Measurement timeout...');
+      },
+      1000 * 60 * 5,
+    );
 
     const { settings } = measurementArgs;
     const isManuallyMeasured = settings.measurement_type === 'manually';
@@ -3502,11 +3529,11 @@ const measureROPWithBluetooth = async (measurementArgs) => {
     updateCurrentAction(
       `Waiting for ${
         isManuallyMeasured ? 'manually' : 'automatic'
-      } measurement to complete via Bluetooth...`
+      } measurement to complete via Bluetooth...`,
     );
 
     if (settings.MeasAverageNum) {
-      let lastMeasurementResult = [];
+      const lastMeasurementResult = [];
       for (
         let index = 0;
         index < parseInt(settings.MeasAverageNum, 10);
@@ -3589,11 +3616,14 @@ const measureI1Pro2 = async (args) => {
   updateCurrentAction('Taking Measurement...');
   updateCurrentAction('measurement waiting for button press...');
   clearTimeout(deviceMeasurementTimeout);
-  deviceMeasurementTimeout = setTimeout(() => {
-    deviceMeasurementTimeout = 0;
-    updateDeviceMeasureFlag(args.deviceConnection.deviceType, false);
-    updateCurrentAction('measurement timeout...');
-  }, 1000 * 60 * 5);
+  deviceMeasurementTimeout = setTimeout(
+    () => {
+      deviceMeasurementTimeout = 0;
+      updateDeviceMeasureFlag(args.deviceConnection.deviceType, false);
+      updateCurrentAction('measurement timeout...');
+    },
+    1000 * 60 * 5,
+  );
   const measRes = await triggerI1ProAvgMeasurement();
   args.measurement.hasMeasured = measRes.res;
   if (measRes.res) {
@@ -3697,12 +3727,15 @@ const getDeviceMeasureStatus = (device) => {
 // set device disconnect timeout if disconnect on 2h inactivity flag is selected
 const setDeviceDisconnectTimeout = (deviceType) => {
   if (!deviceType) return;
-  deviceDisconnectionTimeout = setTimeout(() => {
-    mainWindow.webContents.send(DEVICE_DISCONNECT_TIMEOUT, {
-      hasTimeout: true,
-      deviceType,
-    });
-  }, 1000 * 60 * 60 * 2); // set 2 hours of inactivity timeout
+  deviceDisconnectionTimeout = setTimeout(
+    () => {
+      mainWindow.webContents.send(DEVICE_DISCONNECT_TIMEOUT, {
+        hasTimeout: true,
+        deviceType,
+      });
+    },
+    1000 * 60 * 60 * 2,
+  ); // set 2 hours of inactivity timeout
 };
 
 const clearDeviceDisconnectTimeout = () => {
@@ -3750,12 +3783,12 @@ const weightPrecisionBalance = async (args) => {
     if (indexOfMinusSign === -1) {
       if (!args.pb_threshold_data.is_last) {
         const upperThresholdResult = await setUpperThresholdValue(
-          args.pb_threshold_data.upper_threshold_value
+          args.pb_threshold_data.upper_threshold_value,
         );
         if (!upperThresholdResult.res) {
           args.error = { message: upperThresholdResult.errorMessage };
           updateCurrentAction(
-            `Set Upper Threshold failed: ${upperThresholdResult.errorMessage}`
+            `Set Upper Threshold failed: ${upperThresholdResult.errorMessage}`,
           );
         } else {
           args.pb_threshold_data.upper_threshold_value =
@@ -3763,12 +3796,12 @@ const weightPrecisionBalance = async (args) => {
         }
 
         const lowerThresholdResult = await setLowerThresholdValue(
-          args.pb_threshold_data.lower_threshold_value
+          args.pb_threshold_data.lower_threshold_value,
         );
         if (!lowerThresholdResult.res) {
           args.error = { message: lowerThresholdResult.errorMessage };
           updateCurrentAction(
-            `Set Lower Threshold failed: ${lowerThresholdResult.errorMessage}`
+            `Set Lower Threshold failed: ${lowerThresholdResult.errorMessage}`,
           );
         } else {
           args.pb_threshold_data.is_set_threshold = lowerThresholdResult.res;
@@ -3791,7 +3824,7 @@ const resetPrecisionBalanceDevice = async (args) => {
 
     const stableResult = await getStableResultCurrentUnit();
 
-    let isTerminate = await checkAndHandleMinusSign(args, stableResult);
+    const isTerminate = await checkAndHandleMinusSign(args, stableResult);
     if (isTerminate) return;
 
     if (shouldContinueReset(args)) {
@@ -3837,7 +3870,7 @@ const updateWorkingModeResult = async (args, result) => {
   if (!result.res) {
     args.error = { message: result.errorMessage };
     await updateCurrentAction(
-      `Set working mode failed: ${result.errorMessage}`
+      `Set working mode failed: ${result.errorMessage}`,
     );
   } else {
     args.pb_reset_data.is_setWorkingMode = result.res;
@@ -3849,13 +3882,13 @@ const setThresholdValues = async (args) => {
     args,
     args.pb_threshold_data.upper_threshold_value,
     'Upper',
-    'Set Upper Threshold failed'
+    'Set Upper Threshold failed',
   );
   await setThresholdValue(
     args,
     args.pb_threshold_data.lower_threshold_value,
     'Lower',
-    'Set Lower Threshold failed'
+    'Set Lower Threshold failed',
   );
 };
 
@@ -3863,7 +3896,7 @@ const setThresholdValue = async (
   args,
   thresholdValue,
   thresholdType,
-  errorMessage
+  errorMessage,
 ) => {
   if (thresholdValue) {
     const thresholdResult = await setThreshold(thresholdValue, thresholdType);
@@ -3871,7 +3904,7 @@ const setThresholdValue = async (
     if (!thresholdResult.res) {
       args.error = { message: thresholdResult.errorMessage };
       updateCurrentAction(
-        `${thresholdType} Threshold failed: ${thresholdResult.errorMessage}`
+        `${thresholdType} Threshold failed: ${thresholdResult.errorMessage}`,
       );
     } else {
       args.pb_threshold_data.is_set_threshold = thresholdResult.res;
@@ -3902,7 +3935,7 @@ const handleResetSuccess = (args) => {
 const handleResetFailure = (args, resetDeviceData) => {
   args.error = { message: resetDeviceData.errorMessage };
   updateCurrentAction(
-    `Resetting device failed: ${resetDeviceData.errorMessage}`
+    `Resetting device failed: ${resetDeviceData.errorMessage}`,
   );
 };
 
@@ -3942,7 +3975,7 @@ const handleErrors = (args, error) => {
 
 /* Reset Data Function END */
 
-/* GET tare Function this function is work when button was press*/
+/* GET tare Function this function is work when button was press */
 
 const handleGetTareValueInDevice = async (args) => {
   try {
@@ -3958,12 +3991,12 @@ const handleGetTareValueInDevice = async (args) => {
           if (args.pb_tare_data.is_negative) {
             handleMinusSignError(
               args,
-              'Taring out of range press zerion button or restart balance'
+              'Taring out of range press zerion button or restart balance',
             );
           } else {
             handleMinusSignError(
               args,
-              'Negative values are not allowed in the Tare Value field.'
+              'Negative values are not allowed in the Tare Value field.',
             );
           }
           return;
@@ -3978,13 +4011,13 @@ const handleGetTareValueInDevice = async (args) => {
           };
           sendWebSocketMessage(GET_TARE_VALUE, args);
           updateCurrentAction(
-            'Please wait until the value becomes stable then set tare in the device.'
+            'Please wait until the value becomes stable then set tare in the device.',
           );
           return;
         }
 
         const measurementData = await extractFirstNumberFromArray(
-          stableMeasurementResult.data
+          stableMeasurementResult.data,
         );
 
         if (measurementData !== null) {
@@ -3992,7 +4025,7 @@ const handleGetTareValueInDevice = async (args) => {
 
           if (setTareValueResult.res) {
             updateCurrentAction(
-              `Setting Tare Value complete ${measurementData}`
+              `Setting Tare Value complete ${measurementData}`,
             );
             args.pb_tare_data.is_tare = setTareValueResult.res;
             args.pb_tare_data.tare_value = measurementData;
@@ -4125,7 +4158,7 @@ ipcMain.on(QUIT_AND_INSTALL, (_, args) => {
 autoUpdater.on('update-available', async (updateInfo) => {
   log.log('update available');
   updateInfo.releaseNotes = await getAllReleaseNotesAfterCurrentVersion(
-    app.getVersion()
+    app.getVersion(),
   );
   mainWindow?.webContents.send(CHECK_FOR_UPDATE, {
     updateAvailable: true,
@@ -4156,7 +4189,7 @@ autoUpdater.on('download-progress', (progressObj) => {
   log.log(Math.round(progressObj.percent));
   mainWindow.webContents.send(
     DOWNLOAD_PROGRESS,
-    Math.round(progressObj.percent)
+    Math.round(progressObj.percent),
   );
 });
 
@@ -4169,7 +4202,7 @@ const getAllReleaseNotesAfterCurrentVersion = async (currentVersion) => {
       {
         owner: 'CMAIDT',
         repo: 'ColorPortal',
-      }
+      },
     );
     const releases = response.data;
     const allReleaseNotes = [];
@@ -4212,7 +4245,7 @@ ipcMain.on(CHECK_THIRD_PARTY_API_CONNECTION, async (_, args) => {
     url,
     params,
     null,
-    'Requested'
+    'Requested',
   );
   if (args.shouldLogged)
     mainWindow?.webContents.send(COLOR_GATE_API_LOG, { ...args, log });
@@ -4232,7 +4265,7 @@ ipcMain.on(CHECK_THIRD_PARTY_API_CONNECTION, async (_, args) => {
     url,
     params,
     res.status,
-    res.statusText
+    res.statusText,
   );
   if (args.shouldLogged)
     mainWindow?.webContents.send(COLOR_GATE_API_LOG, { ...args, log });
@@ -4269,7 +4302,7 @@ ipcMain.on(COLOR_GATE_API_REQ, async (_, args) => {
     url,
     params,
     null,
-    'Requested'
+    'Requested',
   );
   mainWindow?.webContents.send(COLOR_GATE_API_LOG, { log });
   args.colorGateAPI.request = {
@@ -4298,33 +4331,33 @@ ipcMain.on(COLOR_GATE_API_REQ, async (_, args) => {
     url,
     params,
     res.status,
-    res.statusText
+    res.statusText,
   );
   mainWindow?.webContents.send(COLOR_GATE_API_LOG, { log });
   webSocketWorkerWindow?.webContents.send(COLOR_GATE_API_RES, res);
   webSocketMultiInstanceWorker1?.webContents.send(
     COLOR_GATE_API_RES_MULTI_INSTANCE_1,
-    res
+    res,
   );
   webSocketMultiInstanceWorker2?.webContents.send(
     COLOR_GATE_API_RES_MULTI_INSTANCE_2,
-    res
+    res,
   );
 });
 
 ipcMain.on(COLOR_GATE_SERVER_CONNECTION_REQ, (_, args) => {
   webSocketWorkerWindow?.webContents.send(
     COLOR_GATE_SERVER_CONNECTION_REQ,
-    args
+    args,
   );
 
   webSocketMultiInstanceWorker1?.webContents.send(
     COLOR_GATE_SERVER_CONNECTION_REQ_MULTI_INSTANCE_1,
-    args
+    args,
   );
   webSocketMultiInstanceWorker2?.webContents.send(
     COLOR_GATE_SERVER_CONNECTION_REQ_MULTI_INSTANCE_2,
-    args
+    args,
   );
 });
 
@@ -4338,7 +4371,7 @@ ipcMain.on(CMA_API_FOR_COLOR_GATE_STATUS_UPDATE, async (_, args) => {
     instanceURL,
     status,
     licence,
-    licenceUpdate
+    licenceUpdate,
   );
 });
 
@@ -4350,11 +4383,11 @@ ipcMain.on(COLOR_GATE_CONNECTION_CHECK_RES, (_, args) => {
   webSocketWorkerWindow?.webContents.send(COLOR_GATE_CONNECTION_CHECK, args);
   webSocketMultiInstanceWorker1?.webContents.send(
     COLOR_GATE_CONNECTION_CHECK_MULTI_INSTANCE_1,
-    args
+    args,
   );
   webSocketMultiInstanceWorker2?.webContents.send(
     COLOR_GATE_CONNECTION_CHECK_MULTI_INSTANCE_2,
-    args
+    args,
   );
 });
 
@@ -4385,7 +4418,7 @@ ipcMain.on(TEST_ALWAN_API_CONNECTION, async (_, args) => {
     url,
     params,
     null,
-    'Requested'
+    'Requested',
   );
   if (args.shouldLogged)
     mainWindow?.webContents.send(ALWAN_API_LOG, { ...args, log });
@@ -4404,7 +4437,7 @@ ipcMain.on(TEST_ALWAN_API_CONNECTION, async (_, args) => {
     url,
     params,
     res.status,
-    res.statusText
+    res.statusText,
   );
   if (args.shouldLogged)
     mainWindow?.webContents.send(ALWAN_API_LOG, { ...args, log });
@@ -4433,7 +4466,7 @@ ipcMain.on(ALWAN_API_REQ, async (_, args) => {
     url,
     params,
     null,
-    'Requested'
+    'Requested',
   );
   mainWindow?.webContents.send(ALWAN_API_LOG, { log });
   args.alwanAPI.request = {
@@ -4462,7 +4495,7 @@ ipcMain.on(ALWAN_API_REQ, async (_, args) => {
     url,
     params,
     res.status,
-    res.statusText
+    res.statusText,
   );
   mainWindow?.webContents.send(ALWAN_API_LOG, { log });
   webSocketWorkerWindow?.webContents.send(ALWAN_API_RES, res);
@@ -4482,7 +4515,7 @@ ipcMain.on(CMA_API_FOR_ALWAN_STATUS_UPDATE, async (_, args) => {
     instanceURL,
     status,
     licence,
-    licenceUpdate
+    licenceUpdate,
   );
 });
 
@@ -4504,7 +4537,7 @@ ipcMain.on(EXPORT_LAST_SCAN_DATA, (_, args) => {
     __dirname,
     'devices',
     'i1iO3',
-    'chart_auto_LAB_M0.txt'
+    'chart_auto_LAB_M0.txt',
   );
 
   fs.readFile(filePath, 'utf8', (err, data) => {
@@ -4531,7 +4564,7 @@ const getLogInfo = (
   url,
   parameters,
   status,
-  result
+  result,
 ) => ({
   timeStamp,
   date: new Date().toISOString().split('T')[0],
