@@ -214,7 +214,7 @@ export default function ColorGate({
     }
   };
 
-  const onCheckThirdPartyAPIConnection = (_, args) => {
+  const onCheckThirdPartyAPIConnection = (event, args) => {
     setCheckConnection(false);
     if (
       args.colorGateAPI?.response?.data &&
@@ -226,7 +226,7 @@ export default function ColorGate({
     }
   };
 
-  const onColorGateDisconnectionAPIRes = (_, args) => {
+  const onColorGateDisconnectionAPIRes = (event, args) => {
     if (!args.result) {
       setError(args.error);
     }

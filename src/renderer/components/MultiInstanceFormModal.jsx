@@ -111,7 +111,7 @@ function MultiInstanceFormModal({
     ipcRenderer.send(LOGIN, newConnObj);
   };
 
-  const onGetToken = (_, args) => {
+  const onGetToken = (event, args) => {
     if (args.res) {
       setError((state) => {
         if (
@@ -130,7 +130,7 @@ function MultiInstanceFormModal({
     }
   };
 
-  const onLogin = (_, args) => {
+  const onLogin = (event, args) => {
     if (args.res) {
       const connectionInfo = {
         ...args,
@@ -166,7 +166,7 @@ function MultiInstanceFormModal({
     }
   };
 
-  const onClientSocketAlreadyExist1 = (_, args) => {
+  const onClientSocketAlreadyExist1 = (event, args) => {
     if (args) {
       setErrorAlreadyExist({
         from: 1,
@@ -176,7 +176,7 @@ function MultiInstanceFormModal({
       onCancel(true);
     }
   };
-  const onClientSocketAlreadyExist2 = (_, args) => {
+  const onClientSocketAlreadyExist2 = (event, args) => {
     if (args) {
       setErrorAlreadyExist({
         from: 2,
@@ -218,7 +218,7 @@ function MultiInstanceFormModal({
     }
   };
 
-  const onConnectionStatusInstance1 = (__, args) => {
+  const onConnectionStatusInstance1 = (_event, args) => {
     if (args == 'connected') {
       console.log('Connected to the server');
       handleConnectionStatus();
@@ -229,7 +229,7 @@ function MultiInstanceFormModal({
     }
   };
 
-  const onConnectionStatusInstance2 = (_, args) => {
+  const onConnectionStatusInstance2 = (event, args) => {
     if (args === 'connected') {
       console.log('Connected to the server');
       handleConnectionStatus();

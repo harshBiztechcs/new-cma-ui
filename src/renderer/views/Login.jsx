@@ -1,55 +1,22 @@
+/* eslint-disable react/prop-types */
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable jsx-a11y/label-has-associated-control */
 import React, { useEffect, useState } from 'react';
+import { LOGIN } from 'utility/constants';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import cmaConnectLogo from '../assets/image/cma-connect.jpg';
-const { ipcRenderer } = window.require('electron');
-import { LOGIN } from 'utility/constants';
 
-function Login({
-  afterLogin,
-  onCreateNewConnection,
-  preUsername,
-  instanceURL,
-  token,
-}) {
+const { ipcRenderer } = window.require('electron');
+
+function Login({ afterLogin, onCreateNewConnection, instanceURL, token }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState('');
   const [reqMsg, setReqMsg] = useState('');
 
-  useEffect(() => {
-    // register event
-    ipcRenderer.on(LOGIN, onLogin);
-    return () => {
-      ipcRenderer.removeListener(LOGIN, onLogin);
-    };
-  }, []);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    let valError = '';
-    if (username.trim() == '') {
-      valError = 'Username is required !!';
-    } else if (password.trim() == '') {
-      valError = 'Password is required !!';
-    }
-    setError(valError);
-    if (valError) return;
-
-    const login = {
-      username,
-      password,
-      instanceURL,
-      token,
-      remember,
-    };
-
-    //perform login
-    ipcRenderer.send(LOGIN, login);
-  };
-
-  const onLogin = (_, args) => {
+  const handleLoginResponse = (event, args) => {
     if (args.res) {
       const connInfo = {
         ...args,
@@ -64,6 +31,37 @@ function Login({
     }
   };
 
+  useEffect(() => {
+    ipcRenderer.on(LOGIN, handleLoginResponse);
+    return () => {
+      ipcRenderer.removeListener(LOGIN, handleLoginResponse);
+    };
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!username.trim()) {
+      setError('Username is required.');
+      return;
+    }
+
+    if (!password.trim()) {
+      setError('Password is required.');
+      return;
+    }
+
+    const loginData = {
+      username,
+      password,
+      instanceURL,
+      token,
+      remember,
+    };
+
+    ipcRenderer.send(LOGIN, loginData);
+  };
+
   return (
     <div id="main">
       <div className="container-fluid">
@@ -76,6 +74,7 @@ function Login({
                   <div className="form">
                     <h1>Log in</h1>
                     <p>Welcome back! Please enter your credentials.</p>
+
                     <div className="form-group">
                       <label htmlFor="email">Email</label>
                       <input
@@ -88,6 +87,7 @@ function Login({
                         onChange={(e) => setUsername(e.target.value)}
                       />
                     </div>
+
                     <div className="form-group">
                       <label htmlFor="password">Password</label>
                       <input
@@ -100,35 +100,42 @@ function Login({
                         onChange={(e) => setPassword(e.target.value)}
                       />
                     </div>
+
                     <div className="form-group">
                       <label className="custom-checkbox">
                         Remember for 7 days
                         <input
                           type="checkbox"
                           name="remember"
-                          defaultChecked={remember}
+                          checked={remember}
                           onChange={() => setRemember(!remember)}
                         />
-                        <span className="checkmark"></span>
+                        <span className="checkmark" />
                       </label>
                     </div>
+
                     <button type="submit" className="btn-primary">
                       Sign in
                     </button>
                   </div>
+
                   <p className="update-token">
-                    Need to update the token ?{' '}
-                    <a onClick={onCreateNewConnection}>New connection</a>
+                    Need to update the token?{' '}
+                    <a href="#!" onClick={onCreateNewConnection}>
+                      New connection
+                    </a>
                   </p>
+
                   {error && (
                     <p className="login-error-msg">
                       {error}{' '}
-                      <a href="mailto:help@cmaimaging.com">Need help ?</a>
+                      <a href="mailto:help@cmaimaging.com">Need help?</a>
                     </p>
                   )}
+
                   {reqMsg && (
                     <p className="login-error-msg" style={{ color: 'black' }}>
-                      {reqMsg}{' '}
+                      {reqMsg}
                     </p>
                   )}
                 </div>
@@ -136,6 +143,7 @@ function Login({
               <Footer />
             </div>
           </div>
+
           <div className="col-md-6 right-section">
             <img src={cmaConnectLogo} alt="CMA Connect" />
           </div>

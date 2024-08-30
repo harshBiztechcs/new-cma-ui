@@ -190,7 +190,7 @@ function ColorMatch({
     }
   }, [updateDeviceStatus]);
 
-  const onShowDialog = (_, args) => {
+  const onShowDialog = (event, args) => {
     if (args.message == 'Requested CMA client not found') {
       // setError('Requested action not completed!!');
       // setErrorBtnText('Retry On Instance');
@@ -205,13 +205,13 @@ function ColorMatch({
     }
   };
 
-  const onDeviceDisconnectTimeout = (_, args) => {
+  const onDeviceDisconnectTimeout = (event, args) => {
     if (args.hasTimeout) {
       onDisconnectDeviceAfterTimeout(args.deviceType);
     }
   };
 
-  const onClearSamplesRes = (_, args) => {
+  const onClearSamplesRes = (event, args) => {
     if (!args.res) {
       setError(args.message);
       setErrorBtnText('OK');
@@ -222,7 +222,7 @@ function ColorMatch({
     setIsSampleInProgress(false);
   };
 
-  const onSamplesData = (_, args) => {
+  const onSamplesData = (event, args) => {
     const { header, data, error } = args;
     if (error) {
       setError(error);
@@ -278,7 +278,7 @@ function ColorMatch({
     ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
   };
 
-  const onGetDeviceInstanceLink = (_, args) => {
+  const onGetDeviceInstanceLink = (event, args) => {
     if (args.res) {
       window.open(args.url);
     } else {
@@ -310,17 +310,17 @@ function ColorMatch({
     ipcRenderer.send(GET_DEVICE_AND_LICENSES, { instanceURL, username, token });
   };
 
-  const onRefreshDevicesLicenses = (_, args) => {
+  const onRefreshDevicesLicenses = (event, args) => {
     setTimeout(() => {
       handleRefresh();
     }, 3000);
   };
 
-  const onDeviceAndLicensesRes = (_, args) => {
+  const onDeviceAndLicensesRes = (event, args) => {
     onGetDeviceAndLicenses(args);
   };
 
-  const onDeviceConnection = (_, args) => {
+  const onDeviceConnection = (event, args) => {
     // if device connected successfully from equipment app then refresh device list and licenses
     if (args) {
       setTimeout(() => {
@@ -329,7 +329,7 @@ function ColorMatch({
     }
   };
 
-  const onDeviceRelease = (_, args) => {
+  const onDeviceRelease = (event, args) => {
     // if device disconnected from equipment app then refresh device list and licenses
     if (args) {
       setTimeout(() => {
@@ -338,7 +338,7 @@ function ColorMatch({
     }
   };
 
-  const onMeasureInProgress = (_, args) => {
+  const onMeasureInProgress = (event, args) => {
     setForceDisconnectError(
       'Measurement is in progress, are you sure you want to disconnect ?'
     );
@@ -385,7 +385,7 @@ function ColorMatch({
     element.click();
   };
 
-  const onExportLastScanData = (_, exportRes) => {
+  const onExportLastScanData = (event, exportRes) => {
     if (exportRes.res) {
       downloadTxtFile(exportRes.fileData, 'i1io3_scan_LAB_data.txt');
     } else {
@@ -394,7 +394,7 @@ function ColorMatch({
     }
   };
 
-  const onScanMeasurementRes = (_, res) => setScanRes(res);
+  const onScanMeasurementRes = (event, res) => setScanRes(res);
 
   return (
     <div id="main" className="cma-connect-page">

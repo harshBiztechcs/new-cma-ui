@@ -715,7 +715,7 @@ export default function App() {
 
   //colorGate functions
 
-  const onColorGateServerConnectionRes = (_, args) => {
+  const onColorGateServerConnectionRes = (event, args) => {
     console.log('onColorGateServerConnectionRes APP jsx');
     setSocketConnectionInProgress(false);
     const isConnected = args?.colorGateServerConnection?.isConnected;
@@ -743,7 +743,7 @@ export default function App() {
   };
 
   // alwan
-  const onAlwanServerConnectionRes = (_, args) => {
+  const onAlwanServerConnectionRes = (event, args) => {
     console.log('onAlwanServerConnectionRes APP jsx');
     setAlwanSocketConnectionInProgress(false);
     const isConnected = args?.alwanServerConnection?.isConnected;
@@ -770,7 +770,7 @@ export default function App() {
     });
   };
 
-  const onColorGateAPIConnectionResponse = (_, args) => {
+  const onColorGateAPIConnectionResponse = (event, args) => {
     if (
       args.colorGateAPI?.response?.data &&
       args.colorGateAPI?.response?.data?.status?.code == 200
@@ -782,7 +782,7 @@ export default function App() {
   };
 
   // alwan
-  const onAlwanAPIConnectionResponse = (_, args) => {
+  const onAlwanAPIConnectionResponse = (event, args) => {
     if (args?.status && args.status == 200) {
       setAlwanConnection(true);
     } else {
@@ -811,7 +811,7 @@ export default function App() {
     localStorage.setItem('alwanAPIConfig', JSON.stringify(newConfig));
   };
 
-  const onColorGateAPILog = (_, args) => {
+  const onColorGateAPILog = (event, args) => {
     setColorGateAPILog((currentLogs) => {
       console.log({ currentLogs });
       if (args.log) {
@@ -828,7 +828,7 @@ export default function App() {
   };
 
   // alwan
-  const onAlwanAPILog = (_, args) => {
+  const onAlwanAPILog = (event, args) => {
     setAlwanAPILog((currentLogs) => {
       console.log({ currentLogs });
       if (args.log) {
@@ -844,7 +844,7 @@ export default function App() {
     });
   };
 
-  const onColorGateConnectionCheckReq = (_, args) => {
+  const onColorGateConnectionCheckReq = (event, args) => {
     let colorGateUsername = null;
     let connection = null;
     let licence = null;
@@ -875,7 +875,7 @@ export default function App() {
   };
 
   // alwan
-  const onAlwanConnectionCheckReq = (_, args) => {
+  const onAlwanConnectionCheckReq = (event, args) => {
     let alwanUsername = null;
     let connection = null;
     let licence = null;
@@ -905,7 +905,7 @@ export default function App() {
   };
 
   //auto-update functions
-  const onCheckForUpdate = (_, args) => {
+  const onCheckForUpdate = (event, args) => {
     setCheckUpdate(false);
     if (args.updateAvailable) {
       if (args.updateInfo?.version) {
@@ -927,7 +927,7 @@ export default function App() {
     }
   };
 
-  const onDownloadUpdate = (_, args) => {
+  const onDownloadUpdate = (event, args) => {
     setDownloadStarted(false);
     setUpdateDownloaded(true);
     if (updateInfo && updateInfo.version) {
@@ -937,20 +937,20 @@ export default function App() {
     }
   };
 
-  const onUpdateError = (_, args) => {
+  const onUpdateError = (event, args) => {
     setDownloadStarted(false);
     setUpdateError(args.message ?? 'Unknown Error');
     setCheckUpdate(false);
   };
 
-  const handleCheckUpdate = (_, args) => {
+  const handleCheckUpdate = (event, args) => {
     setCheckUpdate(true);
     setUpdateStatus('Checking for new version...');
     setUpdateInfo(null);
     ipcRenderer.send(CHECK_FOR_UPDATE, null);
   };
 
-  const handleDownloadUpdate = (_, args) => {
+  const handleDownloadUpdate = (event, args) => {
     setDownloadStarted(true);
     if (updateInfo.version) {
       setUpdateStatus(
@@ -962,12 +962,12 @@ export default function App() {
     ipcRenderer.send(DOWNLOAD_UPDATE, null);
   };
 
-  const handleQuitAndInstall = (_, args) => {
+  const handleQuitAndInstall = (event, args) => {
     setUpdateStatus('Preparing to quite...');
     ipcRenderer.send(QUIT_AND_INSTALL, null);
   };
 
-  const onDownloadProgress = (_, args) => {
+  const onDownloadProgress = (event, args) => {
     setDownloadProgress(args);
   };
 
@@ -1001,11 +1001,11 @@ export default function App() {
     localStorage.setItem('userInfo', JSON.stringify(userInfo));
   };
 
-  const afterDeviceDisconnectionCall = (_, args) => {
+  const afterDeviceDisconnectionCall = (event, args) => {
     ipcRenderer.send(DISCONNECT_DEVICE_FROM_SERVER, args);
   };
 
-  const onSocketConnection = (_, args) => {
+  const onSocketConnection = (event, args) => {
     if (args) {
       setSocketConnection(true);
     } else {
@@ -1015,7 +1015,7 @@ export default function App() {
     }
   };
 
-  const checkOnlineStatus = (_, args) => {
+  const checkOnlineStatus = (event, args) => {
     if (args.status) {
       setNetworkConnection(true);
     } else {
@@ -1024,11 +1024,11 @@ export default function App() {
     }
   };
 
-  const onVerifyDeviceConnection = (_, args) => {
+  const onVerifyDeviceConnection = (event, args) => {
     handleServerConnection();
   };
 
-  const onClientSocketAlreadyExist = (_, args) => {
+  const onClientSocketAlreadyExist = (event, args) => {
     // handleLogout();
     setServerError(
       args
@@ -1040,7 +1040,7 @@ export default function App() {
     setAlwanSocketConnection(false);
   };
 
-  const onShowDialog = (_, args) => {
+  const onShowDialog = (event, args) => {
     if (args.message == 'Requested CMA-connect client is already available') {
       setServerError(
         'CMA Connect User ID is currently open in another session. Please try again after logging out from the other session.'

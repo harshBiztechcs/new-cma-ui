@@ -107,7 +107,7 @@ function ServerConnection({
     }
   };
 
-  const onDeviceAndLicensesRes = (_, args) => {
+  const onDeviceAndLicensesRes = (event, args) => {
     onGetDeviceAndLicenses(args);
     updateDeviceList(args?.deviceRes?.devices ?? []);
 
@@ -153,7 +153,7 @@ function ServerConnection({
     }
   };
 
-  const onSocketConnection = (_, args) => {
+  const onSocketConnection = (event, args) => {
     if (args) {
       verifyDeviceConnection(
         'Device',
@@ -186,7 +186,7 @@ function ServerConnection({
     }
   };
 
-  const onConnectionStatus = (__, args) => {
+  const onConnectionStatus = (_event, args) => {
     if (args == 'connected') {
       // Perform actions when connected
       console.log('Connected to the server');
@@ -195,7 +195,7 @@ function ServerConnection({
     }
   };
 
-  const onVerifyDeviceConnection = (__, args) => {
+  const onVerifyDeviceConnection = (_event, args) => {
     if (args) {
       onServerConnection();
       onDeviceConnection(lastDevice);
@@ -204,7 +204,7 @@ function ServerConnection({
       onDeviceDisconnect();
     }
   };
-  const onVerifyPBDeviceConnection = (__, args) => {
+  const onVerifyPBDeviceConnection = (_event, args) => {
     if (args) {
       onServerConnection();
       onDevicePBConnection(connectedPBDevice);

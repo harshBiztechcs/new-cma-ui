@@ -200,7 +200,7 @@ export default function AlwanAPI({
     }
   };
 
-  const onCheckAlwanAPIConnection = (_, args) => {
+  const onCheckAlwanAPIConnection = (event, args) => {
     setCheckConnection(false);
     if (args?.status && args.status == 200) {
       setAlwanConnection(true);
@@ -209,7 +209,7 @@ export default function AlwanAPI({
     }
   };
 
-  const onAlwanDisconnectionAPIRes = (_, args) => {
+  const onAlwanDisconnectionAPIRes = (event, args) => {
     if (!args.result) {
       setError(args.error);
     }

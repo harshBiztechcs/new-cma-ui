@@ -1,10 +1,14 @@
+/* eslint-disable jsx-a11y/label-has-associated-control */
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable react/prop-types */
 import React, { useEffect, useState } from 'react';
+import { GET_TOKEN, LOGIN, URLRegex } from 'utility/constants';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import infoImage from '../assets/image/info.svg';
 import cmaConnectLogo from '../assets/image/cma-connect.jpg';
+
 const { ipcRenderer } = window.require('electron');
-import { GET_TOKEN, LOGIN, URLRegex } from 'utility/constants';
 
 function NewConnection({ afterNewConnection }) {
   const [username, setUsername] = useState('');
@@ -15,70 +19,14 @@ function NewConnection({ afterNewConnection }) {
   const [error, setError] = useState('');
   const [reqMsg, setReqMsg] = useState('');
 
-  useEffect(() => {
-    // register event
-    ipcRenderer.on(GET_TOKEN, onGetToken);
-    ipcRenderer.on(LOGIN, onLogin);
-    return () => {
-      ipcRenderer.removeListener(GET_TOKEN, onGetToken);
-      ipcRenderer.removeListener(LOGIN, onLogin);
-    };
-  }, []);
-
-  const checkInstanceURLValid = () => {
-    if (instanceURL.trim() == '') {
-      setError('Instance url is required');
-      return false;
-    } else if (!URLRegex.test(instanceURL)) {
-      setError('Instance url is not valid');
-      return false;
-    } else if (instanceURL.slice(-1) == '/') {
-      setError("Remove '/' at the end of the Instance URL");
-      return false;
-    }
-    return true;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    let valError = '';
-    if (username.trim() == '') {
-      valError = 'Username is required';
-    } else if (password.trim() == '') {
-      valError = 'Password is required';
-    } else if (instanceURL.trim() == '') {
-      valError = 'Instance url is required';
-    } else if (!URLRegex.test(instanceURL)) {
-      valError = 'Instance url is not valid';
-    } else if (instanceURL.slice(-1) == '/') {
-      valError = "Remove '/' at the end of the Instance URL";
-    } else if (token.trim() == '') {
-      valError = 'Token is required';
-    }
-    setError(valError);
-    if (valError) return;
-    const newConnObj = {
-      username,
-      password,
-      instanceURL,
-      token,
-      tokenExpiry,
-    };
-
-    //perform login
-    ipcRenderer.send(LOGIN, newConnObj);
-  };
-
-  const onGetToken = (_, args) => {
+  const handleGetToken = (event, args) => {
     if (args.res) {
-      setError((state) => {
-        if (
-          state ==
-          'Unable to load token, verify your credentials and try again !'
-        ) {
-          setError('');
-        }
-      });
+      if (
+        error ===
+        'Unable to load token, verify your credentials and try again !'
+      ) {
+        setError('');
+      }
       setToken(args.token);
       setTokenExpiry(args.tokenExpiry);
     } else {
@@ -88,14 +36,13 @@ function NewConnection({ afterNewConnection }) {
     }
   };
 
-  const onLogin = (_, args) => {
+  const handleLogin = (event, args) => {
     if (args.res) {
-      const connInfo = {
+      afterNewConnection({
         ...args,
         socketURL: args.socketURL,
         thirdPartyAPIUser: args.thirdPartyAPIUser,
-      };
-      afterNewConnection(connInfo);
+      });
       setError('');
       setReqMsg('');
     } else {
@@ -104,7 +51,64 @@ function NewConnection({ afterNewConnection }) {
     }
   };
 
-  const onGenerateToken = () => {
+  useEffect(() => {
+    ipcRenderer.on(GET_TOKEN, handleGetToken);
+    ipcRenderer.on(LOGIN, handleLogin);
+
+    return () => {
+      ipcRenderer.removeListener(GET_TOKEN, handleGetToken);
+      ipcRenderer.removeListener(LOGIN, handleLogin);
+    };
+  }, []);
+
+  const isURLValid = (url) => URLRegex.test(url) && !url.endsWith('/');
+
+  const checkInstanceURLValid = () => {
+    if (instanceURL.trim() === '') {
+      setError('Instance URL is required.');
+      return false;
+    }
+    if (!isURLValid(instanceURL)) {
+      setError('Instance URL is not valid or has trailing slash.');
+      return false;
+    }
+    setError('');
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    let validationError = '';
+
+    if (username.trim() === '') {
+      validationError = 'Username is required.';
+    } else if (password.trim() === '') {
+      validationError = 'Password is required.';
+    } else if (instanceURL.trim() === '') {
+      validationError = 'Instance URL is required.';
+    } else if (!isURLValid(instanceURL)) {
+      validationError = 'Instance URL is not valid or has trailing slash.';
+    } else if (token.trim() === '') {
+      validationError = 'Token is required.';
+    }
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    const newConnection = {
+      username,
+      password,
+      instanceURL,
+      token,
+      tokenExpiry,
+    };
+
+    ipcRenderer.send(LOGIN, newConnection);
+  };
+
+  const handleGenerateToken = () => {
     if (checkInstanceURLValid()) {
       ipcRenderer.send(GET_TOKEN, { instanceURL, username, password });
     }
@@ -122,6 +126,7 @@ function NewConnection({ afterNewConnection }) {
                   <div className="form">
                     <h1>New Connection</h1>
                     <p>Please enter your credentials.</p>
+
                     <div className="form-group">
                       <label htmlFor="email">Email</label>
                       <input
@@ -134,18 +139,20 @@ function NewConnection({ afterNewConnection }) {
                         onChange={(e) => setUsername(e.target.value)}
                       />
                     </div>
+
                     <div className="form-group">
                       <label htmlFor="password">Password</label>
                       <input
                         type="password"
                         id="password"
                         name="password"
-                        placeholder="Enter your password"
                         className="form-control"
+                        placeholder="Enter your password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                       />
                     </div>
+
                     <div className="form-group">
                       <label htmlFor="url">Instance URL</label>
                       <div className="p-relative">
@@ -170,6 +177,7 @@ function NewConnection({ afterNewConnection }) {
                         </div>
                       </div>
                     </div>
+
                     <div className="form-group">
                       <label htmlFor="token">Token</label>
                       <div className="p-relative">
@@ -177,8 +185,8 @@ function NewConnection({ afterNewConnection }) {
                           type="password"
                           id="token"
                           name="token"
-                          style={{ backgroundColor: '#e9ecef' }}
                           className="form-control"
+                          style={{ backgroundColor: '#e9ecef' }}
                           value={token}
                           disabled
                           readOnly
@@ -195,28 +203,30 @@ function NewConnection({ afterNewConnection }) {
                         </div>
                       </div>
                     </div>
-                    {URLRegex.test(instanceURL) && username && password ? (
+
+                    {isURLValid(instanceURL) && username && password && (
                       <button
-                        onClick={onGenerateToken}
                         type="button"
                         className="btn-primary"
+                        onClick={handleGenerateToken}
                       >
                         Load Token
                       </button>
-                    ) : null}
+                    )}
                     <button type="submit" className="btn-primary mt-12">
                       Sign in
                     </button>
                   </div>
+
                   {error && (
                     <p className="login-error-msg">
                       {error}{' '}
-                      <a href="mailto:help@cmaimaging.com">Need help ?</a>
+                      <a href="mailto:help@cmaimaging.com">Need help?</a>
                     </p>
                   )}
                   {reqMsg && (
                     <p className="login-error-msg" style={{ color: 'black' }}>
-                      {reqMsg}{' '}
+                      {reqMsg}
                     </p>
                   )}
                 </div>
@@ -224,6 +234,7 @@ function NewConnection({ afterNewConnection }) {
               <Footer />
             </div>
           </div>
+
           <div className="col-md-6 right-section">
             <img src={cmaConnectLogo} alt="CMA Connect" />
           </div>

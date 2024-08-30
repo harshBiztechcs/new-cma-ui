@@ -1,7 +1,14 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable no-plusplus */
+/* eslint-disable no-await-in-loop */
+/* eslint-disable no-loop-func */
+/* eslint-disable no-promise-executor-return */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react/button-has-type */
+/* eslint-disable react/prop-types */
 import React, { useEffect, useRef, useState } from 'react';
 import Papa from 'papaparse';
 import DevicePageTitle from 'renderer/components/DeviceHeader';
-import DeviceLicense from 'renderer/components/DeviceLicense';
 import Pagination from 'renderer/components/Pagination';
 import Timeline from 'renderer/components/Timeline';
 import {
@@ -31,6 +38,7 @@ import Loader from 'renderer/components/Loader';
 import MultiFilesSelector from 'renderer/components/MultiFilesSelector';
 import ThirdPartyAPI from 'renderer/components/ThirdPartyAPI';
 import HomeFooter from 'renderer/components/HomeFooter';
+
 const { ipcRenderer } = window.require('electron');
 
 function DeviceMeasurement({
@@ -40,7 +48,6 @@ function DeviceMeasurement({
   onLogout,
   deviceList,
   onGetDeviceAndLicenses,
-  licenses,
   onChangeDevice,
   connectedDevice,
   onDeviceDisConnect,
@@ -108,19 +115,19 @@ function DeviceMeasurement({
     ipcRenderer.on(DEVICE_DISCONNECTION, onDeviceRelease);
     ipcRenderer.on(MEASURE_IN_PROGRESS, onMeasureInProgress);
     ipcRenderer.on(REFRESH_DEVICES_AND_LICENSES, onRefreshDevicesLicenses);
-    //get latest device list and licenses
+    // get latest device list and licenses
     handleRefresh();
 
-    //unregister current action event
+    // unregister current action event
     return () => {
       ipcRenderer.removeListener(
         GET_DEVICE_AND_LICENSES,
-        onDeviceAndLicensesRes
+        onDeviceAndLicensesRes,
       );
       ipcRenderer.removeListener(CURRENT_ACTION, onCurrentAction);
       ipcRenderer.removeListener(
         CHECK_DEVICE_CONNECTION,
-        onCheckDeviceConnection
+        onCheckDeviceConnection,
       );
       ipcRenderer.removeListener(CLOSE_DEVICE, onCloseDevice);
       ipcRenderer.removeListener(SHOW_DIALOG, onShowDialog);
@@ -128,18 +135,18 @@ function DeviceMeasurement({
       ipcRenderer.removeListener(CLEAR_SAMPLES, onClearSamplesRes);
       ipcRenderer.removeListener(
         DEVICE_DISCONNECT_TIMEOUT,
-        onDeviceDisconnectTimeout
+        onDeviceDisconnectTimeout,
       );
       ipcRenderer.removeListener(
         GET_DEVICE_INSTANCE_URL,
-        onGetDeviceInstanceLink
+        onGetDeviceInstanceLink,
       );
       ipcRenderer.removeListener(DEVICE_CONNECTION, onDeviceConnection);
       ipcRenderer.removeListener(DEVICE_DISCONNECTION, onDeviceRelease);
       ipcRenderer.removeListener(MEASURE_IN_PROGRESS, onMeasureInProgress);
       ipcRenderer.removeListener(
         REFRESH_DEVICES_AND_LICENSES,
-        onRefreshDevicesLicenses
+        onRefreshDevicesLicenses,
       );
       stopCheckDeviceConnectionInterval();
     };
@@ -147,13 +154,13 @@ function DeviceMeasurement({
 
   useEffect(() => {
     if (deviceList.length && currentDevice) {
-      const device = deviceList.find((x) => x.deviceId == currentDevice);
+      const device = deviceList.find((x) => x.deviceId === currentDevice);
       if (device) startCheckDeviceConnectionInterval(device.deviceType);
     }
   }, [deviceList, currentDevice]);
 
   useEffect(() => {
-    const device = deviceList.find((x) => x.deviceId == currentDevice);
+    const device = deviceList.find((x) => x.deviceId === currentDevice);
     if (updateDeviceStatus && isDisconnected) {
       ipcRenderer.send(UPDATE_DEVICE_RECONNECTION, device);
       ipcRenderer.send(DEVICE_RECONNECT_API_CALL, {
@@ -202,28 +209,28 @@ function DeviceMeasurement({
       return 0;
     });
   };
-  const onShowDialog = (_, args) => {
-    if (args.message == 'Requested CMA client not found') {
+  const onShowDialog = (event, args) => {
+    if (args.message === 'Requested CMA client not found') {
       // setError('Requested action not completed!!');
       // setErrorBtnText('Retry On Instance');
       // Do nothing
     } else if (
-      args.message == 'Requested CMA-connect client is already available'
+      args.message === 'Requested CMA-connect client is already available'
     ) {
-      //do nothing
+      // do nothing
     } else {
       setError(args.message);
       setErrorBtnText('OK');
     }
   };
 
-  const onDeviceDisconnectTimeout = (_, args) => {
+  const onDeviceDisconnectTimeout = (event, args) => {
     if (args.hasTimeout) {
       onDisconnectDeviceAfterTimeout(args.deviceType);
     }
   };
 
-  const onClearSamplesRes = (_, args) => {
+  const onClearSamplesRes = (event, args) => {
     if (!args.res) {
       setError(args.message);
       setErrorBtnText('OK');
@@ -239,7 +246,7 @@ function DeviceMeasurement({
     setCurrentAction(args);
   };
 
-  const onSamplesData = (_, args) => {
+  const onSamplesData = (event, args) => {
     const { header, data, error } = args;
     if (error) {
       setError(error);
@@ -255,7 +262,7 @@ function DeviceMeasurement({
   const onExportSamples = () => {
     setLoadingMsg('Exporting samples, please wait...');
     setIsSampleInProgress(true);
-    const device = deviceList.find((x) => x.deviceId == currentDevice);
+    const device = deviceList.find((x) => x.deviceId === currentDevice);
     ipcRenderer.send(GET_SAMPLES_DATA, device?.deviceType);
   };
 
@@ -263,7 +270,7 @@ function DeviceMeasurement({
     stopCheckDeviceConnectionInterval();
     setLoadingMsg('Clearing samples, please wait...');
     setIsSampleInProgress(true);
-    const device = deviceList.find((x) => x.deviceId == currentDevice);
+    const device = deviceList.find((x) => x.deviceId === currentDevice);
     ipcRenderer.send(CLEAR_SAMPLES, device?.deviceType);
   };
 
@@ -284,7 +291,7 @@ function DeviceMeasurement({
 
   const onCloseDevice = (event, args) => {
     if (args.res) {
-      //TODO : release device licenses here by calling main
+      // TODO : release device licenses here by calling main
       onDeviceDisConnect(currentDevice);
     } else {
       setError(args.error ?? 'Device Disconnection Failed !!');
@@ -296,7 +303,7 @@ function DeviceMeasurement({
     ipcRenderer.send(GET_DEVICE_INSTANCE_URL, instanceURL);
   };
 
-  const onGetDeviceInstanceLink = (_, args) => {
+  const onGetDeviceInstanceLink = (event, args) => {
     if (args.res) {
       window.open(args.url);
     } else {
@@ -328,23 +335,23 @@ function DeviceMeasurement({
     ipcRenderer.send(GET_DEVICE_AND_LICENSES, { instanceURL, username, token });
   };
 
-  const onRefreshDevicesLicenses = (_, args) => {
+  const onRefreshDevicesLicenses = (event, args) => {
     setTimeout(() => {
       handleRefresh();
     }, 3000);
   };
 
-  const onDeviceAndLicensesRes = (_, args) => {
+  const onDeviceAndLicensesRes = (event, args) => {
     onGetDeviceAndLicenses(args);
   };
 
-  const onDeviceConnection = (_, args) => {
-    //if device connected successfully from equipment app then refresh device list and licenses
+  const onDeviceConnection = (event, args) => {
+    // if device connected successfully from equipment app then refresh device list and licenses
     if (args) {
-      const device = deviceList.find((x) => x.deviceId == currentDevice);
+      const device = deviceList.find((x) => x.deviceId === currentDevice);
       if (
-        device?.deviceType == 'CMA-ROP64E-UV-BT' ||
-        device?.deviceType == 'CMA-ROP64E-UV-BT_COLORSCOUT'
+        device?.deviceType === 'CMA-ROP64E-UV-BT' ||
+        device?.deviceType === 'CMA-ROP64E-UV-BT_COLORSCOUT'
       ) {
         function delayedAction(delay) {
           setTimeout(() => {
@@ -366,7 +373,7 @@ function DeviceMeasurement({
     }
   };
 
-  const onDeviceRelease = (_, args) => {
+  const onDeviceRelease = (event, args) => {
     // if device disconnected from equipment app then refresh device list and licenses
     if (args) {
       setTimeout(() => {
@@ -375,9 +382,9 @@ function DeviceMeasurement({
     }
   };
 
-  const onMeasureInProgress = (_, args) => {
+  const onMeasureInProgress = (event, args) => {
     setForceDisconnectError(
-      'Measurement is in progress, are you sure you want to disconnect ?'
+      'Measurement is in progress, are you sure you want to disconnect ?',
     );
   };
 
@@ -391,138 +398,25 @@ function DeviceMeasurement({
     });
   };
 
-  //combine multiple csv files
-  const onCombineFiles = async () => {
-    const combinedData = [];
-    if (csvFileRef.current?.files) {
-      //check minimum 2 files requirement, if not return from function
-      if (csvFileRef.current?.files.length < 2) {
-        setErrorTitle('Files Combine Error');
-        setError('Please select at least 2 files');
-        return;
-      }
-
-      //continue if at least 2 files provided
-      setLoadingMsg(`Combining ${csvFileRef.current.files.length} files...`);
-      setIsSampleInProgress(true);
-
-      let hasIncompatibleFile = false;
-      const fileList = Array.from(csvFileRef.current.files);
-
-      //check if file other than csv type
-      fileList.every((file) => {
-        if (file.type != 'text/csv') {
-          hasIncompatibleFile = true;
-          return false;
-        }
-        return true;
-      });
-
-      //if there are files type other than csv, give error and return from function
-      if (hasIncompatibleFile) {
-        setIsSampleInProgress(false);
-        setErrorTitle('Files Combine Error');
-        setError('All files should be in csv format');
-        return;
-      }
-
-      //continue if no error
-      let commonHeaderArray = null;
-      let errorCombiningFiles = false;
-      for (let index = 0; index < fileList.length; index++) {
-        //wait for every file to complete parsing
-        const parseResult = await new Promise((resolve) =>
-          Papa.parse(fileList[index], {
-            skipEmptyLines: true,
-            header: true,
-            error: (err, file, inputElem, reason) => {
-              // executed if an error occurs while loading the file,
-              setIsSampleInProgress(false);
-              setErrorTitle('Files Combine Error');
-              setError('Error while parsing file');
-              resolve(false);
-            },
-            complete: (results, file) => {
-              //after completing parsing file
-              if (results.errors.length > 0) {
-                setIsSampleInProgress(false);
-                setErrorTitle('Files Combine Error');
-                setError('Incompatible File(s)');
-                resolve(false);
-              }
-
-              //push in common array and update the statusenvironment
-              combinedData.push(...results.data);
-              setLoadingMsg(`File processed ${index + 1}`);
-
-              if (index == 0) {
-                //get first file header array as common header array
-                commonHeaderArray = results.meta.fields;
-              } else {
-                //compare all other files header with first file header
-                const hasSameHeader =
-                  JSON.stringify(commonHeaderArray) ==
-                  JSON.stringify(results.meta.fields);
-                if (!hasSameHeader) {
-                  setIsSampleInProgress(false);
-                  setErrorTitle('Files Combine Error');
-                  setError(`File ${file.name} headers are not same`);
-                  resolve(false);
-                }
-              }
-              //if no error resolve true for current file
-              resolve(true);
-            },
-          })
-        );
-
-        //if any error parsing any file stop processing further and break from the loop
-        if (!parseResult) {
-          errorCombiningFiles = true;
-          break;
-        }
-      }
-
-      //if any error combining file return
-      if (errorCombiningFiles) return;
-
-      //combined results after all files complete
-      await new Promise((resolve) => setTimeout(() => resolve(true), 10));
-      setLoadingMsg(`All Files Combined`);
-      await new Promise((resolve) => setTimeout(() => resolve(true), 10));
-      const combinedCSV = Papa.unparse(combinedData, { header: true });
-      const csvData = new Blob([combinedCSV], {
-        type: 'text/csv;charset=utf-8;',
-      });
-      var tempLink = document.createElement('a');
-      tempLink.href = window.URL.createObjectURL(csvData);
-      tempLink.setAttribute('download', `samples(${combinedData.length}).csv`);
-      setIsSampleInProgress(false);
-      setInfoTitle('Sample files combined successfully');
-      setInfo(`Total ${combinedData.length} color samples combined`);
-      tempLink.click();
-    }
-  };
-
-  //combine multiple csv files
+  // combine multiple csv files
   const handleFileCombine = async (files) => {
     const combinedData = [];
     if (files) {
-      //check minimum 2 files requirement, if not return from function
+      // check minimum 2 files requirement, if not return from function
       if (files.length < 2) {
         setErrorTitle('Files Combine Error');
         setError('Please select at least 2 files');
         return;
       }
 
-      //continue if at least 2 files provided
+      // continue if at least 2 files provided
       setLoadingMsg(`Combining ${files.length} files...`);
       setIsSampleInProgress(true);
 
       let hasIncompatibleFile = false;
       const fileList = Array.from(files);
 
-      //check if file other than csv type
+      // check if file other than csv type
       fileList.every((file) => {
         if (!file.name.endsWith('csv')) {
           hasIncompatibleFile = true;
@@ -531,7 +425,7 @@ function DeviceMeasurement({
         return true;
       });
 
-      //if there are files type other than csv, give error and return from function
+      // if there are files type other than csv, give error and return from function
       if (hasIncompatibleFile) {
         setIsSampleInProgress(false);
         setErrorTitle('Files Combine Error');
@@ -539,67 +433,69 @@ function DeviceMeasurement({
         return;
       }
 
-      //continue if no error
+      // continue if no error
       let commonHeaderArray = null;
       let errorCombiningFiles = false;
       for (let index = 0; index < fileList.length; index++) {
-        //wait for every file to complete parsing
-        const parseResult = await new Promise((resolve) =>
-          Papa.parse(fileList[index], {
-            skipEmptyLines: true,
-            header: true,
-            error: (err, file, inputElem, reason) => {
-              // executed if an error occurs while loading the file,
-              setIsSampleInProgress(false);
-              setErrorTitle('Files Combine Error');
-              setError('Error while parsing file');
-              resolve(false);
-            },
-            complete: (results, file) => {
-              //after completing parsing file
-              if (results.errors.length > 0) {
+        try {
+          const parseResult = await new Promise((resolve) => {
+            Papa.parse(fileList[index], {
+              skipEmptyLines: true,
+              header: true,
+              error: () => {
                 setIsSampleInProgress(false);
                 setErrorTitle('Files Combine Error');
-                setError('Incompatible File(s)');
+                setError('Error while parsing file');
                 resolve(false);
-              }
-
-              //push in common array and update the status
-              combinedData.push(...results.data);
-              setLoadingMsg(`File processed ${index + 1}`);
-
-              if (index == 0) {
-                //get first file header array as common header array
-                commonHeaderArray = results.meta.fields;
-              } else {
-                //compare all other files header with first file header
-                const hasSameHeader =
-                  JSON.stringify(commonHeaderArray) ==
-                  JSON.stringify(results.meta.fields);
-                if (!hasSameHeader) {
+              },
+              complete: (results) => {
+                if (results.errors.length > 0) {
                   setIsSampleInProgress(false);
                   setErrorTitle('Files Combine Error');
-                  setError(`File ${file.name} headers are not same`);
+                  setError('Incompatible File(s)');
                   resolve(false);
-                }
-              }
-              //if no error resolve true for current file
-              resolve(true);
-            },
-          })
-        );
+                } else {
+                  combinedData.push(...results.data);
+                  setLoadingMsg(`File processed ${index + 1}`);
 
-        //if any error parsing any file stop processing further and break from the loop
-        if (!parseResult) {
+                  if (index === 0) {
+                    commonHeaderArray = results.meta.fields;
+                  } else {
+                    const headersMatch =
+                      JSON.stringify(commonHeaderArray) ===
+                      JSON.stringify(results.meta.fields);
+                    if (!headersMatch) {
+                      setIsSampleInProgress(false);
+                      setErrorTitle('Files Combine Error');
+                      setError(
+                        `File ${fileList[index].name} headers are not the same`,
+                      );
+                      resolve(false);
+                    }
+                  }
+                  resolve(true);
+                }
+              },
+            });
+          });
+
+          if (!parseResult) {
+            errorCombiningFiles = true;
+            break;
+          }
+        } catch (error) {
+          setIsSampleInProgress(false);
+          setErrorTitle('Files Combine Error');
+          setError(`An unexpected error occurred: ${error.message}`);
           errorCombiningFiles = true;
           break;
         }
       }
 
-      //if any error combining file return
+      // if any error combining file return
       if (errorCombiningFiles) return;
 
-      //combined results after all files complete
+      // combined results after all files complete
       await new Promise((resolve) => setTimeout(() => resolve(true), 10));
       setLoadingMsg(`All Files Combined`);
       await new Promise((resolve) => setTimeout(() => resolve(true), 10));
@@ -607,7 +503,7 @@ function DeviceMeasurement({
       const csvData = new Blob([combinedCSV], {
         type: 'text/csv;charset=utf-8;',
       });
-      var tempLink = document.createElement('a');
+      const tempLink = document.createElement('a');
       tempLink.href = window.URL.createObjectURL(csvData);
       tempLink.setAttribute('download', `samples(${combinedData.length}).csv`);
       setOpenMultiFileModal(false);
@@ -658,7 +554,7 @@ function DeviceMeasurement({
                 onLogout={onLogout}
                 onRefresh={handleRefresh}
                 title="Select the device to connect"
-                subtitle="List of licenced devices"
+                subtitle="List of licensed devices"
                 onThirdPartyAPI={thirdPartyAPIUser ? onThirdPartyAPI : null}
                 username={username}
                 instanceURL={instanceURL}
@@ -721,8 +617,8 @@ function DeviceMeasurement({
                         colSpan="4"
                         style={
                           ['CI62', 'CI64', 'CI64UV'].includes(
-                            deviceList.find((x) => x.deviceId == currentDevice)
-                              ?.deviceType
+                            deviceList.find((x) => x.deviceId === currentDevice)
+                              ?.deviceType,
                           )
                             ? { padding: '16px 18px' }
                             : {}
@@ -755,8 +651,8 @@ function DeviceMeasurement({
                           </button>
                         )}
                         {['CI62', 'CI64', 'CI64UV'].includes(
-                          deviceList.find((x) => x.deviceId == currentDevice)
-                            ?.deviceType
+                          deviceList.find((x) => x.deviceId === currentDevice)
+                            ?.deviceType,
                         ) && (
                           <>
                             <button
@@ -814,7 +710,7 @@ function DeviceMeasurement({
               )}
               {info && (
                 <PopupModal
-                  isSuccess={true}
+                  isSuccess
                   title={infoTitle}
                   message={info}
                   onConfirm={() => setInfo('')}
