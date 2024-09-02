@@ -1,8 +1,9 @@
+/* eslint-disable no-use-before-define */
 /* eslint-disable no-console */
 /* eslint-disable no-promise-executor-return */
 /* eslint-disable no-plusplus */
 /* eslint-disable no-await-in-loop */
-const SerialPort = require('serialport');
+const { SerialPort } = require('serialport');
 
 // Utility to extract the string after a specified command
 const extractStringAfterCommand = (input, command) => {
@@ -12,47 +13,81 @@ const extractStringAfterCommand = (input, command) => {
 };
 
 // Function to read data from the serial port
-async function readFromSerialPort(
-  port,
-  command,
-  expectMultipleResponses = false,
-) {
+async function readFromSerialPort(port, command) {
   return new Promise((resolve, reject) => {
     let dataBuffer = '';
-    const responseArray = [];
+
+    const onError = (err) => {
+      port.removeListener('data', onData); // Remove listener to prevent memory leaks
+      port.removeListener('error', onError); // Remove error listener
+      reject(err);
+    };
+
+    const onData = (data) => {
+      dataBuffer += data.toString();
+      const lines = dataBuffer.split('\n');
+
+      for (let i = 0; i < lines.length - 1; i++) {
+        const line = lines[i];
+        const result = extractStringAfterCommand(line, command);
+
+        if (result) {
+          port.removeListener('data', onData); // Remove listener to prevent memory leaks
+          port.removeListener('error', onError); // Remove error listener
+          port.close((err) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(result.trim());
+            }
+          });
+          return; // Exit the function after resolving
+        }
+      }
+
+      dataBuffer = lines[lines.length - 1]; // Retain the last incomplete line
+    };
+
+    port.on('data', onData);
+    port.on('error', onError);
+  });
+}
+
+async function readFromSerialPortArr(port, command) {
+  return new Promise((resolve, reject) => {
+    let dataBuffer = '';
 
     port.on('data', (data) => {
       dataBuffer += data.toString();
       const lines = dataBuffer.split('\n');
 
-      lines.slice(0, -1).forEach((line) => {
-        const response = extractStringAfterCommand(line, command);
-        if (response) {
-          responseArray.push(response.trim());
+      const results = [];
+
+      for (let i = 0; i < lines.length - 1; i++) {
+        const line = lines[i];
+        const result = extractStringAfterCommand(line, command);
+        results.push(result);
+      }
+
+      port.close((err) => {
+        if (err) {
+          console.error('Error closing serial port:', err);
+          reject(err);
+        } else {
+          console.log('Serial port closed.');
+          const trimmedResults = results
+            .filter((result) => result !== null)
+            .map((result) => result.trim());
+
+          if (trimmedResults.length > 0) {
+            resolve(trimmedResults[0]);
+          } else {
+            resolve();
+          }
         }
       });
 
-      if (!expectMultipleResponses && responseArray.length > 0) {
-        port.close((err) => {
-          if (err) {
-            console.error('Error closing serial port:', err);
-            reject(err);
-          } else {
-            console.log('Serial port closed.');
-            resolve(responseArray[0]);
-          }
-        });
-        return;
-      }
-
       dataBuffer = '';
-    });
-
-    port.on('close', () => {
-      if (expectMultipleResponses) {
-        const filteredResponses = responseArray.filter(Boolean);
-        resolve(filteredResponses.length > 0 ? filteredResponses : null);
-      }
     });
 
     port.on('error', (err) => {
@@ -500,11 +535,19 @@ async function weightDataWithPromise() {
     const port = await getAvailableSerialPort();
     const commandHex = '53-55-49-0D-0A';
     const commandBuffer = hexStringToBuffer(commandHex);
+    console.log(
+      '🚀 ~ file: index.js:504 ~ weightDataWithPromise ~ commandBuffer:',
+      commandBuffer,
+    );
 
     await delay(900);
     await writeToSerialPort(port, commandBuffer);
 
-    const mesResult = await readFromSerialPort(port, 'SUI', true);
+    const mesResult = await readFromSerialPortArr(port, 'SUI');
+    console.log(
+      '🚀 ~ file: index.js:510 ~ weightDataWithPromise ~ mesResult:',
+      mesResult,
+    );
     const results = (mesResult || '').split(' ').filter(Boolean);
 
     return {
