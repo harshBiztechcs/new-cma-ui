@@ -45,7 +45,7 @@ import {
   handlePrintingProcess,
   loadPrinterFunctions,
 } from './devices/zebra_printer/printZebraLabel';
-import { checkBarcodeScannerConnection } from './devices/barcode_reader/barcodeReader';
+import { checkScannerDeviceConnection } from './devices/barcode_reader/barcodeReader';
 import {
   checkBluetoothConnection,
   getInformationDeviceWithBT,
@@ -1512,7 +1512,7 @@ const openDeviceAndGetInfo = async (msgType, content) => {
       }
 
       case 'barcode_reader': {
-        const result = await checkBarcodeScannerConnection();
+        const result = await checkScannerDeviceConnection();
         if (result.res) {
           return {
             res: true,
@@ -1649,7 +1649,7 @@ const checkDeviceConnection = async (device) => {
       }
 
       case 'barcode_reader': {
-        const result = await checkBarcodeScannerConnection();
+        const result = await checkScannerDeviceConnection();
         if (result.res) return true;
         break;
       }
@@ -1938,7 +1938,7 @@ const verifyDeviceConnection = async (deviceName) => {
       }
 
       case 'barcode_reader': {
-        const result = await checkBarcodeScannerConnection();
+        const result = await checkScannerDeviceConnection();
         if (result.res) {
           return { res: true, serialNumber: 'cma-barcode-reader-2024' };
         }
